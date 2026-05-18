@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix Diagnostic Report",
+  "description": "Schema for a structured diagnostic report output.",
+  "type": "object",
+  "required": ["timestamp", "services", "ports", "issues"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["parix-hands", "parix-atrium", "parix-aegis"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["online", "stopped", "errored", "unknown"]
+          },
+          "restarts": { "type": "integer" },
+          "uptime": { "type": "number", "description": "Seconds" }
+        }
+      }
+    },
+    "ports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["port", "label", "reachable"],
+        "properties": {
+          "port": { "type": "integer" },
+          "label": { "type": "string" },
+          "reachable": { "type": "boolean" }
+        }
+      }
+    },
+    "envFile": {
+      "type": "boolean",
+      "description": "Whether .env file exists"
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of detected issues"
+    },
+    "healthy": {
+      "type": "boolean",
+      "description": "Overall health verdict"
+    }
+  }
+}

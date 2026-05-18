@@ -1,0 +1,51 @@
+{
+  "id": "task-docker-mgmt",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Diagnoses Docker pressure and prunes unused Docker resources.",
+  "triggers": [
+    {
+      "eventType": "disk_low",
+      "keywords": ["docker", "container", "image", "volume"],
+      "minConfidence": 0.7,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "container_unhealthy",
+      "minConfidence": 0.7,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "terminal_error",
+      "keywords": [
+        "docker",
+        "container",
+        "Cannot connect to the Docker daemon"
+      ],
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/prune.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "dryRun",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Preview Docker prune commands without mutating Docker state."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "results",
+      "type": "array",
+      "description": "Per-command Docker prune results."
+    }
+  ],
+  "reversibility": 0.6,
+  "permissions": ["docker:write", "process:execute"],
+  "timeoutMs": 90000,
+  "settings": {}
+}

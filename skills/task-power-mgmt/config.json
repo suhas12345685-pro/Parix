@@ -1,0 +1,47 @@
+{
+  "id": "task-power-mgmt",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Reports battery, charging, and uptime state for proactive power alerts.",
+  "triggers": [
+    {
+      "eventType": "battery_low",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "battery_critical",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "silent:idle_shutdown",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "silent:long_uptime",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/battery_check.py",
+  "runtime": "py",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "battery",
+      "type": "object",
+      "description": "Battery percentage and charging state."
+    },
+    {
+      "name": "uptimeHours",
+      "type": "number",
+      "description": "System uptime in hours."
+    }
+  ],
+  "reversibility": 1,
+  "permissions": ["process:execute"],
+  "timeoutMs": 15000,
+  "settings": {}
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VisionAction",
+  "description": "Action returned by the vision LLM for Set-of-Mark computer use",
+  "type": "object",
+  "required": ["action"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["click", "invoke", "type", "toggle", "select", "scroll", "read", "done", "fail"]
+    },
+    "element_id": {
+      "type": ["integer", "null"],
+      "description": "Mark ID of the target element (from annotated screenshot)"
+    },
+    "text": {
+      "type": ["string", "null"],
+      "description": "Text to type (for 'type' action) or scroll direction (for 'scroll')"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Why this action was chosen"
+    }
+  }
+}

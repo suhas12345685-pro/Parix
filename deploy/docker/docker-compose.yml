@@ -1,0 +1,63 @@
+# ─── Parix — Docker Compose ────────────────────────────────────
+# Full stack: Atrium (Brain) + Hands (Executor) + SQLite volume
+# Usage: docker compose up -d
+# ───────────────────────────────────────────────────────────────
+
+services:
+  atrium:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.atrium
+    container_name: parix-atrium
+    restart: unless-stopped
+    ports:
+      - "8766:8766"
+    volumes:
+      - parix-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - HANDS_WS_URL=ws://hands:8765
+      - AEGIS_WS_PORT=8766
+      - PARIX_DB_PATH=/app/data/parix.db
+    env_file:
+      - ../../.env
+    depends_on:
+      hands:
+        condition: service_healthy
+    networks:
+      - parix-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8766/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  hands:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.hands
+    container_name: parix-hands
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PARIX_WS_PORT=8765
+      - PARIX_WS_HOST=0.0.0.0
+    env_file:
+      - ../../.env
+    networks:
+      - parix-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  parix-data:
+    driver: local
+
+networks:
+  parix-net:
+    driver: bridge

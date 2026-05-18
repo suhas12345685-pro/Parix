@@ -1,0 +1,99 @@
+{
+  "sensor_events": {
+    "terminal_error_python": {
+      "type": "SENSOR_EVENT",
+      "event_type": "terminal_error",
+      "data": {
+        "error": "ModuleNotFoundError: No module named 'pandas'",
+        "cwd": "/home/user/project",
+        "command": "python train.py",
+        "exit_code": 1
+      },
+      "confidence": 0.95,
+      "timestamp": "2026-05-14T12:00:00Z"
+    },
+    "terminal_error_node": {
+      "type": "SENSOR_EVENT",
+      "event_type": "terminal_error",
+      "data": {
+        "error": "Error: Cannot find module 'express'",
+        "cwd": "/home/user/api",
+        "command": "node server.js",
+        "exit_code": 1
+      },
+      "confidence": 0.93,
+      "timestamp": "2026-05-14T12:01:00Z"
+    },
+    "window_switch": {
+      "type": "SENSOR_EVENT",
+      "event_type": "window_switch",
+      "data": {
+        "previous_window": "VS Code",
+        "current_window": "Chrome - Stack Overflow",
+        "duration_previous_ms": 180000
+      },
+      "confidence": 0.7,
+      "timestamp": "2026-05-14T12:03:00Z"
+    },
+    "idle_after_error": {
+      "type": "SENSOR_EVENT",
+      "event_type": "silent_intent",
+      "data": {
+        "detector": "idle_after_error",
+        "idle_duration_ms": 30000,
+        "last_error": "ModuleNotFoundError: No module named 'pandas'"
+      },
+      "confidence": 0.85,
+      "timestamp": "2026-05-14T12:05:00Z"
+    }
+  },
+  "task_requests": {
+    "install_package": {
+      "type": "TASK_REQUEST",
+      "task_id": "fix-001-pandas",
+      "payload": { "action": "cli", "command": "pip install pandas", "timeout": 30000 },
+      "timestamp": "2026-05-14T12:06:00Z"
+    },
+    "screenshot_capture": {
+      "type": "TASK_REQUEST",
+      "task_id": "vision-001",
+      "payload": { "action": "screenshot", "region": "full" },
+      "timestamp": "2026-05-14T12:07:00Z"
+    }
+  },
+  "task_results": {
+    "success": {
+      "type": "TASK_RESULT",
+      "task_id": "fix-001-pandas",
+      "success": true,
+      "output": "Successfully installed pandas-2.2.2",
+      "error": null,
+      "timestamp": "2026-05-14T12:06:15Z"
+    },
+    "failure": {
+      "type": "TASK_RESULT",
+      "task_id": "fix-002",
+      "success": false,
+      "output": "",
+      "error": "PermissionError: [Errno 13] Permission denied",
+      "timestamp": "2026-05-14T12:09:00Z"
+    }
+  },
+  "council_states": {
+    "idle": { "state": "IDLE", "pending_tasks": 0, "hands_status": "connected" },
+    "observing": { "state": "OBSERVING", "pending_tasks": 1, "hands_status": "connected" },
+    "thinking": { "state": "THINKING", "pending_tasks": 1, "llm_provider": "gemini-flash" },
+    "acting": { "state": "ACTING", "pending_tasks": 1, "current_task": "fix-001-pandas" },
+    "paralyzed": { "state": "PARALYZED", "pending_tasks": 0, "hands_status": "disconnected" }
+  },
+  "database_seeds": {
+    "tasks": [
+      { "task_id": "seed-001", "type": "cli", "status": "completed", "created_at": "2026-05-13T10:00:00Z" },
+      { "task_id": "seed-002", "type": "cli", "status": "failed", "created_at": "2026-05-13T11:00:00Z" }
+    ],
+    "events": [
+      { "event_type": "terminal_error", "confidence": 0.91, "timestamp": "2026-05-13T09:00:00Z" },
+      { "event_type": "window_switch", "confidence": 0.6, "timestamp": "2026-05-13T09:30:00Z" }
+    ]
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "version": "1.0",
+  "ports": {
+    "synapse": 8765,
+    "aegis_relay": 8766,
+    "aegis_ui": 3000
+  },
+  "message_types": {
+    "TASK_REQUEST": {
+      "from": "atrium",
+      "fields": ["task_id", "type", "payload", "timestamp"]
+    },
+    "TASK_ACK": {
+      "from": "hands",
+      "fields": ["task_id", "status", "timestamp"]
+    },
+    "TASK_RESULT": {
+      "from": "hands",
+      "fields": ["task_id", "success", "output", "error", "timestamp"]
+    },
+    "SENSOR_EVENT": {
+      "from": "hands",
+      "fields": ["event_type", "data", "confidence", "timestamp"]
+    },
+    "SILENT_INTENT_EVENT": {
+      "from": "hands",
+      "fields": ["intent_type", "data", "confidence", "timestamp"]
+    },
+    "ACCESSIBILITY_SNAPSHOT": {
+      "from": "hands",
+      "fields": [
+        "snapshot_id",
+        "focused_app",
+        "backend_used",
+        "tree_summary",
+        "confidence",
+        "timestamp"
+      ]
+    },
+    "VISION_OCR_REQUEST": {
+      "from": "hands",
+      "fields": ["request_id", "prompt", "image_b64", "mime_type", "timestamp"]
+    },
+    "VISION_OCR_RESPONSE": {
+      "from": "atrium",
+      "fields": ["request_id", "text", "error", "timestamp"]
+    },
+    "HEARTBEAT": {
+      "both": true,
+      "fields": ["timestamp"]
+    },
+    "REBOOT_SYNC": {
+      "from": "hands",
+      "fields": ["timestamp"]
+    },
+    "WORLD_STATE_PUSH": {
+      "from": "atrium",
+      "fields": ["last_task", "active_state", "timestamp"]
+    },
+    "CAPABILITY_MISSING": {
+      "from": "atrium",
+      "fields": ["missing", "message", "timestamp"]
+    },
+    "CAPABILITY_BLOCKED": {
+      "from": "atrium",
+      "fields": ["action", "reason", "timestamp"]
+    },
+    "ERROR": {
+      "both": true,
+      "fields": ["task_id", "code", "message", "timestamp"]
+    },
+    "VOICE_INPUT": {
+      "from": "hands",
+      "fields": ["text", "mode", "timestamp"]
+    },
+    "VOICE_OUTPUT": {
+      "from": "atrium",
+      "fields": ["text", "timestamp"]
+    },
+    "VOICE_STATE": {
+      "from": "hands",
+      "fields": ["event", "state", "timestamp"]
+    },
+    "VOICE_CONTROL": {
+      "from": "atrium",
+      "fields": ["command", "mode", "text", "stt", "tts", "timestamp"]
+    },
+    "PLAN_CREATED": {
+      "from": "atrium",
+      "fields": ["tree_id", "root_goal", "node_count", "timestamp"]
+    },
+    "PLAN_STEP_STARTED": {
+      "from": "atrium",
+      "fields": ["tree_id", "node_id", "goal", "timestamp"]
+    },
+    "PLAN_STEP_RESULT": {
+      "from": "atrium",
+      "fields": ["tree_id", "node_id", "success", "output", "timestamp"]
+    },
+    "PLAN_COMPLETED": {
+      "from": "atrium",
+      "fields": ["tree_id", "status", "progress", "timestamp"]
+    },
+    "COHERENCE_CONFLICT": {
+      "from": "atrium",
+      "fields": ["action_id", "conflicts", "suggestions", "timestamp"]
+    },
+    "FOCUS_SHIFTED": {
+      "from": "atrium",
+      "fields": ["from", "to", "reason", "timestamp"]
+    }
+  },
+  "ack_timeout_ms": 200,
+  "llm_timeout_ms": 10000,
+  "reconnect": {
+    "max_retries": 5,
+    "base_delay_ms": 500,
+    "max_delay_ms": 16000
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PM2 Ecosystem Service Entry",
+  "description": "Schema for a single service entry in ecosystem.config.js apps array.",
+  "type": "object",
+  "required": ["name", "script"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "PM2 process name (e.g. parix-hands, parix-atrium, parix-aegis)"
+    },
+    "script": {
+      "type": "string",
+      "description": "Path to the script or entrypoint to run"
+    },
+    "cwd": {
+      "type": "string",
+      "description": "Working directory for the process"
+    },
+    "interpreter": {
+      "type": "string",
+      "description": "Interpreter binary (e.g. python, node)"
+    },
+    "args": {
+      "type": "string",
+      "description": "Arguments passed to the script"
+    },
+    "watch": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable file watching for auto-restart"
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Environment variables for this process"
+    },
+    "max_restarts": {
+      "type": "integer",
+      "default": 10,
+      "description": "Maximum number of consecutive restarts"
+    },
+    "restart_delay": {
+      "type": "integer",
+      "default": 1000,
+      "description": "Delay in ms between restarts"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,64 @@
+{
+  "id": "task-dev-env",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Diagnoses and recovers common developer environment failures.",
+  "triggers": [
+    {
+      "eventType": "terminal_error",
+      "keywords": [
+        "MODULE_NOT_FOUND",
+        "Cannot find module",
+        "ModuleNotFoundError",
+        "ENOSPC",
+        "EACCES",
+        "EADDRINUSE",
+        "ECONNREFUSED",
+        "ENOMEM",
+        "gyp ERR!",
+        "tsc: error"
+      ],
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "repeated_failed_command",
+      "keywords": ["npm", "pnpm", "yarn", "pip", "tsc", "vite"],
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/envfix.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "projectDir",
+      "type": "path",
+      "required": false,
+      "description": "Project directory to scan for lockfiles and dependency manifests."
+    },
+    {
+      "name": "execute",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Run the detected installer instead of reporting a dry run."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "commands",
+      "type": "array",
+      "description": "Detected package manager commands."
+    },
+    {
+      "name": "success",
+      "type": "boolean",
+      "description": "Whether every executed command completed successfully."
+    }
+  ],
+  "reversibility": 0.8,
+  "permissions": ["filesystem:read", "process:execute"],
+  "timeoutMs": 120000,
+  "settings": {}
+}

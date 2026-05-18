@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NetworkDiagnosticReport",
+  "description": "Report from network troubleshooting diagnostics",
+  "type": "object",
+  "required": ["timestamp", "os", "checks", "overall_status"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "os": {
+      "type": "string",
+      "enum": ["windows", "macos", "linux"]
+    },
+    "checks": {
+      "type": "object",
+      "required": ["gateway_ping", "dns_resolution", "interface_status"],
+      "properties": {
+        "gateway_ping": {
+          "type": "object",
+          "properties": {
+            "pass": { "type": "boolean" },
+            "latency_ms": { "type": "number" },
+            "gateway_ip": { "type": "string" }
+          }
+        },
+        "dns_resolution": {
+          "type": "object",
+          "properties": {
+            "pass": { "type": "boolean" },
+            "resolved_ip": { "type": "string" },
+            "dns_server": { "type": "string" }
+          }
+        },
+        "interface_status": {
+          "type": "object",
+          "properties": {
+            "pass": { "type": "boolean" },
+            "adapter_name": { "type": "string" },
+            "state": { "type": "string", "enum": ["up", "down", "disconnected"] }
+          }
+        }
+      }
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "down"]
+    },
+    "actions_taken": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": { "type": "string" },
+          "result": { "type": "string", "enum": ["success", "failed", "skipped"] }
+        }
+      }
+    },
+    "escalation_needed": { "type": "boolean" }
+  }
+}

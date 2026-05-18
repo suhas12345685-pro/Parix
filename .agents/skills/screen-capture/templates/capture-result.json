@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Screenshot Capture Result",
+  "type": "object",
+  "required": ["success"],
+  "properties": {
+    "success": {"type": "boolean"},
+    "output": {"type": "string", "description": "Base64-encoded PNG"},
+    "format": {"type": "string", "enum": ["png_base64"]},
+    "timestamp": {"type": "number"},
+    "error": {"type": ["string", "null"]}
+  }
+}

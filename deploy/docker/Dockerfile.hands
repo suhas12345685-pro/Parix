@@ -1,0 +1,45 @@
+# ─── Parix Hands — Production Dockerfile ──────────────────────
+# Python Executor process with OS-level access capabilities.
+# ───────────────────────────────────────────────────────────────
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+COPY hands/requirements.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ─── Production Stage ─────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/AhmedKhaledp-0/parix"
+LABEL org.opencontainers.image.description="Parix Hands — AI Agent Executor"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini \
+    tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 1001 parix && useradd -u 1001 -g parix -m parix
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY hands/ ./hands/
+COPY shared/ ./shared/
+
+RUN chown -R parix:parix /app
+
+USER parix
+
+ENV PYTHONUNBUFFERED=1
+ENV PARIX_WS_PORT=8765
+ENV PARIX_WS_HOST=0.0.0.0
+
+EXPOSE 8765
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')" || exit 1
+
+ENTRYPOINT ["tini", "--"]
+CMD ["python", "-m", "hands.main"]

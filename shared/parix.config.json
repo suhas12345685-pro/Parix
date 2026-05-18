@@ -1,0 +1,70 @@
+{
+  "version": "1.0",
+  "ports": {
+    "synapse": 8765,
+    "aegisRelay": 8766,
+    "aegisUi": 3000
+  },
+  "registries": {
+    "channels": "shared/channels.registry.json",
+    "skills": "skills/registry.json"
+  },
+  "installSequence": [
+    "detect_os",
+    "detect_node_version",
+    "detect_python_version",
+    "clone_or_copy_project",
+    "select_os_skill",
+    "write_install_context",
+    "install_node_dependencies",
+    "install_python_dependencies",
+    "build_workspaces",
+    "run_onboarding",
+    "start_hatchery",
+    "start_background_runtime"
+  ],
+  "onboarding": {
+    "stages": [
+      "mode",
+      "identity",
+      "llm_provider",
+      "llm_auth",
+      "channels",
+      "permissions",
+      "personality",
+      "review",
+      "hatch"
+    ],
+    "modes": ["personal", "enterprise"],
+    "defaultMode": "personal",
+    "defaultChannels": ["desktop", "aegis"],
+    "enterprisePreferredChannels": [
+      "microsoft-teams",
+      "slack",
+      "google-chat",
+      "mattermost",
+      "nextcloud-talk",
+      "webhook",
+      "aegis"
+    ],
+    "personalPreferredChannels": [
+      "telegram",
+      "whatsapp",
+      "imessage",
+      "discord",
+      "signal",
+      "zalo",
+      "webchat",
+      "aegis"
+    ]
+  },
+  "runtime": {
+    "backgroundOnly": true,
+    "windowsVisibleConsole": false,
+    "processManager": {
+      "windows": "task-scheduler",
+      "macos": "launchd",
+      "linux": "systemd-user"
+    }
+  }
+}

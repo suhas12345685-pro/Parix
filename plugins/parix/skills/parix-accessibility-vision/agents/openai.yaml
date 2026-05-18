@@ -1,0 +1,4 @@
+interface:
+  display_name: "Parix Accessibility Vision"
+  short_description: "Build and verify Parix accessibility and vision backends."
+  default_prompt: "Implement a Parix accessibility backend."

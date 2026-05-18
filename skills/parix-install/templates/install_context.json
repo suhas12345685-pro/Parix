@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix Install Context",
+  "description": "Written to $PARIX_HOME/install-context.json during installation.",
+  "type": "object",
+  "required": ["os", "arch", "nodeVersion", "pythonVersion", "activeSkills", "installedAt"],
+  "properties": {
+    "os": {
+      "type": "string",
+      "enum": ["windows", "macos", "linux", "docker"],
+      "description": "Detected operating system"
+    },
+    "distro": {
+      "type": "string",
+      "description": "Linux distribution name (empty on Windows/macOS)"
+    },
+    "arch": {
+      "type": "string",
+      "enum": ["x64", "arm64"],
+      "description": "CPU architecture"
+    },
+    "nodeVersion": {
+      "type": "string",
+      "description": "Installed Node.js version (e.g. 20.11.0)"
+    },
+    "pythonVersion": {
+      "type": "string",
+      "description": "Installed Python version (e.g. 3.12.2)"
+    },
+    "activeSkills": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of active OS skill file paths"
+    },
+    "installedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of installation"
+    },
+    "parixHome": {
+      "type": "string",
+      "description": "Absolute path to PARIX_HOME directory"
+    }
+  },
+  "additionalProperties": true
+}

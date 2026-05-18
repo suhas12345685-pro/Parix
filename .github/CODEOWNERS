@@ -1,0 +1,53 @@
+# ─── Parix CODEOWNERS ──────────────────────────────────────────
+# Each line defines a file pattern and the GitHub user(s) who must
+# approve changes to matching files. Ordered from most specific to
+# least specific — last matching pattern wins.
+#
+# Reference: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ─── Global Defaults ───────────────────────────────────────────
+*                                   @AhmedKhaledp-0
+
+# ─── Core Architecture (Claude-owned — requires deep review) ──
+shared/protocol.json                @AhmedKhaledp-0
+shared/schema.sql                   @AhmedKhaledp-0
+atrium/src/council/                 @AhmedKhaledp-0
+atrium/src/synapse/                 @AhmedKhaledp-0
+atrium/src/llm/index.ts             @AhmedKhaledp-0
+atrium/src/llm/types.ts             @AhmedKhaledp-0
+atrium/src/llm/registry.ts          @AhmedKhaledp-0
+atrium/src/llm/fallback.ts          @AhmedKhaledp-0
+atrium/src/middleware/              @AhmedKhaledp-0
+atrium/src/memory/                  @AhmedKhaledp-0
+atrium/src/intelligence/            @AhmedKhaledp-0
+atrium/src/queue/index.ts           @AhmedKhaledp-0
+atrium/src/queue/dead-letter.ts     @AhmedKhaledp-0
+
+# ─── Channels & Adapters ──────────────────────────────────────
+atrium/src/channels/types.ts        @AhmedKhaledp-0
+atrium/src/channels/index.ts        @AhmedKhaledp-0
+atrium/src/channels/registry.ts     @AhmedKhaledp-0
+atrium/src/channels/adapters/       @AhmedKhaledp-0
+
+# ─── LLM Adapters (pattern-following) ─────────────────────────
+atrium/src/llm/adapters/            @AhmedKhaledp-0
+
+# ─── Storage Adapters ─────────────────────────────────────────
+atrium/src/storage/                 @AhmedKhaledp-0
+
+# ─── Python Hands ─────────────────────────────────────────────
+hands/                              @AhmedKhaledp-0
+
+# ─── Accessibility Layer (The Moat) ───────────────────────────
+hands/accessibility/                @AhmedKhaledp-0
+
+# ─── Infrastructure ───────────────────────────────────────────
+.github/                            @AhmedKhaledp-0
+deploy/                             @AhmedKhaledp-0
+scripts/                            @AhmedKhaledp-0
+
+# ─── Security-Critical Files ──────────────────────────────────
+atrium/src/intelligence/constitution.ts    @AhmedKhaledp-0
+atrium/src/intelligence/reversibility.ts   @AhmedKhaledp-0
+atrium/src/intelligence/watchdog.ts        @AhmedKhaledp-0
+hands/executor/                            @AhmedKhaledp-0

@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Headless Action Log Entry",
+  "type": "object",
+  "required": ["action", "target", "timestamp", "success"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["navigate", "click", "type", "screenshot", "extract"]
+    },
+    "target": {
+      "type": "string",
+      "description": "URL or element selector"
+    },
+    "timestamp": {
+      "type": "number"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "result": {
+      "type": "string"
+    },
+    "error": {
+      "type": ["string", "null"]
+    }
+  }
+}

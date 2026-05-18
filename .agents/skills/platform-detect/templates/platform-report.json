@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlatformReport",
+  "type": "object",
+  "required": ["os", "arch", "capabilities"],
+  "properties": {
+    "os": {"type": "string", "enum": ["windows", "macos", "linux", "docker"]},
+    "arch": {"type": "string", "enum": ["x64", "arm64"]},
+    "distro": {"type": ["string", "null"]},
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "accessibility": {"type": "boolean"},
+        "screenshot": {"type": "boolean"},
+        "clipboard": {"type": "boolean"},
+        "notifications": {"type": "boolean"},
+        "package_manager": {"type": "boolean"}
+      }
+    }
+  }
+}

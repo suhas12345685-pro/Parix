@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix Platform Detection Report",
+  "description": "Schema for the output of the os-detect skill's platform detection.",
+  "type": "object",
+  "required": ["platform", "arch", "release", "is_docker", "skill", "capabilities"],
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": ["win32", "darwin", "linux"],
+      "description": "Value of sys.platform"
+    },
+    "arch": {
+      "type": "string",
+      "enum": ["AMD64", "x86_64", "arm64", "aarch64"],
+      "description": "CPU architecture from platform.machine()"
+    },
+    "release": {
+      "type": "string",
+      "description": "OS release version string"
+    },
+    "python_version": {
+      "type": "string",
+      "description": "Python interpreter version"
+    },
+    "is_docker": {
+      "type": "boolean",
+      "description": "True if running inside a Docker/Podman container"
+    },
+    "hostname": {
+      "type": "string"
+    },
+    "skill": {
+      "type": "string",
+      "enum": ["os-windows", "os-macos", "os-linux", "os-docker", "unknown"],
+      "description": "Which OS skill should be loaded"
+    },
+    "distro": {
+      "type": "string",
+      "description": "Linux distribution ID (only present on Linux)"
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "clipboard": {
+          "type": ["string", "null"],
+          "description": "Detected clipboard tool or null"
+        },
+        "screenshot": {
+          "type": ["string", "null"],
+          "description": "Detected screenshot tool or null"
+        },
+        "notifications": {
+          "type": ["string", "null"],
+          "description": "Detected notification tool or null"
+        },
+        "package_manager": {
+          "type": ["string", "null"],
+          "description": "Detected package manager or null"
+        }
+      }
+    }
+  }
+}

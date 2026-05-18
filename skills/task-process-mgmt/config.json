@@ -1,0 +1,57 @@
+{
+  "id": "task-process-mgmt",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Inspects CPU, memory, and known safe service status.",
+  "triggers": [
+    {
+      "eventType": "cpu_high",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "memory_high",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "app_hang",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "app_crash",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "service_down",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/procmon.py",
+  "runtime": "py",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "topProcesses",
+      "type": "array",
+      "description": "Highest CPU consumers."
+    },
+    {
+      "name": "memory",
+      "type": "object",
+      "description": "Memory pressure details."
+    },
+    {
+      "name": "safeServices",
+      "type": "array",
+      "description": "Known local services and their running status."
+    }
+  ],
+  "reversibility": 1,
+  "permissions": ["process:read", "process:execute"],
+  "timeoutMs": 45000,
+  "settings": {}
+}

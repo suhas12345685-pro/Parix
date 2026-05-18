@@ -1,0 +1,65 @@
+{
+  "id": "task-computer-use-headless",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Runs background web tasks with Playwright without taking user focus.",
+  "triggers": [
+    {
+      "eventType": "browser_task",
+      "minConfidence": 0.7,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "web_task",
+      "minConfidence": 0.7,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "headless_computer_use",
+      "minConfidence": 0.7,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/playwright_agent.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "url",
+      "type": "url",
+      "required": true,
+      "description": "URL to open in a headless browser."
+    },
+    {
+      "name": "screenshot",
+      "type": "path",
+      "required": false,
+      "description": "Optional output path for a screenshot."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "title",
+      "type": "string",
+      "description": "Resolved page title."
+    },
+    {
+      "name": "contentLength",
+      "type": "number",
+      "description": "HTML content size."
+    },
+    {
+      "name": "screenshot",
+      "type": "path",
+      "description": "Screenshot path when requested."
+    }
+  ],
+  "reversibility": 0.95,
+  "permissions": [
+    "browser:headless",
+    "filesystem:write",
+    "network:read",
+    "network:write"
+  ],
+  "timeoutMs": 30000,
+  "settings": {}
+}

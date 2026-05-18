@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GitRecoveryReport",
+  "description": "Report from git error recovery",
+  "type": "object",
+  "required": ["timestamp", "repo_path", "error_type", "action", "status"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repo_path": {
+      "type": "string"
+    },
+    "error_type": {
+      "type": "string",
+      "enum": [
+        "merge_conflict",
+        "corrupt_index",
+        "detached_head",
+        "push_rejected",
+        "local_changes_overwritten",
+        "unrelated_histories",
+        "not_a_repo",
+        "auth_failure",
+        "unknown"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["auto_fix", "notify", "no_action"]
+    },
+    "conflicted_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of files with merge conflicts, if applicable"
+    },
+    "suggestion": {
+      "type": "string",
+      "description": "Human-readable fix suggestion shown to user"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["resolved", "notified", "failed"]
+    },
+    "reversibility_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

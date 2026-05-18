@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SystemHealthEvent",
+  "type": "object",
+  "required": ["type", "event_type", "data", "confidence", "timestamp"],
+  "properties": {
+    "type": {"type": "string", "enum": ["SENSOR_EVENT", "SILENT_INTENT_EVENT"]},
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "disk_low", "cpu_high", "memory_high", "swap_high", "battery_low",
+        "idle_shutdown", "long_uptime"
+      ]
+    },
+    "data": {"type": "object"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "timestamp": {"type": "number"}
+  }
+}

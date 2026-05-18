@@ -1,0 +1,20 @@
+{
+  "name": "parix-local",
+  "interface": {
+    "displayName": "Parix Local"
+  },
+  "plugins": [
+    {
+      "name": "parix",
+      "source": {
+        "source": "local",
+        "path": "./plugins/parix"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

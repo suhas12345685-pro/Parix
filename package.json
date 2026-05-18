@@ -1,0 +1,42 @@
+{
+  "name": "parix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proactive AI agent for OS automation",
+  "workspaces": [
+    "shared",
+    "atrium",
+    "aegis",
+    "hatchery"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=atrium",
+    "build": "npm run build --workspace=atrium",
+    "test": "npm run test --workspace=atrium",
+    "test:coverage": "npm run test:cover --workspace=atrium",
+    "hatch": "npm run start --workspace=hatchery",
+    "onboarding": "node hatchery/dist/index.js",
+    "onboarding:reset": "node hatchery/dist/index.js --reset",
+    "onboarding:web": "node hatchery/dist/index.js --web",
+    "start": "pm2 start ecosystem.config.js",
+    "lint": "eslint atrium/src aegis/src shared",
+    "lint:fix": "eslint --fix atrium/src aegis/src shared",
+    "format": "prettier --write atrium aegis shared",
+    "test:e2e": "npx tsx scripts/test-e2e.ts",
+    "coverage:badge": "npx tsx scripts/write-coverage-badge.ts",
+    "build:all": "npm run build --workspace=shared && npm run build --workspace=atrium && npm run build --workspace=hatchery && cd aegis && npx vite build",
+    "seed": "npx tsx scripts/seed-skills.ts",
+    "skills:validate": "npx tsx scripts/validate-skill-manifests.ts"
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
+    "typescript-eslint": "^8.59.3"
+  }
+}

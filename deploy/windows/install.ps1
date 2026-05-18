@@ -1,0 +1,264 @@
+﻿# â”€â”€â”€ Parix â€” Windows Installer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Installs Parix as a background service on Windows 10/11.
+# Usage: powershell -ExecutionPolicy Bypass -File deploy\windows\install.ps1
+# Requires: Node.js 20+, Python 3.12+
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#Requires -RunAsAdministrator
+
+$ErrorActionPreference = "Stop"
+
+$PARIX_HOME = "$env:LOCALAPPDATA\Parix"
+$PARIX_BIN  = "$PARIX_HOME\bin"
+$PARIX_DATA = "$PARIX_HOME\data"
+$PARIX_LOG  = "$PARIX_HOME\logs"
+$SRC_ROOT   = (Resolve-Path "$PSScriptRoot\..\..").Path
+$SERVICE_NAME = "ParixAgent"
+
+function Write-Step($msg)  { Write-Host "[parix] $msg" -ForegroundColor Cyan }
+function Write-Ok($msg)    { Write-Host "  + $msg" -ForegroundColor Green }
+function Write-Warn($msg)  { Write-Host "  ! $msg" -ForegroundColor Yellow }
+function Write-Fail($msg)  { Write-Host "  x $msg" -ForegroundColor Red; exit 1 }
+
+# â”€â”€â”€ Preflight â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Running preflight checks..."
+
+$detectedOs = "windows"
+$detectedArch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+$activeSkills = @("skills/os-detect.md", "skills/os-windows.md", "skills/parix-install.md", "skills/parix-hatchery.md")
+Write-Ok "OS $detectedOs ($detectedArch)"
+Write-Ok "Active OS skill: skills/os-windows.md"
+
+$nodeVer = & node -v 2>$null
+if (-not $nodeVer) { Write-Fail "Node.js not found. Install v20+ from https://nodejs.org" }
+$major = [int]($nodeVer -replace 'v','').Split('.')[0]
+if ($major -lt 20) { Write-Fail "Node.js v20+ required (found $nodeVer)" }
+Write-Ok "Node.js $nodeVer"
+
+$npmVer = & npm -v 2>$null
+if (-not $npmVer) { Write-Fail "npm not found" }
+Write-Ok "npm $npmVer"
+
+$pyCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" }
+         elseif (Get-Command python -ErrorAction SilentlyContinue) { "python" }
+         else { Write-Fail "Python 3.12+ not found" }
+$pyVer = & $pyCmd --version 2>&1
+if ($pyVer -notmatch "Python\s+(\d+)\.(\d+)") { Write-Fail "Could not read Python version" }
+if ([int]$Matches[1] -lt 3 -or ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -lt 12)) {
+    Write-Fail "Python 3.12+ required (found $pyVer)"
+}
+Write-Ok "$pyVer"
+
+# â”€â”€â”€ Create directories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Creating Parix directories..."
+foreach ($dir in @($PARIX_HOME, $PARIX_BIN, $PARIX_DATA, $PARIX_LOG)) {
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+}
+Write-Ok "Directories created at $PARIX_HOME"
+
+# â”€â”€â”€ Copy project files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Copying project files..."
+$copyDirs = @("atrium", "hands", "shared", "hatchery", "aegis", "skills", "deploy")
+foreach ($d in $copyDirs) {
+    $src = Join-Path $SRC_ROOT $d
+    if (Test-Path $src) {
+        Copy-Item -Path $src -Destination "$PARIX_HOME\$d" -Recurse -Force
+        Write-Ok "Copied $d"
+    } else {
+        Write-Warn "Skipped $d (not found)"
+    }
+}
+Copy-Item -Path (Join-Path $SRC_ROOT "package.json") -Destination $PARIX_HOME -Force
+if (Test-Path (Join-Path $SRC_ROOT "package-lock.json")) {
+    Copy-Item -Path (Join-Path $SRC_ROOT "package-lock.json") -Destination $PARIX_HOME -Force
+}
+foreach ($file in @("ecosystem.config.js", ".env.example")) {
+    $src = Join-Path $SRC_ROOT $file
+    if (Test-Path $src) {
+        Copy-Item -Path $src -Destination $PARIX_HOME -Force
+    }
+}
+
+# â”€â”€â”€ Install Node dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Installing Node.js dependencies..."
+Push-Location $PARIX_HOME
+npm ci 2>$null
+if (-not $?) { npm install }
+Pop-Location
+Write-Ok "Node.js dependencies installed"
+
+# â”€â”€â”€ Install Python dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Installing Python dependencies..."
+$reqFile = "$PARIX_HOME\hands\requirements.txt"
+if (Test-Path $reqFile) {
+    & $pyCmd -m pip install -r $reqFile --quiet
+    Write-Ok "Python dependencies installed"
+} else {
+    Write-Warn "requirements.txt not found"
+}
+
+# â”€â”€â”€ Build Atrium â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Building Atrium..."
+Push-Location $PARIX_HOME
+npm run build --workspace=atrium
+npm run build --workspace=hatchery
+npm run build --workspace=aegis
+Pop-Location
+Write-Ok "Workspaces compiled"
+
+# â”€â”€â”€ Create launcher batch file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Creating launcher..."
+$launcherPs1 = @'
+param(
+    [ValidateSet("start", "stop", "status", "onboarding")]
+    [string]$Action = "start",
+    [switch]$Reset,
+    [switch]$Web
+)
+
+$ErrorActionPreference = "Stop"
+$Root = if ($env:PARIX_HOME) { $env:PARIX_HOME } else { Split-Path -Parent $PSScriptRoot }
+Set-Location $Root
+
+function Invoke-ParixPm2([string[]]$Args) {
+    & npx pm2 @Args
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+switch ($Action) {
+    "start" {
+        Invoke-ParixPm2 @("start", "ecosystem.config.js", "--update-env")
+        Invoke-ParixPm2 @("save")
+    }
+    "stop" {
+        Invoke-ParixPm2 @("stop", "parix-hands", "parix-atrium", "parix-aegis")
+        Invoke-ParixPm2 @("save")
+    }
+    "status" {
+        Invoke-ParixPm2 @("status")
+    }
+    "onboarding" {
+        $hatchArgs = @()
+        if ($Reset) { $hatchArgs += "--reset" }
+        if ($Web) { $hatchArgs += "--web" }
+        & node "$Root\hatchery\dist\index.js" @hatchArgs
+    }
+}
+'@
+$launcherContent = @"
+@echo off
+setlocal
+set "PARIX_HOME=$PARIX_HOME"
+if "%1"=="stop" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" stop
+) else if "%1"=="--stop" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" stop
+) else if "%1"=="status" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" status
+) else if "%1"=="onboarding" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" onboarding %2 %3
+) else (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" start
+)
+"@
+Set-Content -Path "$PARIX_BIN\parix.ps1" -Value $launcherPs1 -Encoding UTF8
+Set-Content -Path "$PARIX_BIN\parix.bat" -Value $launcherContent -Encoding UTF8
+Write-Ok "Launchers created at $PARIX_BIN\parix.ps1 and $PARIX_BIN\parix.bat"
+
+# â”€â”€â”€ Register as Windows Task Scheduler job â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Registering scheduled task (auto-start on login)..."
+$existingTask = Get-ScheduledTask -TaskName $SERVICE_NAME -ErrorAction SilentlyContinue
+if ($existingTask) {
+    Unregister-ScheduledTask -TaskName $SERVICE_NAME -Confirm:$false
+}
+
+$action = New-ScheduledTaskAction `
+    -Execute "powershell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PARIX_BIN\parix.ps1`" start"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable `
+    -RestartCount 3 `
+    -RestartInterval (New-TimeSpan -Minutes 1)
+
+Register-ScheduledTask `
+    -TaskName $SERVICE_NAME `
+    -Action $action `
+    -Trigger $trigger `
+    -Principal $principal `
+    -Settings $settings `
+    -Description "Parix autonomous agent â€” monitors and fixes workstation issues" | Out-Null
+Write-Ok "Scheduled task '$SERVICE_NAME' registered"
+
+# â”€â”€â”€ Add to PATH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Adding Parix to user PATH..."
+$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if ($userPath -notlike "*$PARIX_BIN*") {
+    [Environment]::SetEnvironmentVariable("PATH", "$userPath;$PARIX_BIN", "User")
+    Write-Ok "Added $PARIX_BIN to user PATH"
+} else {
+    Write-Ok "Already in PATH"
+}
+
+# â”€â”€â”€ Environment variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Setting environment variables..."
+[Environment]::SetEnvironmentVariable("PARIX_HOME", $PARIX_HOME, "User")
+[Environment]::SetEnvironmentVariable("PARIX_DB_PATH", "$PARIX_DATA\parix.db", "User")
+Write-Ok "PARIX_HOME=$PARIX_HOME"
+
+# Installer context: tells Hatchery/Atrium which OS skill pack is active.
+$installContext = [ordered]@{
+    os = $detectedOs
+    distro = $null
+    arch = $detectedArch
+    nodeVersion = $nodeVer
+    pythonVersion = "$pyVer"
+    activeSkills = $activeSkills
+    detectedAt = (Get-Date).ToUniversalTime().ToString("o")
+}
+$installContext | ConvertTo-Json -Depth 4 | Set-Content -Path "$PARIX_HOME\install-context.json" -Encoding UTF8
+Write-Ok "Wrote install context with OS skill routing"
+
+# â”€â”€â”€ .env file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+$envFile = "$PARIX_HOME\.env"
+if (-not (Test-Path $envFile)) {
+    $envExample = Join-Path $SRC_ROOT ".env.example"
+    if (Test-Path $envExample) {
+        Copy-Item $envExample $envFile
+        Write-Ok "Created .env from .env.example â€” edit with your API keys"
+    } else {
+        $envTemplate = @(
+            "# Parix Environment Configuration",
+            "# GEMINI_API_KEY=",
+            "# TELEGRAM_BOT_TOKEN=",
+            "# TELEGRAM_CHAT_ID="
+        ) -join [Environment]::NewLine
+        Set-Content -Path $envFile -Value $envTemplate -Encoding UTF8
+        Write-Ok "Created blank .env â€” add your API keys"
+    }
+}
+
+# â”€â”€â”€ Run onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Step "Starting onboarding wizard..."
+try {
+    & node "$PARIX_HOME\hatchery\dist\index.js"
+} catch {
+    Write-Warn "Onboarding skipped - run parix onboarding later to configure."
+}
+
+# â”€â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Write-Host ""
+Write-Step "Installation complete!"
+Write-Step "  Home:    $PARIX_HOME"
+Write-Step "  Data:    $PARIX_DATA"
+Write-Step "  Logs:    $PARIX_LOG"
+Write-Step "  Command: parix  (after reopening terminal)"
+Write-Step ""
+Write-Step "  Commands:"
+Write-Step "    parix start       â€” start the agent"
+Write-Step "    parix stop        â€” stop the agent"
+Write-Step "    parix status      â€” check status"
+Write-Step "    parix onboarding  â€” reconfigure"
+

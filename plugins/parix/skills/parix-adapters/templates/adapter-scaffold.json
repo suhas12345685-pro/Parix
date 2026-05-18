@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AdapterScaffold",
+  "description": "Interface contract for Parix LLM and channel adapters.",
+  "type": "object",
+  "required": ["provider_id", "type", "interface"],
+  "properties": {
+    "provider_id": {
+      "type": "string",
+      "description": "Unique provider identifier registered in the adapter registry."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["llm", "channel"],
+      "description": "Adapter category: llm for language models, channel for notification targets."
+    },
+    "env_keys": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Environment variable names required for this adapter."
+    },
+    "default_endpoint": {
+      "type": "string",
+      "format": "uri",
+      "description": "Default API base URL."
+    },
+    "interface": {
+      "type": "object",
+      "description": "Methods the adapter must implement.",
+      "properties": {
+        "complete": {
+          "type": "object",
+          "description": "LLM adapters: complete(request) -> response. Required when type is llm.",
+          "properties": {
+            "input": { "type": "string", "const": "CompletionRequest" },
+            "output": { "type": "string", "const": "CompletionResponse" }
+          }
+        },
+        "send": {
+          "type": "object",
+          "description": "Channel adapters: send(payload) -> result. Required when type is channel.",
+          "properties": {
+            "input": { "type": "string", "const": "ChannelPayload" },
+            "output": { "type": "string", "const": "SendResult" }
+          }
+        }
+      }
+    },
+    "fallback_order": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Position in the router fallback chain. Lower values are tried first."
+    }
+  },
+  "additionalProperties": false
+}

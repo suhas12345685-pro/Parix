@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://parix.local/schemas/skill-manifest.schema.json",
+  "title": "Parix Skill Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "enabled",
+    "triggers",
+    "entry",
+    "runtime",
+    "inputs",
+    "outputs",
+    "reversibility",
+    "permissions"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "description": {
+      "type": "string"
+    },
+    "triggers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/trigger"
+      }
+    },
+    "entry": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime": {
+      "enum": ["py", "node", "sh"]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/field"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/field"
+      }
+    },
+    "reversibility": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "accessibility:read",
+          "browser:headless",
+          "clipboard:read",
+          "docker:write",
+          "filesystem:read",
+          "filesystem:write",
+          "network:read",
+          "network:write",
+          "notification:send",
+          "process:execute",
+          "process:read",
+          "virtual-desktop:write"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1000
+    },
+    "settings": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventType"],
+      "properties": {
+        "eventType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dataKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minConfidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "enum": ["windows", "macos", "linux", "any"]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "object",
+            "array",
+            "path",
+            "url"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": true
+      }
+    }
+  }
+}

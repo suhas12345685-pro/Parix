@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix macOS LaunchAgent Definition",
+  "description": "Schema for generating a launchd plist for macOS task scheduling.",
+  "type": "object",
+  "required": ["label", "program_arguments"],
+  "properties": {
+    "label": {
+      "type": "string",
+      "description": "Unique reverse-DNS label for the agent",
+      "examples": ["com.parix.healthcheck"]
+    },
+    "program_arguments": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Command and arguments to execute",
+      "examples": [["/usr/bin/python3", "/opt/parix/scripts/check.py"]]
+    },
+    "working_directory": {
+      "type": "string",
+      "description": "Working directory for the agent"
+    },
+    "start_interval": {
+      "type": "integer",
+      "description": "Run every N seconds (simple interval scheduling)",
+      "minimum": 10,
+      "examples": [300]
+    },
+    "start_calendar_interval": {
+      "type": "object",
+      "description": "Cron-like calendar schedule",
+      "properties": {
+        "Hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "Minute": { "type": "integer", "minimum": 0, "maximum": 59 },
+        "Day": { "type": "integer", "minimum": 1, "maximum": 31 },
+        "Weekday": { "type": "integer", "minimum": 0, "maximum": 7 }
+      }
+    },
+    "run_at_load": {
+      "type": "boolean",
+      "default": false,
+      "description": "Run immediately when the agent is loaded"
+    },
+    "keep_alive": {
+      "type": "boolean",
+      "default": false,
+      "description": "Restart automatically if the process exits"
+    },
+    "standard_out_path": {
+      "type": "string",
+      "description": "Path for stdout log",
+      "examples": ["/tmp/parix-agent.stdout.log"]
+    },
+    "standard_error_path": {
+      "type": "string",
+      "description": "Path for stderr log",
+      "examples": ["/tmp/parix-agent.stderr.log"]
+    },
+    "environment_variables": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Environment variables for the agent"
+    }
+  }
+}

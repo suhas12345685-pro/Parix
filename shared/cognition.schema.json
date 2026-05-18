@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "loop": [
+    "perceive",
+    "compress_context",
+    "infer_desire",
+    "generate_hypotheses",
+    "gather_evidence",
+    "simulate_actions",
+    "critique",
+    "decide",
+    "act",
+    "observe_outcome",
+    "update_beliefs"
+  ],
+  "memoryLayers": {
+    "working": "Minutes-scale active situation: current goal, app/task, blockers, assumptions, uncertainty.",
+    "episodic": "Session-scale narrative memory of what happened and whether it worked.",
+    "semantic": "Durable facts about the user, projects, tools, preferences, and environment.",
+    "procedural": "Reusable workflows and fixes learned from repeated success.",
+    "world": "Machine, project, app, service, repo, and company state."
+  },
+  "desireInference": {
+    "outputs": [
+      "inferredGoal",
+      "userNeed",
+      "evidence",
+      "confidence",
+      "suggestedHelp",
+      "silentPrep",
+      "interrupt",
+      "reasonToInterrupt"
+    ],
+    "attentionSignals": [
+      "urgency",
+      "confidence",
+      "preference_match",
+      "interruption_cost",
+      "reversibility",
+      "novelty",
+      "cooldown"
+    ]
+  },
+  "deliberationModes": {
+    "reflex": "Obvious low-risk repeated situations.",
+    "normal": "Compare hypotheses and choose reversible help.",
+    "deep": "High uncertainty, multi-step, or high-impact situations.",
+    "research": "Gather more evidence before proposing action."
+  }
+}

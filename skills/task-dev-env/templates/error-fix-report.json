@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DevEnvFixReport",
+  "description": "Report from dev environment error recovery",
+  "type": "object",
+  "required": ["timestamp", "error_pattern", "matched", "action", "status"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error_pattern": {
+      "type": "string",
+      "description": "The error string that triggered this skill"
+    },
+    "matched": {
+      "type": "boolean",
+      "description": "Whether the error matched a known pattern"
+    },
+    "action": {
+      "type": "string",
+      "enum": ["auto_fix", "notify", "escalate_llm", "no_match"]
+    },
+    "command_executed": {
+      "type": "string",
+      "description": "The fix command that was run, if any"
+    },
+    "package_manager": {
+      "type": "string",
+      "enum": ["npm", "yarn", "pnpm", "bun", "pip", "pipenv", "none"]
+    },
+    "project_dir": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["resolved", "notified", "failed", "no_match"]
+    },
+    "reversibility_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

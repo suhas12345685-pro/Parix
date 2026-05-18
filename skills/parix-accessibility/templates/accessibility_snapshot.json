@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Accessibility Snapshot",
+  "description": "Schema for the fused accessibility + vision snapshot",
+  "type": "object",
+  "properties": {
+    "tree": {
+      "$ref": "#/$defs/UIElement",
+      "description": "Root of the accessibility tree"
+    },
+    "focused": {
+      "$ref": "#/$defs/UIElement",
+      "description": "Currently focused UI element"
+    },
+    "window_title": {
+      "type": "string",
+      "description": "Title of the active window"
+    },
+    "timestamp": {
+      "type": "number",
+      "description": "Unix timestamp of snapshot capture"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["accessibility", "vision", "fused"],
+      "description": "How this snapshot was produced"
+    }
+  },
+  "required": ["tree", "window_title", "timestamp"],
+  "$defs": {
+    "Rect": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" }
+      },
+      "required": ["x", "y", "width", "height"]
+    },
+    "UIElement": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Element role (button, text, menu, etc.)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Accessible name"
+        },
+        "value": {
+          "type": "string",
+          "description": "Current value"
+        },
+        "bounds": {
+          "$ref": "#/$defs/Rect",
+          "description": "Screen coordinates"
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UIElement" }
+        }
+      },
+      "required": ["role", "name"]
+    }
+  }
+}

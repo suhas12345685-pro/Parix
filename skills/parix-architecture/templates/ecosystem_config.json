@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Parix PM2 Ecosystem Config Template",
+  "description": "Template for ecosystem.config.js process definitions",
+  "type": "object",
+  "properties": {
+    "apps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["parix-atrium", "parix-hands", "parix-aegis"]
+          },
+          "script": {
+            "type": "string",
+            "description": "Entry point script path"
+          },
+          "interpreter": {
+            "type": "string",
+            "description": "Runtime interpreter (node, python3, npx)"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory for the process"
+          },
+          "env": {
+            "type": "object",
+            "properties": {
+              "NODE_ENV": { "type": "string", "default": "production" }
+            }
+          },
+          "autorestart": { "type": "boolean", "default": true },
+          "watch": { "type": "boolean", "default": false },
+          "max_restarts": { "type": "integer", "default": 10 }
+        },
+        "required": ["name", "script"]
+      }
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "id": "task-log-analysis",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Parses logs for warning, error, fatal, timeout, OOM, and panic patterns.",
+  "triggers": [
+    {
+      "eventType": "app_crash",
+      "dataKeys": ["logfile", "log_path"],
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "service_down",
+      "dataKeys": ["logfile", "log_path"],
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "terminal_error",
+      "keywords": [
+        "traceback",
+        "stack trace",
+        "fatal",
+        "panic",
+        "out of memory"
+      ],
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/logparse.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "logfile",
+      "type": "path",
+      "required": true,
+      "description": "Log file to parse."
+    },
+    {
+      "name": "tail",
+      "type": "number",
+      "required": false,
+      "default": 500,
+      "description": "Number of trailing log lines to inspect."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "anomalyCounts",
+      "type": "object",
+      "description": "Count of matched anomaly categories."
+    },
+    {
+      "name": "health",
+      "type": "string",
+      "description": "Computed health state: ok, degraded, or critical."
+    }
+  ],
+  "reversibility": 1,
+  "permissions": ["filesystem:read"],
+  "timeoutMs": 30000,
+  "settings": {}
+}

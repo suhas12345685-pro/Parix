@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aegis HEALTH_SNAPSHOT Event",
+  "description": "Schema for the periodic health snapshot sent from Aegis relay to dashboard.",
+  "type": "object",
+  "required": ["type", "timestamp", "data"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "HEALTH_SNAPSHOT"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "data": {
+      "type": "object",
+      "required": ["councilState", "queueDepth", "uptime"],
+      "properties": {
+        "councilState": {
+          "type": "string",
+          "enum": ["IDLE", "SENSING", "THINKING", "ACTING", "PAUSED"]
+        },
+        "queueDepth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uptime": {
+          "type": "number",
+          "description": "Uptime in seconds"
+        },
+        "governorStats": {
+          "type": "object",
+          "properties": {
+            "tokensUsedToday": { "type": "integer" },
+            "tokenBudget": { "type": "integer" },
+            "callsToday": { "type": "integer" }
+          }
+        },
+        "v02Stats": {
+          "type": "object",
+          "properties": {
+            "totalActions": { "type": "integer" },
+            "totalEpisodes": { "type": "integer" },
+            "activeSituations": { "type": "integer" },
+            "surpriseCount": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}

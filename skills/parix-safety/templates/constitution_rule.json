@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Constitution Rule Definition",
+  "description": "Schema for adding blocked/allowed command rules to constitution.ts",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["blocked", "domain_blocked", "allowed"],
+      "description": "Rule category"
+    },
+    "pattern": {
+      "type": "string",
+      "description": "Regex pattern matching the command"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable reason for the rule"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"],
+      "description": "Risk severity if this command runs unguarded"
+    },
+    "reversible": {
+      "type": "boolean",
+      "description": "Whether the command effect can be undone"
+    },
+    "test_positive": {
+      "type": "string",
+      "description": "Example command that SHOULD be caught by the pattern"
+    },
+    "test_negative": {
+      "type": "string",
+      "description": "Example safe command that SHOULD NOT be caught"
+    }
+  },
+  "required": ["type", "pattern", "reason", "severity"]
+}

@@ -1,0 +1,85 @@
+# ── Secrets — NEVER commit ──────────────────────────────────────────
+.env
+.env.*
+!.env.example
+shared/secrets.json
+**/secrets.json
+**/credentials.json
+**/credentials.*.json
+**/*.pem
+**/*.key
+*.pfx
+*.p12
+.netrc
+
+# ── Build outputs / generated ───────────────────────────────────────
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+**/build/
+*.tsbuildinfo
+.next/
+out/
+coverage/
+**/coverage/
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+**/.pytest_cache/
+.pytest-tmp/
+**/.pytest-tmp/
+.pytest-tmp-*/
+**/.pytest-tmp-*/
+*.egg-info/
+.venv/
+venv/
+
+# ── Local runtime / state ───────────────────────────────────────────
+.parix-e2e/
+**/*.log
+hands_out.log
+hands_err.log
+aegis-vite.*.log
+qa/reports/
+!qa/reports/.gitkeep
+
+# SQLite databases — local memory
+*.sqlite
+*.sqlite3
+*.db
+!**/test/*.db
+!**/__tests__/*.db
+~/.parix/
+
+# ── OS / editor ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.history/
+
+# ── Tools / package managers ────────────────────────────────────────
+.npm/
+.yarn/
+.pnp.*
+.cache/
+.eslintcache
+.prettiercache
+
+# ── Misc ────────────────────────────────────────────────────────────
+*.bak
+*.tmp
+.tmp/
+.local/
+.env.local

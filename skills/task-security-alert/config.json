@@ -1,0 +1,43 @@
+{
+  "id": "task-security-alert",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Detects credential-like data without logging secret values.",
+  "triggers": [
+    {
+      "eventType": "clipboard_sensitive_data",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "credential_exposed",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "suspicious_process",
+      "keywords": ["token", "secret", "password", "credential"],
+      "minConfidence": 0.7,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/credential_scan.py",
+  "runtime": "py",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "credentialTypesFound",
+      "type": "array",
+      "description": "Detected credential categories only; never raw values."
+    },
+    {
+      "name": "alert",
+      "type": "boolean",
+      "description": "Whether any credential-like pattern was detected."
+    }
+  ],
+  "reversibility": 1,
+  "permissions": ["clipboard:read", "notification:send"],
+  "timeoutMs": 15000,
+  "settings": {}
+}

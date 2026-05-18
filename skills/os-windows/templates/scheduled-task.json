@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix Windows Scheduled Task Definition",
+  "description": "Schema for defining a Windows Task Scheduler task via Parix.",
+  "type": "object",
+  "required": ["task_name", "action", "trigger"],
+  "properties": {
+    "task_name": {
+      "type": "string",
+      "description": "Unique name for the scheduled task",
+      "examples": ["Parix-HealthCheck"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the task"
+    },
+    "action": {
+      "type": "object",
+      "required": ["execute"],
+      "properties": {
+        "execute": {
+          "type": "string",
+          "description": "Path to executable or script",
+          "examples": ["powershell.exe", "python.exe"]
+        },
+        "argument": {
+          "type": "string",
+          "description": "Command-line arguments",
+          "examples": ["-File C:\\scripts\\check.ps1"]
+        },
+        "working_directory": {
+          "type": "string",
+          "description": "Working directory for the task"
+        }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["once", "daily", "weekly", "at_startup", "at_logon"],
+          "description": "When the task fires"
+        },
+        "at": {
+          "type": "string",
+          "description": "Time to run (for once/daily/weekly)",
+          "examples": ["3:00PM", "09:00"]
+        },
+        "days_interval": {
+          "type": "integer",
+          "description": "Repeat interval in days (for daily trigger)",
+          "minimum": 1
+        },
+        "days_of_week": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+          },
+          "description": "Which days (for weekly trigger)"
+        }
+      }
+    },
+    "run_as_admin": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the task requires elevated privileges"
+    }
+  }
+}

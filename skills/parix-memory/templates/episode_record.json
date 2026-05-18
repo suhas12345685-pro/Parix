@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Episodic Memory Record",
+  "description": "Schema for an episode stored in the episodes table",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "Auto-incremented episode ID"
+    },
+    "events": {
+      "type": "array",
+      "description": "Sequence of events in this episode",
+      "items": {
+        "type": "object",
+        "properties": {
+          "event_type": { "type": "string" },
+          "data": { "type": "object" },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+          "timestamp": { "type": "number" }
+        },
+        "required": ["event_type", "timestamp"]
+      }
+    },
+    "actions": {
+      "type": "array",
+      "description": "Actions taken during this episode",
+      "items": {
+        "type": "object",
+        "properties": {
+          "task_id": { "type": "string" },
+          "type": { "type": "string" },
+          "success": { "type": "boolean" },
+          "timestamp": { "type": "number" }
+        },
+        "required": ["task_id", "type", "timestamp"]
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "closed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Null if episode is still open"
+    },
+    "auto_close_after_minutes": {
+      "type": "integer",
+      "default": 5,
+      "description": "Episode auto-closes after this many minutes of inactivity"
+    }
+  },
+  "required": ["events", "actions", "started_at"]
+}

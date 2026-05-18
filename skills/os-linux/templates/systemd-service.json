@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix Linux systemd User Service Definition",
+  "description": "Schema for generating a systemd user service and optional timer unit.",
+  "type": "object",
+  "required": ["unit_name", "exec_start"],
+  "properties": {
+    "unit_name": {
+      "type": "string",
+      "description": "Name for the systemd unit (without .service suffix)",
+      "examples": ["parix-agent"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description shown in systemctl status",
+      "examples": ["Parix background agent"]
+    },
+    "exec_start": {
+      "type": "string",
+      "description": "Full command to execute",
+      "examples": ["/usr/bin/python3 /opt/parix/agent.py"]
+    },
+    "working_directory": {
+      "type": "string",
+      "description": "Working directory for the service"
+    },
+    "restart": {
+      "type": "string",
+      "enum": ["no", "always", "on-failure", "on-abnormal"],
+      "default": "on-failure",
+      "description": "Restart policy"
+    },
+    "restart_sec": {
+      "type": "integer",
+      "default": 5,
+      "description": "Seconds to wait before restart"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Environment variables (key-value pairs)"
+    },
+    "timer": {
+      "type": "object",
+      "description": "Optional timer unit for scheduled execution",
+      "properties": {
+        "on_calendar": {
+          "type": "string",
+          "description": "systemd calendar expression",
+          "examples": ["*:0/5", "daily", "Mon..Fri 09:00"]
+        },
+        "on_boot_sec": {
+          "type": "string",
+          "description": "Run N time after boot",
+          "examples": ["5min"]
+        },
+        "persistent": {
+          "type": "boolean",
+          "default": true,
+          "description": "Catch up on missed runs"
+        }
+      }
+    },
+    "install_target": {
+      "type": "string",
+      "default": "default.target",
+      "description": "systemd target for WantedBy directive"
+    }
+  }
+}

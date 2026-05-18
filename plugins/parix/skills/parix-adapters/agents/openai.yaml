@@ -1,0 +1,4 @@
+interface:
+  display_name: "Parix Adapters"
+  short_description: "Add Parix LLM providers, channels, and storage adapters."
+  default_prompt: "Add a new Parix provider or channel adapter."

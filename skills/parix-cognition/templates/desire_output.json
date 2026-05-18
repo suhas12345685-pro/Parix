@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Desire Inference Output",
+  "description": "Schema for the output of the desire inference engine.",
+  "type": "object",
+  "required": ["inferredGoal", "userNeed", "evidence", "confidence", "interrupt"],
+  "properties": {
+    "inferredGoal": {
+      "type": "string",
+      "description": "High-level goal inferred from context"
+    },
+    "userNeed": {
+      "type": "string",
+      "description": "Specific need the user has right now"
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Context signals supporting the inference"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence score (0-1)"
+    },
+    "suggestedHelp": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Suggested actions to help the user"
+    },
+    "silentPrep": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Background actions to prepare without interrupting"
+    },
+    "interrupt": {
+      "type": "boolean",
+      "description": "Whether to interrupt the user"
+    },
+    "reasonToInterrupt": {
+      "type": "string",
+      "description": "Explanation for why an interrupt is warranted"
+    }
+  },
+  "additionalProperties": false
+}

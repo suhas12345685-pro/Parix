@@ -1,0 +1,8 @@
+{
+    "title":  "task-disk-cleanup Schema",
+    "properties":  {
+
+                   },
+    "$schema":  "http://json-schema.org/draft-07/schema#",
+    "type":  "object"
+}

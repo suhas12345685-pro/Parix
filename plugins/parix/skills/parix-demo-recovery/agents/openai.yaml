@@ -1,0 +1,4 @@
+interface:
+  display_name: "Parix Demo Recovery"
+  short_description: "Verify Synapse crash recovery and demo readiness."
+  default_prompt: "Run the Parix bridge recovery checks."

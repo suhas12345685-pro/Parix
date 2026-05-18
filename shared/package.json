@@ -1,0 +1,14 @@
+{
+  "name": "parix-shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/hatchery-schema.js",
+  "types": "dist/hatchery-schema.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

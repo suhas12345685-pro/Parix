@@ -1,0 +1,50 @@
+{
+  "id": "task-virtual-desktop",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Creates, lists, and closes isolated Windows virtual desktops for GUI automation.",
+  "triggers": [
+    {
+      "eventType": "virtual_desktop_needed",
+      "minConfidence": 0.7,
+      "platforms": ["windows"]
+    },
+    {
+      "eventType": "gui_task",
+      "minConfidence": 0.75,
+      "platforms": ["windows"]
+    },
+    {
+      "eventType": "headless_fallback_required",
+      "minConfidence": 0.75,
+      "platforms": ["windows"]
+    }
+  ],
+  "entry": "scripts/vda_manager.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "command",
+      "type": "string",
+      "required": false,
+      "default": "list",
+      "description": "One of create, list, or close."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "action",
+      "type": "string",
+      "description": "Virtual desktop operation requested."
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "description": "Operation status."
+    }
+  ],
+  "reversibility": 0.7,
+  "permissions": ["process:execute", "virtual-desktop:write"],
+  "timeoutMs": 30000,
+  "settings": {}
+}

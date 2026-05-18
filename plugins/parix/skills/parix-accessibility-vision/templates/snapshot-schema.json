@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AccessibilitySnapshot",
+  "description": "Unified accessibility snapshot returned by Parix Hands.",
+  "type": "object",
+  "required": ["timestamp", "platform", "backend_used", "tree", "confidence"],
+  "properties": {
+    "timestamp": { "type": "number" },
+    "platform": { "type": "string", "enum": ["windows", "macos", "linux", "docker"] },
+    "backend_used": { "type": "string", "enum": ["native", "vision", "fusion", "none"] },
+    "focused_app": { "type": ["string", "null"] },
+    "focused_element": { "$ref": "#/$defs/UIElement", "nullable": true },
+    "tree": { "type": "array", "items": { "$ref": "#/$defs/UIElement" } },
+    "raw_text": { "type": ["string", "null"] },
+    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "UIElement": {
+      "type": "object",
+      "required": ["role", "name", "source"],
+      "properties": {
+        "role": { "type": "string" },
+        "name": { "type": ["string", "null"] },
+        "value": { "type": ["string", "null"] },
+        "state": { "type": ["string", "null"] },
+        "bounds": {
+          "type": ["object", "null"],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "w": { "type": "number" },
+            "h": { "type": "number" }
+          }
+        },
+        "children": { "type": "array", "items": { "$ref": "#/$defs/UIElement" } },
+        "source": { "type": "string", "enum": ["native", "vision", "fusion"] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+    "settings":  {
+
+                 },
+    "enabled":  true,
+    "id":  "os-detect",
+    "version":  "1.0"
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CapabilityReport",
+  "description": "Result of a Parix platform capability probe run.",
+  "type": "object",
+  "required": ["os", "capabilities"],
+  "properties": {
+    "os": {
+      "type": "string",
+      "enum": ["windows", "macos", "linux", "docker"]
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["accessibility", "screenshot", "clipboard", "notifications", "package_manager"],
+      "properties": {
+        "accessibility": { "type": "boolean" },
+        "screenshot": { "type": "boolean" },
+        "clipboard": { "type": "boolean" },
+        "notifications": { "type": "boolean" },
+        "package_manager": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

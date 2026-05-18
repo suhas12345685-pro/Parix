@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProcessManagementReport",
+  "description": "Report from process management task execution",
+  "type": "object",
+  "required": ["timestamp", "trigger_event", "top_processes", "action_taken", "status"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trigger_event": {
+      "type": "string",
+      "enum": ["cpu_high", "memory_high", "app_hang", "app_crash", "service_down"]
+    },
+    "top_processes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "pid": { "type": "integer" },
+          "cpu_pct": { "type": "number" },
+          "mem_mb": { "type": "number" }
+        }
+      }
+    },
+    "action_taken": {
+      "type": "string",
+      "enum": ["restart_service", "notify_user", "sigterm_sent", "none"]
+    },
+    "target_process": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "pid": { "type": "integer" }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["resolved", "notified", "escalated", "failed"]
+    },
+    "reversibility_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

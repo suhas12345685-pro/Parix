@@ -1,0 +1,52 @@
+# ─── Parix Atrium — Production Dockerfile ─────────────────────
+# Multi-stage build for the Node.js Brain process.
+# Target: atrium/dist/ (compiled TypeScript)
+# ───────────────────────────────────────────────────────────────
+
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY atrium/package.json ./atrium/
+COPY shared/ ./shared/
+
+RUN npm ci --workspace=atrium
+
+COPY atrium/ ./atrium/
+RUN npm run build --workspace=atrium
+
+# ─── Production Stage ─────────────────────────────────────────
+FROM node:20-alpine AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/AhmedKhaledp-0/parix"
+LABEL org.opencontainers.image.description="Parix Atrium — AI Agent Brain"
+
+RUN apk add --no-cache tini
+RUN addgroup -g 1001 parix && adduser -u 1001 -G parix -s /bin/sh -D parix
+
+WORKDIR /app
+
+COPY --from=builder /app/atrium/dist/ ./atrium/dist/
+COPY --from=builder /app/atrium/package.json ./atrium/
+COPY --from=builder /app/shared/ ./shared/
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json ./
+
+RUN npm ci --workspace=atrium --omit=dev
+
+RUN mkdir -p /app/data && chown -R parix:parix /app
+
+USER parix
+
+ENV NODE_ENV=production
+ENV PARIX_DB_PATH=/app/data/parix.db
+ENV HANDS_WS_URL=ws://hands:8765
+ENV AEGIS_WS_PORT=8766
+
+EXPOSE 8766
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:8766/health || exit 1
+
+ENTRYPOINT ["tini", "--"]
+CMD ["node", "atrium/dist/index.js"]

@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SensorEvent Message",
+  "type": "object",
+  "required": ["type", "event_type", "data", "confidence", "timestamp"],
+  "properties": {
+    "type": {"type": "string", "const": "SENSOR_EVENT"},
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "terminal_error",
+        "wifi_disconnected", "wifi_reconnected", "wifi_weak_signal", "wifi_ssid_changed",
+        "usb_device_connected", "usb_device_disconnected", "usb_storage_connected",
+        "app_crash", "app_hang", "service_down",
+        "clipboard_sensitive_data",
+        "idle_shutdown", "tab_overload",
+        "disk_low", "cpu_high", "memory_high", "battery_low"
+      ]
+    },
+    "data": {"type": "object"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "timestamp": {"type": "number"}
+  }
+}

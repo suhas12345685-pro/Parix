@@ -1,0 +1,53 @@
+{
+  "id": "task-network-fix",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Runs gateway, DNS, and interface diagnostics for network failures.",
+  "triggers": [
+    {
+      "eventType": "wifi_disconnected",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "wifi_weak_signal",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "terminal_error",
+      "keywords": [
+        "ECONNREFUSED",
+        "ENOTFOUND",
+        "ETIMEDOUT",
+        "network unreachable"
+      ],
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/netdiag.py",
+  "runtime": "py",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "gateway",
+      "type": "boolean",
+      "description": "Whether gateway connectivity passed."
+    },
+    {
+      "name": "dns",
+      "type": "boolean",
+      "description": "Whether DNS resolution passed."
+    },
+    {
+      "name": "interface",
+      "type": "boolean",
+      "description": "Whether interface inspection passed."
+    }
+  ],
+  "reversibility": 1,
+  "permissions": ["network:read", "process:execute"],
+  "timeoutMs": 45000,
+  "settings": {}
+}

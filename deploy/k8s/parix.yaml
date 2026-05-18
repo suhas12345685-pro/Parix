@@ -1,0 +1,192 @@
+# ─── Parix — Kubernetes Deployment Manifests ──────────────────
+# Namespace + Deployments + Services for Atrium & Hands
+# Usage: kubectl apply -f deploy/k8s/
+# ───────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: parix
+  labels:
+    app.kubernetes.io/name: parix
+    app.kubernetes.io/part-of: parix
+
+---
+# ─── Atrium Deployment ────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: atrium
+  namespace: parix
+  labels:
+    app.kubernetes.io/name: atrium
+    app.kubernetes.io/component: brain
+spec:
+  replicas: 1  # Singleton — Council state machine is not horizontally scalable
+  strategy:
+    type: Recreate  # Avoid split-brain during upgrades
+  selector:
+    matchLabels:
+      app: atrium
+  template:
+    metadata:
+      labels:
+        app: atrium
+        app.kubernetes.io/name: atrium
+    spec:
+      containers:
+        - name: atrium
+          image: ghcr.io/ahmedkhaledp-0/parix-atrium:latest
+          ports:
+            - containerPort: 8766
+              name: aegis-ws
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: HANDS_WS_URL
+              value: ws://hands-svc:8765
+            - name: PARIX_DB_PATH
+              value: /app/data/parix.db
+          envFrom:
+            - secretRef:
+                name: parix-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: aegis-ws
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: aegis-ws
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: atrium-pvc
+
+---
+# ─── Atrium Service ───────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: atrium-svc
+  namespace: parix
+spec:
+  selector:
+    app: atrium
+  ports:
+    - port: 8766
+      targetPort: aegis-ws
+      name: aegis-ws
+  type: ClusterIP
+
+---
+# ─── Hands Deployment ─────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hands
+  namespace: parix
+  labels:
+    app.kubernetes.io/name: hands
+    app.kubernetes.io/component: executor
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hands
+  template:
+    metadata:
+      labels:
+        app: hands
+        app.kubernetes.io/name: hands
+    spec:
+      containers:
+        - name: hands
+          image: ghcr.io/ahmedkhaledp-0/parix-hands:latest
+          ports:
+            - containerPort: 8765
+              name: synapse-ws
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PARIX_WS_HOST
+              value: "0.0.0.0"
+          envFrom:
+            - secretRef:
+                name: parix-secrets
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            tcpSocket:
+              port: synapse-ws
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: synapse-ws
+            initialDelaySeconds: 3
+            periodSeconds: 10
+
+---
+# ─── Hands Service ────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: hands-svc
+  namespace: parix
+spec:
+  selector:
+    app: hands
+  ports:
+    - port: 8765
+      targetPort: synapse-ws
+      name: synapse-ws
+  type: ClusterIP
+
+---
+# ─── Persistent Volume Claim ─────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: atrium-pvc
+  namespace: parix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# ─── Secrets (template — populate via kubectl or sealed-secrets)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: parix-secrets
+  namespace: parix
+type: Opaque
+stringData:
+  GEMINI_API_KEY: "REPLACE_ME"
+  TELEGRAM_BOT_TOKEN: "REPLACE_ME"
+  TELEGRAM_CHAT_ID: "REPLACE_ME"

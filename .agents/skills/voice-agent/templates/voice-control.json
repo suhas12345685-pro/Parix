@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VoiceControl",
+  "type": "object",
+  "required": ["type", "command"],
+  "properties": {
+    "type": {"type": "string", "const": "VOICE_CONTROL"},
+    "command": {
+      "type": "string",
+      "enum": ["start", "stop", "pause", "resume", "speak", "mode", "mute", "unmute"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["direct", "meeting", "call", "loopback", "duplex"]
+    },
+    "text": {
+      "type": "string",
+      "description": "Text for the agent to speak (used with 'speak' command)"
+    },
+    "stt": {
+      "type": "string",
+      "enum": ["auto", "local", "cloud"],
+      "default": "auto"
+    },
+    "tts": {
+      "type": "string",
+      "enum": ["auto", "local", "cloud"],
+      "default": "auto"
+    },
+    "timestamp": {"type": "number"}
+  }
+}

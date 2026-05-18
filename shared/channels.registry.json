@@ -1,0 +1,466 @@
+{
+  "version": "1.0",
+  "defaultEnabled": ["desktop", "aegis"],
+  "defaultPrimary": "desktop",
+  "tiers": {
+    "A": "Rich actions and structured replies",
+    "B": "Keyword replies or webhook callbacks",
+    "C": "Fire-and-forget delivery"
+  },
+  "channels": [
+    {
+      "id": "desktop",
+      "name": "Desktop",
+      "tier": "C",
+      "install": "builtin",
+      "transport": "node-notifier",
+      "surfaces": ["local"],
+      "modes": ["personal", "enterprise"],
+      "plugin": null,
+      "env": [],
+      "capabilities": ["notifications"],
+      "notes": "Local OS notification fallback."
+    },
+    {
+      "id": "aegis",
+      "name": "Aegis Web UI",
+      "tier": "A",
+      "install": "builtin",
+      "transport": "websocket",
+      "surfaces": ["web"],
+      "modes": ["personal", "enterprise"],
+      "plugin": null,
+      "env": ["VITE_WS_URL"],
+      "capabilities": ["rich_actions", "status", "audit"],
+      "notes": "Local dashboard over the Aegis relay."
+    },
+    {
+      "id": "webhook",
+      "name": "Generic Webhook",
+      "tier": "B",
+      "install": "builtin",
+      "transport": "http_post",
+      "surfaces": ["webhook"],
+      "modes": ["personal", "enterprise"],
+      "plugin": null,
+      "env": ["PARIX_WEBHOOK_URL"],
+      "capabilities": ["delivery", "keyword_callbacks"],
+      "notes": "Generic POST target for custom automations."
+    },
+    {
+      "id": "telegram",
+      "name": "Telegram",
+      "tier": "A",
+      "install": "builtin",
+      "transport": "bot_api",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal", "enterprise"],
+      "plugin": null,
+      "env": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
+      "capabilities": ["rich_actions", "inline_buttons", "groups"],
+      "notes": "Bot API via grammY-compatible payloads."
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "tier": "A",
+      "install": "downloadable",
+      "transport": "bot_api_gateway",
+      "surfaces": ["server_channel", "dm"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "discord",
+      "env": [
+        "DISCORD_BOT_TOKEN",
+        "DISCORD_APPLICATION_ID",
+        "DISCORD_DEFAULT_CHANNEL_ID"
+      ],
+      "capabilities": [
+        "rich_actions",
+        "gateway_events",
+        "servers",
+        "channels",
+        "dms"
+      ],
+      "notes": "Discord Bot API plus Gateway."
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "tier": "A",
+      "install": "downloadable",
+      "transport": "bolt_sdk",
+      "surfaces": ["workspace_channel", "dm"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "slack",
+      "env": [
+        "SLACK_BOT_TOKEN",
+        "SLACK_SIGNING_SECRET",
+        "SLACK_APP_TOKEN",
+        "SLACK_DEFAULT_CHANNEL_ID"
+      ],
+      "capabilities": ["rich_actions", "blocks", "modals", "workspace_apps"],
+      "notes": "Slack Bolt workspace app."
+    },
+    {
+      "id": "microsoft-teams",
+      "name": "Microsoft Teams",
+      "tier": "A",
+      "install": "bundled_plugin",
+      "transport": "bot_framework",
+      "surfaces": ["team_channel", "chat", "dm"],
+      "modes": ["enterprise"],
+      "plugin": "teams",
+      "env": [
+        "TEAMS_APP_ID",
+        "TEAMS_APP_PASSWORD",
+        "TEAMS_TENANT_ID",
+        "TEAMS_DEFAULT_CONVERSATION_ID"
+      ],
+      "capabilities": ["rich_actions", "adaptive_cards", "enterprise"],
+      "notes": "Bot Framework channel for enterprise tenants."
+    },
+    {
+      "id": "google-chat",
+      "name": "Google Chat",
+      "tier": "B",
+      "install": "downloadable",
+      "transport": "http_webhook",
+      "surfaces": ["space", "dm"],
+      "modes": ["enterprise"],
+      "plugin": "google-chat",
+      "env": ["GOOGLE_CHAT_WEBHOOK_URL"],
+      "capabilities": ["cards", "webhook_delivery"],
+      "notes": "Google Chat API app via HTTP webhook."
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp",
+      "tier": "A",
+      "install": "downloadable",
+      "transport": "baileys_qr",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "whatsapp",
+      "env": ["WHATSAPP_SESSION_DIR", "WHATSAPP_DEFAULT_JID"],
+      "capabilities": ["qr_pairing", "rich_media", "groups"],
+      "notes": "Uses Baileys and requires QR pairing."
+    },
+    {
+      "id": "signal",
+      "name": "Signal",
+      "tier": "B",
+      "install": "external_binary",
+      "transport": "signal_cli",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "signal",
+      "env": ["SIGNAL_CLI_PATH", "SIGNAL_ACCOUNT", "SIGNAL_DEFAULT_RECIPIENT"],
+      "capabilities": ["private_delivery", "groups", "keyword_replies"],
+      "notes": "Privacy-focused channel through signal-cli."
+    },
+    {
+      "id": "matrix",
+      "name": "Matrix",
+      "tier": "A",
+      "install": "downloadable",
+      "transport": "matrix_client_server",
+      "surfaces": ["room", "dm"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "matrix",
+      "env": [
+        "MATRIX_HOMESERVER_URL",
+        "MATRIX_ACCESS_TOKEN",
+        "MATRIX_DEFAULT_ROOM_ID"
+      ],
+      "capabilities": ["rooms", "dms", "rich_actions"],
+      "notes": "Matrix protocol client."
+    },
+    {
+      "id": "line",
+      "name": "LINE",
+      "tier": "A",
+      "install": "downloadable",
+      "transport": "line_messaging_api",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "line",
+      "env": [
+        "LINE_CHANNEL_ACCESS_TOKEN",
+        "LINE_CHANNEL_SECRET",
+        "LINE_DEFAULT_USER_ID"
+      ],
+      "capabilities": ["rich_actions", "push_messages", "groups"],
+      "notes": "LINE Messaging API bot."
+    },
+    {
+      "id": "feishu",
+      "name": "Feishu / Lark",
+      "tier": "A",
+      "install": "bundled_plugin",
+      "transport": "websocket_bot",
+      "surfaces": ["chat", "group", "dm"],
+      "modes": ["enterprise"],
+      "plugin": "feishu",
+      "env": ["FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_DEFAULT_CHAT_ID"],
+      "capabilities": ["rich_actions", "cards", "enterprise"],
+      "notes": "Feishu/Lark bot over WebSocket."
+    },
+    {
+      "id": "mattermost",
+      "name": "Mattermost",
+      "tier": "A",
+      "install": "downloadable",
+      "transport": "bot_api_websocket",
+      "surfaces": ["channel", "group", "dm"],
+      "modes": ["enterprise"],
+      "plugin": "mattermost",
+      "env": [
+        "MATTERMOST_URL",
+        "MATTERMOST_BOT_TOKEN",
+        "MATTERMOST_DEFAULT_CHANNEL_ID"
+      ],
+      "capabilities": ["channels", "groups", "dms", "websocket_events"],
+      "notes": "Mattermost Bot API plus WebSocket."
+    },
+    {
+      "id": "nextcloud-talk",
+      "name": "Nextcloud Talk",
+      "tier": "B",
+      "install": "bundled_plugin",
+      "transport": "nextcloud_talk_rest",
+      "surfaces": ["conversation", "dm"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "nextcloud-talk",
+      "env": [
+        "NEXTCLOUD_URL",
+        "NEXTCLOUD_USERNAME",
+        "NEXTCLOUD_APP_PASSWORD",
+        "NEXTCLOUD_TALK_TOKEN"
+      ],
+      "capabilities": ["self_hosted", "keyword_replies"],
+      "notes": "Self-hosted chat via Nextcloud Talk."
+    },
+    {
+      "id": "irc",
+      "name": "IRC",
+      "tier": "B",
+      "install": "downloadable",
+      "transport": "irc",
+      "surfaces": ["channel", "dm"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "irc",
+      "env": [
+        "IRC_SERVER",
+        "IRC_PORT",
+        "IRC_NICK",
+        "IRC_CHANNELS",
+        "IRC_ALLOWLIST"
+      ],
+      "capabilities": ["channels", "dms", "pairing_allowlist"],
+      "notes": "Classic IRC with pairing and allowlist controls."
+    },
+    {
+      "id": "nostr",
+      "name": "Nostr",
+      "tier": "B",
+      "install": "bundled_plugin",
+      "transport": "nip04_dm",
+      "surfaces": ["dm"],
+      "modes": ["personal"],
+      "plugin": "nostr",
+      "env": ["NOSTR_PRIVATE_KEY", "NOSTR_RELAYS", "NOSTR_DEFAULT_PUBKEY"],
+      "capabilities": ["decentralized_dms"],
+      "notes": "Decentralized DMs via NIP-04."
+    },
+    {
+      "id": "synology-chat",
+      "name": "Synology Chat",
+      "tier": "B",
+      "install": "bundled_plugin",
+      "transport": "incoming_outgoing_webhooks",
+      "surfaces": ["channel", "dm"],
+      "modes": ["enterprise"],
+      "plugin": "synology-chat",
+      "env": ["SYNOLOGY_CHAT_WEBHOOK_URL", "SYNOLOGY_CHAT_INCOMING_TOKEN"],
+      "capabilities": ["webhook_delivery", "self_hosted"],
+      "notes": "Synology NAS Chat via outgoing and incoming webhooks."
+    },
+    {
+      "id": "tlon",
+      "name": "Tlon",
+      "tier": "B",
+      "install": "bundled_plugin",
+      "transport": "urbit_http",
+      "surfaces": ["group", "dm"],
+      "modes": ["personal"],
+      "plugin": "tlon",
+      "env": ["TLON_SHIP_URL", "TLON_CODE", "TLON_DEFAULT_CHANNEL"],
+      "capabilities": ["urbit_groups", "keyword_replies"],
+      "notes": "Urbit-based messenger."
+    },
+    {
+      "id": "twitch",
+      "name": "Twitch",
+      "tier": "B",
+      "install": "bundled_plugin",
+      "transport": "irc_chat",
+      "surfaces": ["channel"],
+      "modes": ["personal"],
+      "plugin": "twitch",
+      "env": ["TWITCH_BOT_USERNAME", "TWITCH_OAUTH_TOKEN", "TWITCH_CHANNEL"],
+      "capabilities": ["chat_delivery", "keyword_replies"],
+      "notes": "Twitch chat through IRC connection."
+    },
+    {
+      "id": "webchat",
+      "name": "WebChat",
+      "tier": "A",
+      "install": "builtin",
+      "transport": "websocket",
+      "surfaces": ["web"],
+      "modes": ["personal", "enterprise"],
+      "plugin": null,
+      "env": ["WEBCHAT_WS_URL", "WEBCHAT_SHARED_SECRET"],
+      "capabilities": ["rich_actions", "embedded_widget"],
+      "notes": "Gateway WebChat UI over WebSocket."
+    },
+    {
+      "id": "imessage",
+      "name": "iMessage",
+      "tier": "A",
+      "install": "external_bridge",
+      "transport": "imsg_bridge",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal"],
+      "plugin": "imessage",
+      "env": ["IMSG_BRIDGE_URL", "IMSG_BRIDGE_TOKEN", "IMSG_DEFAULT_CHAT"],
+      "capabilities": [
+        "replies",
+        "tapbacks",
+        "effects",
+        "attachments",
+        "group_management"
+      ],
+      "notes": "Native macOS integration through imsg bridge on a signed-in Mac."
+    },
+    {
+      "id": "voice-call",
+      "name": "Voice Call",
+      "tier": "A",
+      "install": "separate_plugin",
+      "transport": "twilio_or_plivo",
+      "surfaces": ["phone_call"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "voice-call",
+      "env": [
+        "VOICE_PROVIDER",
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_AUTH_TOKEN",
+        "TWILIO_FROM_NUMBER",
+        "PLIVO_AUTH_ID",
+        "PLIVO_AUTH_TOKEN",
+        "PLIVO_FROM_NUMBER",
+        "VOICE_DEFAULT_TO_NUMBER"
+      ],
+      "capabilities": ["urgent_escalation", "phone_calls"],
+      "notes": "Telephony through Plivo or Twilio."
+    },
+    {
+      "id": "voice-local",
+      "name": "Voice (Local)",
+      "tier": "A",
+      "install": "builtin",
+      "transport": "pyaudiowpatch_websocket",
+      "surfaces": ["desktop_voice", "meeting_listen", "call_duplex"],
+      "modes": ["personal"],
+      "env": ["DEEPGRAM_API_KEY", "ELEVENLABS_API_KEY"],
+      "capabilities": [
+        "speech_to_speech",
+        "meeting_transcription",
+        "call_participation",
+        "tts",
+        "stt"
+      ],
+      "notes": "Local mic/speaker voice via PyAudioWPatch + WASAPI loopback. STT: faster-whisper or Deepgram. TTS: piper or ElevenLabs."
+    },
+    {
+      "id": "wechat",
+      "name": "WeChat",
+      "tier": "A",
+      "install": "external_plugin",
+      "transport": "tencent_ilink_qr",
+      "surfaces": ["dm"],
+      "modes": ["personal"],
+      "plugin": "wechat-ilink",
+      "env": [
+        "WECHAT_ILINK_URL",
+        "WECHAT_SESSION_DIR",
+        "WECHAT_DEFAULT_USER_ID"
+      ],
+      "capabilities": ["qr_login", "private_chats"],
+      "notes": "Tencent iLink Bot plugin via QR login; private chats only."
+    },
+    {
+      "id": "qq-bot",
+      "name": "QQ Bot",
+      "tier": "A",
+      "install": "bundled_plugin",
+      "transport": "qq_bot_api",
+      "surfaces": ["private_chat", "group_chat"],
+      "modes": ["personal"],
+      "plugin": "qq-bot",
+      "env": [
+        "QQ_BOT_APP_ID",
+        "QQ_BOT_TOKEN",
+        "QQ_BOT_SECRET",
+        "QQ_DEFAULT_TARGET_ID"
+      ],
+      "capabilities": ["rich_media", "groups", "private_chat"],
+      "notes": "QQ Bot API for private chat, group chat, and rich media."
+    },
+    {
+      "id": "yuanbao",
+      "name": "Yuanbao",
+      "tier": "B",
+      "install": "external_plugin",
+      "transport": "yuanbao_bot",
+      "surfaces": ["chat"],
+      "modes": ["personal"],
+      "plugin": "yuanbao",
+      "env": ["YUANBAO_PLUGIN_URL", "YUANBAO_TOKEN", "YUANBAO_DEFAULT_CHAT_ID"],
+      "capabilities": ["bot_chat"],
+      "notes": "Tencent Yuanbao external bot plugin."
+    },
+    {
+      "id": "zalo",
+      "name": "Zalo",
+      "tier": "A",
+      "install": "bundled_plugin",
+      "transport": "zalo_bot_api",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal", "enterprise"],
+      "plugin": "zalo",
+      "env": [
+        "ZALO_APP_ID",
+        "ZALO_APP_SECRET",
+        "ZALO_ACCESS_TOKEN",
+        "ZALO_DEFAULT_USER_ID"
+      ],
+      "capabilities": ["rich_actions", "vietnam_market"],
+      "notes": "Zalo Bot API."
+    },
+    {
+      "id": "zalo-personal",
+      "name": "Zalo Personal",
+      "tier": "A",
+      "install": "bundled_plugin",
+      "transport": "qr_login",
+      "surfaces": ["dm", "group"],
+      "modes": ["personal"],
+      "plugin": "zalo-personal",
+      "env": ["ZALO_PERSONAL_SESSION_DIR", "ZALO_PERSONAL_DEFAULT_THREAD_ID"],
+      "capabilities": ["qr_login", "personal_account"],
+      "notes": "Zalo personal account through QR login."
+    }
+  ]
+}

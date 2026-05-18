@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Parix">
+  <rect width="32" height="32" rx="7" fill="#4c6ef5"/>
+  <path fill="#fff" d="M10 24V8h8.2c3.6 0 6 2.2 6 5.5s-2.4 5.5-6 5.5h-4.1v5H10zm4.1-8.5h3.7c1.4 0 2.3-.8 2.3-2s-.9-2-2.3-2h-3.7v4z"/>
+</svg>

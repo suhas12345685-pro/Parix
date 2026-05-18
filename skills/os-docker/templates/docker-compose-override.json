@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parix Docker Compose Override Config",
+  "description": "Schema for customizing Parix Docker deployment via docker-compose.override.yml.",
+  "type": "object",
+  "properties": {
+    "atrium": {
+      "type": "object",
+      "description": "Override settings for the Atrium (Node.js brain) service",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "default": 8766,
+          "description": "Host port to expose Atrium on"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Additional environment variables",
+          "examples": [{ "LOG_LEVEL": "debug", "NODE_ENV": "production" }]
+        },
+        "memory_limit": {
+          "type": "string",
+          "description": "Container memory limit",
+          "examples": ["512m", "1g"]
+        },
+        "cpu_limit": {
+          "type": "string",
+          "description": "CPU limit (number of cores)",
+          "examples": ["0.5", "1.0"]
+        }
+      }
+    },
+    "hands": {
+      "type": "object",
+      "description": "Override settings for the Hands (Python executor) service",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "default": 8765,
+          "description": "Host port to expose Hands on"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Additional environment variables"
+        },
+        "memory_limit": {
+          "type": "string",
+          "examples": ["256m", "512m"]
+        },
+        "cpu_limit": {
+          "type": "string",
+          "examples": ["0.5"]
+        },
+        "extra_volumes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional volume mounts (host:container format)",
+          "examples": [["/host/data:/app/extra-data:ro"]]
+        }
+      }
+    },
+    "volumes": {
+      "type": "object",
+      "description": "Custom volume configuration",
+      "properties": {
+        "data_driver": {
+          "type": "string",
+          "default": "local",
+          "description": "Volume driver"
+        },
+        "backup_path": {
+          "type": "string",
+          "description": "Host path for automatic backups"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "properties": {
+        "subnet": {
+          "type": "string",
+          "description": "Custom subnet for parix-net",
+          "examples": ["172.28.0.0/16"]
+        }
+      }
+    },
+    "restart_policy": {
+      "type": "string",
+      "enum": ["no", "always", "on-failure", "unless-stopped"],
+      "default": "unless-stopped",
+      "description": "Container restart policy"
+    }
+  }
+}

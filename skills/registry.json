@@ -1,0 +1,215 @@
+{
+  "version": "1.0",
+  "loadOrder": [
+    "os-detect",
+    "os-windows",
+    "os-macos",
+    "os-linux",
+    "os-docker",
+    "parix-architecture",
+    "parix-safety",
+    "parix-synapse",
+    "parix-memory",
+    "parix-intelligence",
+    "parix-sensors",
+    "parix-accessibility",
+    "parix-channels",
+    "parix-hatchery",
+    "parix-install",
+    "parix-aegis",
+    "parix-operations",
+    "parix-cognition",
+    "parix-troubleshooting",
+    "task-disk-cleanup",
+    "task-network-fix",
+    "task-process-mgmt",
+    "task-dev-env",
+    "task-git-recovery",
+    "task-security-alert",
+    "task-power-mgmt",
+    "parix-skill-forge",
+    "task-docker-mgmt",
+    "task-log-analysis",
+    "task-computer-use-headless",
+    "task-virtual-desktop"
+  ],
+  "skills": [
+    {
+      "id": "os-detect",
+      "path": "skills/os-detect/SKILL.md",
+      "scope": "platform",
+      "required": true
+    },
+    {
+      "id": "os-windows",
+      "path": "skills/os-windows/SKILL.md",
+      "scope": "platform",
+      "when": {
+        "os": "windows"
+      }
+    },
+    {
+      "id": "os-macos",
+      "path": "skills/os-macos/SKILL.md",
+      "scope": "platform",
+      "when": {
+        "os": "macos"
+      }
+    },
+    {
+      "id": "os-linux",
+      "path": "skills/os-linux/SKILL.md",
+      "scope": "platform",
+      "when": {
+        "os": "linux"
+      }
+    },
+    {
+      "id": "os-docker",
+      "path": "skills/os-docker/SKILL.md",
+      "scope": "platform",
+      "when": {
+        "os": "docker"
+      }
+    },
+    {
+      "id": "parix-accessibility",
+      "path": "skills/parix-accessibility/SKILL.md",
+      "scope": "hands"
+    },
+    {
+      "id": "parix-aegis",
+      "path": "skills/parix-aegis/SKILL.md",
+      "scope": "aegis"
+    },
+    {
+      "id": "parix-architecture",
+      "path": "skills/parix-architecture/SKILL.md",
+      "scope": "architecture",
+      "required": true
+    },
+    {
+      "id": "parix-channels",
+      "path": "skills/parix-channels/SKILL.md",
+      "scope": "channels",
+      "registry": "shared/channels.registry.json"
+    },
+    {
+      "id": "parix-hatchery",
+      "path": "skills/parix-hatchery/SKILL.md",
+      "scope": "onboarding"
+    },
+    {
+      "id": "parix-install",
+      "path": "skills/parix-install/SKILL.md",
+      "scope": "install"
+    },
+    {
+      "id": "parix-intelligence",
+      "path": "skills/parix-intelligence/SKILL.md",
+      "scope": "atrium"
+    },
+    {
+      "id": "parix-llm",
+      "path": "skills/parix-llm/SKILL.md",
+      "scope": "llm"
+    },
+    {
+      "id": "parix-memory",
+      "path": "skills/parix-memory/SKILL.md",
+      "scope": "memory"
+    },
+    {
+      "id": "parix-operations",
+      "path": "skills/parix-operations/SKILL.md",
+      "scope": "operations"
+    },
+    {
+      "id": "parix-safety",
+      "path": "skills/parix-safety/SKILL.md",
+      "scope": "safety",
+      "required": true
+    },
+    {
+      "id": "parix-sensors",
+      "path": "skills/parix-sensors/SKILL.md",
+      "scope": "hands"
+    },
+    {
+      "id": "parix-synapse",
+      "path": "skills/parix-synapse/SKILL.md",
+      "scope": "bridge",
+      "required": true
+    },
+    {
+      "id": "parix-cognition",
+      "path": "skills/parix-cognition/SKILL.md",
+      "scope": "cognition"
+    },
+    {
+      "id": "parix-troubleshooting",
+      "path": "skills/parix-troubleshooting/SKILL.md",
+      "scope": "support"
+    },
+    {
+      "id": "task-disk-cleanup",
+      "path": "skills/task-disk-cleanup/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-network-fix",
+      "path": "skills/task-network-fix/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-process-mgmt",
+      "path": "skills/task-process-mgmt/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-dev-env",
+      "path": "skills/task-dev-env/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-git-recovery",
+      "path": "skills/task-git-recovery/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-security-alert",
+      "path": "skills/task-security-alert/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-power-mgmt",
+      "path": "skills/task-power-mgmt/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "scope": "core",
+      "path": "skills/parix-skill-forge/SKILL.md",
+      "id": "parix-skill-forge"
+    },
+    {
+      "scope": "task",
+      "path": "skills/task-docker-mgmt/SKILL.md",
+      "id": "task-docker-mgmt"
+    },
+    {
+      "scope": "task",
+      "path": "skills/task-log-analysis/SKILL.md",
+      "id": "task-log-analysis"
+    },
+    {
+      "id": "task-computer-use-headless",
+      "path": "skills/task-computer-use-headless/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-virtual-desktop",
+      "path": "skills/task-virtual-desktop/SKILL.md",
+      "scope": "task"
+    }
+  ]
+}

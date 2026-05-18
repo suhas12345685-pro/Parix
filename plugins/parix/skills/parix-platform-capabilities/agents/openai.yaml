@@ -1,0 +1,4 @@
+interface:
+  display_name: "Parix Platform Capabilities"
+  short_description: "Detect OS capabilities for Parix."
+  default_prompt: "Add a platform capability probe to Parix."

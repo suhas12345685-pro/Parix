@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DemoChecklist",
+  "description": "Demo readiness verification checklist for Parix.",
+  "type": "object",
+  "required": ["checks"],
+  "properties": {
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "description", "passed"],
+        "properties": {
+          "id": { "type": "string" },
+          "category": { "type": "string", "enum": ["fast", "runtime"] },
+          "description": { "type": "string" },
+          "passed": { "type": ["boolean", "null"] },
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "checks": [
+        { "id": "port_synapse", "category": "fast", "description": "Synapse port is 8765", "passed": null, "detail": "" },
+        { "id": "port_aegis_relay", "category": "fast", "description": "Aegis relay port is 8766", "passed": null, "detail": "" },
+        { "id": "port_aegis_ui", "category": "fast", "description": "Aegis UI port is 3000", "passed": null, "detail": "" },
+        { "id": "hands_compile", "category": "fast", "description": "Hands Python imports compile", "passed": null, "detail": "" },
+        { "id": "atrium_build", "category": "fast", "description": "Atrium TypeScript builds", "passed": null, "detail": "" },
+        { "id": "atrium_tests", "category": "fast", "description": "Atrium Vitest suite passes", "passed": null, "detail": "" },
+        { "id": "reboot_sync", "category": "runtime", "description": "Hands sends REBOOT_SYNC on start", "passed": null, "detail": "" },
+        { "id": "world_state_push", "category": "runtime", "description": "Atrium responds with WORLD_STATE_PUSH", "passed": null, "detail": "" },
+        { "id": "task_ack", "category": "runtime", "description": "TASK_REQUEST gets TASK_ACK before timeout", "passed": null, "detail": "" },
+        { "id": "no_ghost_tasks", "category": "runtime", "description": "No pending tasks in SQLite after restart", "passed": null, "detail": "" }
+      ]
+    }
+  ]
+}

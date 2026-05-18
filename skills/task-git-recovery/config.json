@@ -1,0 +1,47 @@
+{
+  "id": "task-git-recovery",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Diagnoses git repository failures and suggests safe recovery paths.",
+  "triggers": [
+    {
+      "eventType": "terminal_error",
+      "keywords": [
+        "MERGE_CONFLICT",
+        "fatal:",
+        "detached HEAD",
+        "failed to push some refs",
+        "index file corrupt",
+        "local changes would be overwritten"
+      ],
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "git_error",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/recover.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "repoDir",
+      "type": "path",
+      "required": false,
+      "description": "Git repository to inspect."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "diagnostics",
+      "type": "object",
+      "description": "Repository status, conflicts, stash state, and recovery advice."
+    }
+  ],
+  "reversibility": 0.9,
+  "permissions": ["filesystem:read", "process:execute"],
+  "timeoutMs": 30000,
+  "settings": {}
+}

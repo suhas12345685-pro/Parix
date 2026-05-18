@@ -1,0 +1,51 @@
+{
+  "id": "task-disk-cleanup",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Finds safe temporary and cache files to reclaim disk space.",
+  "triggers": [
+    {
+      "eventType": "disk_low",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "disk_space_low",
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "terminal_error",
+      "keywords": ["ENOSPC", "No space left on device"],
+      "minConfidence": 0.65,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/cleanup.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "execute",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Delete matching temporary/cache files instead of reporting a dry run."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "freedMb",
+      "type": "number",
+      "description": "Estimated or actual reclaimed space in megabytes."
+    },
+    {
+      "name": "paths",
+      "type": "array",
+      "description": "Candidate paths inspected by the cleanup routine."
+    }
+  ],
+  "reversibility": 0.5,
+  "permissions": ["filesystem:read", "filesystem:write"],
+  "timeoutMs": 120000,
+  "settings": {}
+}

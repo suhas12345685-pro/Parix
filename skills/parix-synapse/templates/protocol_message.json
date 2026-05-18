@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synapse Protocol Message",
+  "description": "Schema for all messages sent over the Synapse WebSocket bridge",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "type": { "const": "TASK_REQUEST" },
+        "task_id": { "type": "string", "format": "uuid" },
+        "task_type": { "type": "string" },
+        "payload": { "type": "object" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "task_id", "task_type", "payload", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "TASK_ACK" },
+        "task_id": { "type": "string", "format": "uuid" },
+        "status": { "type": "string", "enum": ["received", "rejected"] },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "task_id", "status", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "TASK_RESULT" },
+        "task_id": { "type": "string", "format": "uuid" },
+        "success": { "type": "boolean" },
+        "output": { "type": "string" },
+        "error": { "type": ["string", "null"] },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "task_id", "success", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "SENSOR_EVENT" },
+        "event_type": { "type": "string" },
+        "data": { "type": "object" },
+        "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "event_type", "data", "confidence", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "HEARTBEAT" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "REBOOT_SYNC" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "WORLD_STATE_PUSH" },
+        "last_task": { "type": ["string", "null"] },
+        "active_state": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["type", "last_task", "active_state", "timestamp"]
+    },
+    {
+      "properties": {
+        "type": { "const": "CAPABILITY_MISSING" },
+        "capability": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["type", "capability", "message"]
+    }
+  ]
+}

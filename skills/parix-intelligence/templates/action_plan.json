@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Council Action Plan",
+  "description": "Schema for an action plan produced by the Council THINKING state",
+  "type": "object",
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "trigger": {
+      "type": "object",
+      "description": "The sensor event that triggered this plan",
+      "properties": {
+        "event_type": { "type": "string" },
+        "confidence": { "type": "number" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["event_type"]
+    },
+    "source": {
+      "type": "string",
+      "enum": ["skill_cache", "local_rules", "llm"],
+      "description": "How the plan was generated"
+    },
+    "constitution_check": {
+      "type": "object",
+      "properties": {
+        "passed": { "type": "boolean" },
+        "blocked_patterns": { "type": "array", "items": { "type": "string" } },
+        "reversibility_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      },
+      "required": ["passed"]
+    },
+    "governor_check": {
+      "type": "object",
+      "properties": {
+        "passed": { "type": "boolean" },
+        "actions_remaining_minute": { "type": "integer" },
+        "tokens_remaining_day": { "type": "integer" }
+      },
+      "required": ["passed"]
+    },
+    "steps": {
+      "type": "array",
+      "description": "Ordered list of actions to execute",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": { "type": "string" },
+          "command": { "type": "string" },
+          "requires_confirmation": { "type": "boolean", "default": false }
+        },
+        "required": ["action"]
+      }
+    },
+    "requires_user_confirmation": {
+      "type": "boolean",
+      "description": "True if any step has reversibility < 0.3"
+    }
+  },
+  "required": ["plan_id", "trigger", "source", "steps"]
+}

@@ -1,0 +1,41 @@
+{
+  "name": "parix",
+  "version": "0.1.0",
+  "description": "Codex workflows for building, verifying, and extending the Parix local agent.",
+  "author": {
+    "name": "Parix",
+    "email": "dev@parix.local",
+    "url": "https://github.com/ahmedkhaledp-0/parix"
+  },
+  "homepage": "https://github.com/ahmedkhaledp-0/parix",
+  "repository": "https://github.com/ahmedkhaledp-0/parix",
+  "license": "MIT",
+  "keywords": [
+    "parix",
+    "agent",
+    "automation",
+    "accessibility"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Parix",
+    "shortDescription": "Build and verify the Parix agent stack.",
+    "longDescription": "Parix plugin skills help Codex work on the Node Atrium brain, Python Hands executor, accessibility layer, provider adapters, channels, and demo recovery flows.",
+    "developerName": "Parix",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Automation"
+    ],
+    "websiteURL": "https://github.com/ahmedkhaledp-0/parix",
+    "privacyPolicyURL": "https://github.com/ahmedkhaledp-0/parix",
+    "termsOfServiceURL": "https://github.com/ahmedkhaledp-0/parix",
+    "defaultPrompt": [
+      "Add a Parix provider adapter.",
+      "Verify Parix bridge recovery.",
+      "Implement a platform capability probe."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

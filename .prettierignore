@@ -1,0 +1,6 @@
+**/dist/**
+**/node_modules/**
+.parix-e2e/**
+data/**
+hands/**
+qa/**
