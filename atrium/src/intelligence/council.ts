@@ -43,6 +43,7 @@ import {
 import { saveNarrative } from "../cognition/horizon-store.js";
 import { matchSkills, getRegisteredSkill } from "./skill-registry.js";
 import { runSkill, SkillPermissionError } from "./skill-runner.js";
+import { permittedPermissionsForSkill } from "./skill-permissions.js";
 
 export type AtriumState =
   | "IDLE"
@@ -1125,7 +1126,7 @@ export class AtriumEngine extends EventEmitter {
         skillDir: reg.skillDir,
         manifest: reg.manifest,
         inputs: augmentedInputs,
-        permittedPermissions: new Set(reg.manifest.permissions),
+        permittedPermissions: permittedPermissionsForSkill(reg.manifest.id),
       });
       return {
         success: skillResult.success,

@@ -19,7 +19,7 @@ import type { SkillManifest } from "../../../shared/types/skill.js";
 // ---------------------------------------------------------------------------
 
 function writeTestSkill(skillsRoot: string): string {
-  const id = "task-test-disk";
+  const id = "task-disk-cleanup";
   const skillDir = join(skillsRoot, id);
   mkdirSync(join(skillDir, "scripts"), { recursive: true });
 
@@ -160,7 +160,7 @@ describe("e2e council → skill dispatch", () => {
     expect(success).toBe(true);
 
     // The reasoning should namestamp the skill that matched.
-    expect(String(plan.reasoning ?? "")).toContain("task-test-disk");
+    expect(String(plan.reasoning ?? "")).toContain("task-disk-cleanup");
   });
 
   it("non-matching sensor events do not get rewritten to taskType: skill", async () => {

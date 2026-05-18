@@ -16,9 +16,9 @@ breaks if someone external pokes at the agent-control surface.
 | # | Severity | Title | Status |
 |---|---|---|---|
 | 1 | **HIGH** | Self-approval bypass via payload field | **FIXED** in this audit |
-| 2 | **HIGH** | Skill permission gate is a no-op (manifest self-approves) | Documented; needs proper fix before opening a third-party skill registry |
-| 3 | MEDIUM | `full-auto` autonomy has no Constitution floor | Documented; design decision, see notes |
-| 4 | MEDIUM | Enterprise `forbiddenScope` only matches `cli` task type | Documented; trivial fix scoped |
+| 2 | **HIGH** | Skill permission gate is a no-op (manifest self-approves) | **FIXED** after audit |
+| 3 | MEDIUM | `full-auto` autonomy has no Constitution floor | **FIXED** after audit |
+| 4 | MEDIUM | Enterprise `forbiddenScope` only matches `cli` task type | **FIXED** after audit |
 | 5 | LOW | Approval term matching scans `JSON.stringify(payload)` (false-positive prone + evasion via encoding) | Documented |
 | 6 | LOW | Synapse WebSocket binds to `localhost` by default but `PARIX_WS_HOST` is unauthenticated | Documented |
 | 7 | LOW | `cli.execute` accepts arbitrary `cwd` from payload | Documented |
@@ -101,7 +101,7 @@ third-party skills — a malicious manifest can declare
 `permissions: ["shell", "filesystem-write", "network"]` and the gate
 will silently grant all three.
 
-**Why it's not fixed in this audit:** the proper fix requires user-
+**Original audit note:** the proper fix requires user-
 granted permission state in the profile (e.g.
 `profile.skillPermissions: { [skillId]: SkillPermission[] }`) plus a
 UX prompt at skill install. The schema doesn't have that field yet and
@@ -109,10 +109,17 @@ adding it without the prompt would either deny every skill or default-
 allow every skill — both wrong. Track it as the **hard prerequisite
 for opening a third-party skill registry**.
 
-**Interim mitigation:** the in-tree skill registry must remain
+**Original interim mitigation:** the in-tree skill registry must remain
 first-party-only until the gate is real. Add a doc note to
 `docs/cognition.md` and a CI check that refuses external skill
 manifests.
+
+**Post-audit update:** `council.ts` now passes a runtime grant set from
+`skill-permissions.ts`, not the manifest's own permission list. Known
+first-party skills receive explicit per-skill permissions; unknown
+skills receive an empty grant set and cannot self-approve filesystem,
+network, process, clipboard, or browser powers. A real marketplace still
+needs profile-backed permission grants plus an install-time prompt.
 
 ---
 
@@ -136,11 +143,11 @@ of the defaults." The risk is that a user picks `full-auto` thinking
 "the agent is more aggressive" without realizing it removes the only
 remaining barrier to chain-executing irreversible actions.
 
-**Recommended fix (not applied):** rename `full-auto` in user-facing
-copy to something that makes the tradeoff explicit
-(`auto-with-default-safety-only`), or require an explicit secondary
-confirmation in the TUI when the user picks it. The wording change is
-a 30-minute job; the second confirmation needs a small TUI tweak.
+**Fix applied after audit:** autonomy is now evaluated through
+`autonomy-policy.ts`. `full-auto` and enterprise `policy-based` keep a
+hard reversibility floor and require very high confidence for low-
+reversibility actions. Hatchery also labels `full-auto` as maximum
+autonomy with hard safety floors instead of implying rule-free execution.
 
 ---
 
@@ -159,12 +166,11 @@ Enterprise `forbiddenScope` items are matched **only** against `cli`
 task types. A skill, browser action, or channel message containing the
 same forbidden term passes the rule unchallenged.
 
-**Recommended fix (not applied):** drop the `taskType !== "cli"` gate
-and run the pattern against `payloadText(taskType, payload)` exactly
-like personal-mode block rules do. ~5 minute fix; held back because
-expanding rule scope without enterprise test coverage could silently
-break existing flows. Add a test case for each non-cli task type
-before flipping the gate.
+**Fix applied after audit:** the `taskType !== "cli"` gate was removed.
+Enterprise `forbiddenScope` now checks the same normalized
+`payloadText(taskType, payload)` surface used by the profile policy
+rules, so skills, notifications, and future browser actions cannot
+route around enterprise scope terms.
 
 ---
 
@@ -256,11 +262,12 @@ layer that doesn't currently exist.
 | Action | Severity | Effort |
 |---|---|---|
 | (Applied) Remove `hasHumanApproval` payload bypass | HIGH | done |
-| Add `profile.skillPermissions` + install-time prompt, wire as real `permittedPermissions` | HIGH | 3–4h + UX |
+| (Applied) Replace manifest self-grant with first-party runtime permission allowlist | HIGH | done |
+| Add `profile.skillPermissions` + install-time prompt before third-party registry | HIGH | 3–4h + UX |
 | Refuse non-localhost synapse bind unless second env var is set | LOW→MEDIUM at launch | 30m |
 | Add shared-secret handshake to synapse | LOW | 2h |
-| Drop `cli`-only gate from enterprise `forbiddenScope` after adding non-cli tests | MEDIUM | 1h |
-| Reword `full-auto` autonomy in the TUI (or require explicit secondary confirm) | MEDIUM | 30m |
+| (Applied) Drop `cli`-only gate from enterprise `forbiddenScope` | MEDIUM | done |
+| (Applied) Add hard runtime floor for `full-auto` and clarify TUI wording | MEDIUM | done |
 | Validate `cli.execute` `cwd` against allowlist | LOW | 1h |
 
 None of these are launch-blockers individually. The combination of

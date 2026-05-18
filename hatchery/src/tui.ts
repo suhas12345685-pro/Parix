@@ -609,7 +609,17 @@ async function collectPersonality(profile: ParixProfile): Promise<void> {
       { name: 'style', type: 'list', message: 'Communication style', choices: ['friendly', 'concise', 'technical', 'casual'], default: profile.personality.style },
       { name: 'vibe', type: 'list', message: 'Operating vibe', choices: ['balanced', 'proactive', 'cautious'], default: profile.personality.vibe },
       { name: 'interruptionLevel', type: 'list', message: 'Interruption level', choices: ['minimal', 'moderate', 'aggressive'], default: profile.personality.interruptionLevel },
-      { name: 'autonomyLevel', type: 'list', message: 'Autonomy level', choices: ['ask-before-fix', 'safe-auto-fix', 'full-auto'], default: profile.personality.autonomyLevel },
+      {
+        name: 'autonomyLevel',
+        type: 'list',
+        message: 'Autonomy level',
+        choices: [
+          { name: 'Ask before fix - only trivial actions run alone', value: 'ask-before-fix' },
+          { name: 'Safe auto fix - reversible fixes run alone', value: 'safe-auto-fix' },
+          { name: 'Full auto - maximum autonomy with hard safety floors', value: 'full-auto' },
+        ],
+        default: profile.personality.autonomyLevel,
+      },
     ]);
     profile.personality = answers;
     return;

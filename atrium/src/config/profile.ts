@@ -30,6 +30,10 @@ import {
   type InstallContext,
 } from "./install-context.js";
 import { getDb } from "../memory/db.js";
+import {
+  describeAutonomyLevel,
+  evaluateAutonomy,
+} from "../intelligence/autonomy-policy.js";
 
 // ─── Exported profile access ─────────────────────────────────────────
 
@@ -186,9 +190,8 @@ function applyEnterpriseSafety(profile: ParixProfile): void {
     for (const scope of identity.forbiddenScope) {
       const pattern = new RegExp(escapeRegex(scope), "i");
       constitution.addRule((taskType, payload, _ctx) => {
-        if (taskType !== "cli") return null;
-        const cmd = String(payload.command ?? "");
-        if (pattern.test(cmd)) {
+        const text = payloadText(taskType, payload);
+        if (pattern.test(text)) {
           return {
             allowed: false,
             reason: `Enterprise policy: "${scope}" is in forbidden scope`,
@@ -289,8 +292,15 @@ function applyAutonomyRules(_profile: ParixProfile): void {
       `[ATRIUM:PROFILE] Autonomy: ${level} — most actions will require confirmation`,
     );
   }
-  // 'safe-auto-fix' and 'safe-auto' use default Constitution rules (no extra blocks)
-  // 'full-auto' and 'policy-based' also use defaults (advanced modes for power users)
+  // Every autonomy mode keeps a hard runtime floor. Higher autonomy changes
+  // thresholds; it never disables the Constitution.
+  constitution.addRule((_taskType, _payload, ctx) =>
+    evaluateAutonomy(level, {
+      reversibilityScore: ctx.reversibilityScore,
+      confidence: ctx.confidence,
+    }),
+  );
+  console.log(`[ATRIUM:PROFILE] Autonomy: ${describeAutonomyLevel(level)}`);
 }
 
 // ─── Utility ─────────────────────────────────────────────────────────
