@@ -53,8 +53,9 @@ export function runCognition(event: CognitiveEvent): CognitiveSnapshot | null {
         critiques.find((critique) => critique.actionId === action.id)?.approved,
     ) ?? candidateActions[candidateActions.length - 1];
   const activeTrees = getAllActiveTrees();
+  const skillMatches = matchSkills(event);
   const hasCache =
-    !!lookupSkill(event.type, event.data) || matchSkills(event).length > 0;
+    !!lookupSkill(event.type, event.data) || skillMatches.length > 0;
   const metacognition = metacogAssess(
     desire,
     hypotheses,
@@ -62,6 +63,15 @@ export function runCognition(event: CognitiveEvent): CognitiveSnapshot | null {
     activeTrees,
     hasCache,
   );
+
+  // Every applicable skill becomes a tool call. Council fans these out
+  // in parallel under the per-task cap; one match still works fine and
+  // mirrors the old single-skill behavior.
+  const toolCalls = skillMatches.map((reg) => ({
+    skillId: reg.manifest.id,
+    inputs: { ...(event.data ?? {}) },
+    reversibility: reg.manifest.reversibility,
+  }));
 
   const decision: CognitiveDecision = {
     mode:
@@ -77,6 +87,7 @@ export function runCognition(event: CognitiveEvent): CognitiveSnapshot | null {
     simulations,
     critiques,
     recommendedAction,
+    toolCalls,
     confidence: Math.min(
       1,
       (desire.confidence + (hypotheses[0]?.confidence ?? 0.5)) / 2,

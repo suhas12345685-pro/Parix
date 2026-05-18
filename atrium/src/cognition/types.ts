@@ -87,6 +87,19 @@ export interface CritiqueResult {
   betterAlternative?: string;
 }
 
+// A single skill the cognition layer believes is applicable for the
+// current event. Emitted in `decision.toolCalls`; council runs them in
+// parallel (under the fan-out cap) and aggregates the results.
+export interface SkillToolCall {
+  skillId: string;
+  // Inputs to feed the skill's stdin. Today this is event.data; richer
+  // mapping (manifest input schema) will come once the registry exposes it.
+  inputs: Record<string, unknown>;
+  // Manifest-declared reversibility — duplicated here so council/critic
+  // don't have to round-trip to the registry just to score parallel calls.
+  reversibility: number;
+}
+
 export interface CognitiveDecision {
   mode: "reflex" | "normal" | "deep" | "research";
   desire: DesireInference;
@@ -94,6 +107,10 @@ export interface CognitiveDecision {
   simulations: SimulationResult[];
   critiques: CritiqueResult[];
   recommendedAction: CandidateAction;
+  // 0..N skills cognition believes apply right now. Always populated
+  // (empty array when no skill matches). Council fans these out under
+  // the per-task concurrency cap.
+  toolCalls: SkillToolCall[];
   confidence: number;
   shouldAct: boolean;
   shouldInterrupt: boolean;

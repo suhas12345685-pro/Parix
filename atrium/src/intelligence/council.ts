@@ -41,9 +41,9 @@ import {
   startNarrative,
 } from "../cognition/horizon.js";
 import { saveNarrative } from "../cognition/horizon-store.js";
-import { matchSkills, getRegisteredSkill } from "./skill-registry.js";
-import { runSkill, SkillPermissionError } from "./skill-runner.js";
-import { permittedPermissionsForSkill } from "./skill-permissions.js";
+import { matchSkills } from "./skill-registry.js";
+import { runSkillsInParallel } from "./skill-fanout.js";
+import { isAutonomousMode } from "../config/profile.js";
 
 export type AtriumState =
   | "IDLE"
@@ -306,10 +306,13 @@ export class AtriumEngine extends EventEmitter {
         );
       }
 
-      // Skill manifest fast path: if a registered skill matches the trigger
-      // event, rewrite the plan to dispatch it via the local runner instead
-      // of synapse. Constitution + reversibility still apply to the rewritten
-      // plan so destructive skills can be blocked.
+      // Skill manifest fast path: if registered skills match the trigger
+      // event, rewrite the plan to dispatch them via the local runner
+      // instead of synapse. Constitution + reversibility still apply to
+      // the rewritten plan — applied against the lowest-reversibility
+      // skill so the most destructive call can block the whole fan-out.
+      // When multiple skills match, they run in parallel under the per-
+      // task cap (see skill-fanout.ts).
       if (event) {
         const matches = matchSkills({
           type: event.event_type,
@@ -317,24 +320,39 @@ export class AtriumEngine extends EventEmitter {
           confidence: event.confidence,
         });
         if (matches.length > 0) {
-          const chosen = matches
+          const sorted = matches
             .slice()
             .sort(
               (a, b) =>
                 (b.manifest.reversibility ?? 0) -
                 (a.manifest.reversibility ?? 0),
-            )[0];
+            );
+          const skillCalls = sorted.map((m) => ({
+            skillId: m.manifest.id,
+            inputs: { ...(event.data ?? {}) },
+          }));
+          const minReversibility = sorted.reduce(
+            (acc, m) => Math.min(acc, m.manifest.reversibility ?? 0),
+            1,
+          );
           plan = {
             id: plan.id,
             taskType: "skill",
             payload: {
-              skillId: chosen.manifest.id,
+              // Backward-compat: legacy single-skill path keeps these.
+              skillId: sorted[0].manifest.id,
               inputs: { ...(event.data ?? {}) },
               _origTaskType: plan.taskType,
+              // New: full fan-out spec. executeSkillPlan reads this
+              // when present and dispatches all skills in parallel.
+              skillCalls,
             },
-            reversibilityScore: chosen.manifest.reversibility,
+            reversibilityScore: minReversibility,
             constitutionVerdict: plan.constitutionVerdict,
-            reasoning: `Skill match: ${chosen.manifest.id} (rev=${chosen.manifest.reversibility.toFixed(2)})`,
+            reasoning:
+              skillCalls.length === 1
+                ? `Skill match: ${skillCalls[0].skillId} (rev=${minReversibility.toFixed(2)})`
+                : `Skill fan-out: ${skillCalls.map((s) => s.skillId).join(", ")} (min rev=${minReversibility.toFixed(2)})`,
           };
           plan.constitutionVerdict = constitution.check(
             plan.taskType,
@@ -346,7 +364,7 @@ export class AtriumEngine extends EventEmitter {
             },
           );
           console.log(
-            `[ATRIUM] Skill dispatch: ${chosen.manifest.id} (${matches.length} match${matches.length === 1 ? "" : "es"})`,
+            `[ATRIUM] Skill dispatch: ${skillCalls.length === 1 ? sorted[0].manifest.id : `${skillCalls.length} skills in parallel`} (${matches.length} match${matches.length === 1 ? "" : "es"})`,
           );
         }
       }
@@ -1089,61 +1107,64 @@ export class AtriumEngine extends EventEmitter {
   private async executeSkillPlan(
     plan: ActionPlan,
   ): Promise<{ success: boolean; output?: string; error?: string }> {
-    const skillId = String(
-      (plan.payload as Record<string, unknown>).skillId ?? "",
-    );
-    const reg = getRegisteredSkill(skillId);
-    if (!reg) {
-      return { success: false, error: `skill not registered: ${skillId}` };
-    }
-    const inputs =
-      ((plan.payload as Record<string, unknown>).inputs as
-        | Record<string, unknown>
-        | undefined) ?? {};
+    const payload = plan.payload as Record<string, unknown>;
+    const skillCalls = Array.isArray(payload.skillCalls)
+      ? (payload.skillCalls as Array<{
+          skillId: string;
+          inputs: Record<string, unknown>;
+        }>)
+      : [
+          // Legacy single-skill payload — wrap as a one-element fan-out.
+          {
+            skillId: String(payload.skillId ?? ""),
+            inputs:
+              (payload.inputs as Record<string, unknown> | undefined) ?? {},
+          },
+        ];
 
-    // If the manifest declares `accessibility:read`, surface the latest
+    if (skillCalls.length === 0 || !skillCalls[0].skillId) {
+      return { success: false, error: "no skill specified in plan" };
+    }
+
+    // If any skill declares `accessibility:read`, surface the latest
     // focused-element snapshot as an extra input. Skills without the
-    // permission don't see this data.
-    let augmentedInputs = inputs;
-    if (reg.manifest.permissions.includes("accessibility:read")) {
-      const a11y = (await import("../synapse/a11y-handler.js"))
-        .getLatestAccessibility();
-      if (a11y) {
-        augmentedInputs = {
+    // permission don't see this data. Loaded lazily once and reused
+    // across the fan-out.
+    let a11yCache: Awaited<
+      ReturnType<typeof import("../synapse/a11y-handler.js").getLatestAccessibility>
+    > | null = null;
+    let a11yLoaded = false;
+
+    const result = await runSkillsInParallel(skillCalls, {
+      autonomousMode: isAutonomousMode(),
+      augmentInputs: async (reg, inputs) => {
+        if (!reg.manifest.permissions.includes("accessibility:read")) {
+          return inputs;
+        }
+        if (!a11yLoaded) {
+          a11yCache = (
+            await import("../synapse/a11y-handler.js")
+          ).getLatestAccessibility();
+          a11yLoaded = true;
+        }
+        if (!a11yCache) return inputs;
+        return {
           ...inputs,
           _accessibility: {
-            focusedApp: a11y.focusedApp,
-            backendUsed: a11y.backendUsed,
-            confidence: a11y.confidence,
-            focusedElement: a11y.focusedElement,
+            focusedApp: a11yCache.focusedApp,
+            backendUsed: a11yCache.backendUsed,
+            confidence: a11yCache.confidence,
+            focusedElement: a11yCache.focusedElement,
           },
         };
-      }
-    }
+      },
+    });
 
-    try {
-      const skillResult = await runSkill({
-        skillDir: reg.skillDir,
-        manifest: reg.manifest,
-        inputs: augmentedInputs,
-        permittedPermissions: permittedPermissionsForSkill(reg.manifest.id),
-      });
-      return {
-        success: skillResult.success,
-        output: skillResult.output
-          ? JSON.stringify(skillResult.output)
-          : (skillResult.stdout || undefined),
-        error: skillResult.error,
-      };
-    } catch (err) {
-      if (err instanceof SkillPermissionError) {
-        return { success: false, error: err.message };
-      }
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      };
-    }
+    return {
+      success: result.success,
+      output: result.output,
+      error: result.error,
+    };
   }
 
   private enterError(err: Error): void {

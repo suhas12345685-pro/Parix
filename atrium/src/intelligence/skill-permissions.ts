@@ -1,4 +1,7 @@
-import type { SkillPermission } from "../../../shared/types/skill.js";
+import type {
+  SkillManifest,
+  SkillPermission,
+} from "../../../shared/types/skill.js";
 
 const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
   "task-computer-use-headless": [
@@ -27,4 +30,28 @@ export function permittedPermissionsForSkill(
 
 export function isFirstPartySkill(skillId: string): boolean {
   return skillId in FIRST_PARTY_SKILL_PERMISSIONS;
+}
+
+export interface ResolveOptions {
+  autonomousMode?: boolean;
+}
+
+// Resolves the permission clearance set for a skill. First-party skills
+// always use their hardcoded allowlist (autonomous mode has no effect on
+// them — they're already trusted). Third-party skills get an empty set
+// by default, which causes the runner gate to block them; when the user
+// has opted into autonomous mode, third-party skills get clearance for
+// whatever their manifest declares. The Constitution still applies on
+// top of this.
+export function resolvePermittedPermissions(
+  manifest: SkillManifest,
+  opts: ResolveOptions = {},
+): Set<SkillPermission> {
+  if (isFirstPartySkill(manifest.id)) {
+    return permittedPermissionsForSkill(manifest.id);
+  }
+  if (opts.autonomousMode) {
+    return new Set(manifest.permissions);
+  }
+  return new Set();
 }

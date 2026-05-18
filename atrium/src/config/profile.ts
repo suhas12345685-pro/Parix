@@ -82,6 +82,14 @@ export function getAutonomyLevel(): string {
   return "safe-auto-fix";
 }
 
+// Autonomous mode bypasses the runner-level skill permission gate for
+// third-party skills. Off by default. First-party skills are unaffected —
+// they're already trusted via FIRST_PARTY_SKILL_PERMISSIONS. Constitution
+// and autonomy thresholds still apply.
+export function isAutonomousMode(): boolean {
+  return _profile?.autonomy?.autonomousMode === true;
+}
+
 export function getAegisWakeWord(): string {
   const settings = _profile?.channels.settings.aegis;
   const wakeWord = settings?.wakeWord;

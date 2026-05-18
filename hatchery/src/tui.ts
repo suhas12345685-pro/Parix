@@ -81,6 +81,7 @@ export async function runTuiWizard(): Promise<TuiResult> {
   await collectPermissions(profile);
   await collectHatcheryModules(profile);
   await collectTelemetry(profile);
+  await collectAutonomy(profile);
   syncAgentProfileWithRuntime(profile);
   printOnboardingSummary(profile);
 
@@ -593,6 +594,30 @@ async function collectTelemetry(profile: ParixProfile): Promise<void> {
   profile.telemetry = {
     enabled,
     consentedAt: enabled ? new Date().toISOString() : null,
+  };
+}
+
+async function collectAutonomy(profile: ParixProfile): Promise<void> {
+  console.log('');
+  console.log('Autonomous mode (advanced)');
+  console.log('When ON, Parix skips skill-permission prompts for skills you have installed.');
+  console.log('First-party skills are unaffected — they are already trusted.');
+  console.log('The Constitution and autonomy thresholds still apply on every action.');
+  console.log('Default:         OFF. Recommended unless you only install skills you trust.');
+  console.log('');
+
+  const { enabled } = await inquirer.prompt<{ enabled: boolean }>([
+    {
+      name: 'enabled',
+      type: 'confirm',
+      message: 'Enable autonomous mode for installed skills?',
+      default: false,
+    },
+  ]);
+
+  profile.autonomy = {
+    autonomousMode: enabled,
+    enabledAt: enabled ? new Date().toISOString() : null,
   };
 }
 

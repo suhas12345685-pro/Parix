@@ -537,6 +537,20 @@ export interface UpdatesConfig {
   autoCheck: boolean;
 }
 
+// ─── Section: Autonomy / skill-permission policy ─────────────────────
+//
+// Controls whether the agent prompts before running skills that need
+// permissions outside the first-party allowlist. Off by default — the
+// E3a audit blocker only relaxes when the user explicitly opts in.
+//
+// `autonomousMode = true` does NOT disable the Constitution or autonomy
+// thresholds; it only skips the runner-level skill permission gate for
+// third-party skills the user has installed.
+export interface AutonomyConfig {
+  autonomousMode: boolean;
+  enabledAt: string | null;
+}
+
 export interface ParixProfile {
   version: "1.0";
   mode: ProfileMode;
@@ -551,6 +565,7 @@ export interface ParixProfile {
   hatcheryModules: HatcheryModuleConfig;
   telemetry?: TelemetryConfig;
   updates?: UpdatesConfig;
+  autonomy?: AutonomyConfig;
 }
 
 export const DEFAULT_UPDATE_ENDPOINT = "https://updates.parix.dev";
@@ -570,6 +585,13 @@ export function createDefaultUpdates(): UpdatesConfig {
     pollIntervalMs: DEFAULT_UPDATE_POLL_INTERVAL_MS,
     lastCheckedAt: null,
     autoCheck: true,
+  };
+}
+
+export function createDefaultAutonomy(): AutonomyConfig {
+  return {
+    autonomousMode: false,
+    enabledAt: null,
   };
 }
 
@@ -637,6 +659,7 @@ export function createDefaultProfile(mode: ProfileMode): ParixProfile {
     hatcheryModules: createDefaultHatcheryModules(mode),
     telemetry: createDefaultTelemetry(),
     updates: createDefaultUpdates(),
+    autonomy: createDefaultAutonomy(),
   };
 }
 
@@ -965,6 +988,27 @@ export function validateProfile(data: unknown): ValidationResult {
       }
       if (typeof up.autoCheck !== "boolean") {
         errors.push("updates.autoCheck must be a boolean");
+      }
+    }
+  }
+
+  // Autonomy (optional — older profiles may not have it)
+  if (p.autonomy !== undefined) {
+    if (typeof p.autonomy !== "object" || p.autonomy === null) {
+      errors.push("autonomy must be an object");
+    } else {
+      const au = p.autonomy as Record<string, unknown>;
+      if (typeof au.autonomousMode !== "boolean") {
+        errors.push("autonomy.autonomousMode must be a boolean");
+      }
+      if (au.enabledAt !== null && typeof au.enabledAt !== "string") {
+        errors.push("autonomy.enabledAt must be a string or null");
+      }
+      // Mirrors telemetry's consent invariant: can't be on without a timestamp.
+      if (au.autonomousMode === true && au.enabledAt === null) {
+        errors.push(
+          "autonomy.autonomousMode cannot be true without an enabledAt timestamp",
+        );
       }
     }
   }
