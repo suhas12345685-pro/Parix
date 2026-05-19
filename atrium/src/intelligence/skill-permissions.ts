@@ -16,6 +16,7 @@ const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
   "task-power-mgmt": ["process:execute"],
   "task-process-mgmt": ["process:read", "process:execute"],
   "task-security-alert": ["clipboard:read", "notification:send"],
+  "task-terminal-error-resolver": [],
   "task-virtual-desktop": ["process:execute", "virtual-desktop:write"],
 };
 
