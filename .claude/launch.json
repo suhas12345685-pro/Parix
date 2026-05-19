@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "aegis",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "dev", "--port", "5173"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=aegis", "--", "--port", "5173"],
       "port": 5173
     }
   ]

@@ -128,7 +128,7 @@ down post-audit; previous range assumed worst-case rewrite).
 |---|---|---|---|
 | F1 | Smoke-test each of the 13 providers' API key flow end-to-end | Codex | 13×30m = 6.5h |
 | F2 | Smoke-test account-auth flows where supported (OpenAI, Anthropic CLI, etc.) | Codex | 4h |
-| F3 | Aegis "first-run" UX polish: progress bar, "what Parix is doing right now" panel | Claude | 3h |
+| F3 | ✅ Done (Claude, 2026-05-19) — `aegis/src/components/FirstRunBoot.tsx` overlays a 4-step boot checklist (Aegis relay → Atrium → Hands → Sensors) with a gradient progress bar that fills as each subsystem reports in; auto-dismisses 1.5s after all steps green; manual "Skip to dashboard" exit. `aegis/src/components/NowPanel.tsx` is a persistent footer strip (every page) showing engine-state badge with pulsing dot, primary activity (plan goal → attention focus → latest event), supporting context (active plan node / accessibility focus), plan progress, queue depth, and hands status. Verified in dev server: boot overlay renders, dismiss works, panel persists across navigation, no console/compile errors. | Claude | done |
 | F4 | `[HUMAN]` Suhas to actually hold accounts on each provider for verification | Suhas | — |
 
 ### Track G — Docs + launch surface
