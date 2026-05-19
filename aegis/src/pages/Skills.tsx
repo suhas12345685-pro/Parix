@@ -11,6 +11,9 @@ interface Props {
     source: string;
     requirements: string[];
     secrets: Record<string, string>;
+    triggers: Array<{ eventType: string; minConfidence: number }>;
+    permissions: string[];
+    runtime: "py" | "node" | "sh";
   }) => void;
 }
 
@@ -36,8 +39,22 @@ export function Skills({ skills, onCreate }: Props) {
   const [source, setSource] = useState("parix-marketplace");
   const [requirementsText, setRequirementsText] = useState("OPENAI_API_KEY");
   const [secretValues, setSecretValues] = useState<Record<string, string>>({});
+  const [triggersText, setTriggersText] = useState("");
+  const [permissionsText, setPermissionsText] = useState("");
+  const [runtime, setRuntime] = useState<"py" | "node" | "sh">("py");
 
   const requirements = requirementsText
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const triggers = triggersText
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((eventType) => ({ eventType, minConfidence: 0.6 }));
+
+  const permissions = permissionsText
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
@@ -107,6 +124,31 @@ export function Skills({ skills, onCreate }: Props) {
             ))}
           </div>
         )}
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <input
+            value={triggersText}
+            onChange={(event) => setTriggersText(event.target.value)}
+            className="rounded-xl border border-purple-400/25 bg-[#0e0714] px-4 py-3 text-white outline-none focus:border-pink-400/60 md:col-span-2"
+            placeholder="Triggers (event types, comma-separated, optional)"
+          />
+          <select
+            value={runtime}
+            onChange={(event) =>
+              setRuntime(event.target.value as "py" | "node" | "sh")
+            }
+            className="rounded-xl border border-purple-400/25 bg-[#0e0714] px-4 py-3 text-white outline-none focus:border-pink-400/60"
+          >
+            <option value="py">Python</option>
+            <option value="node">Node</option>
+            <option value="sh">Shell</option>
+          </select>
+          <input
+            value={permissionsText}
+            onChange={(event) => setPermissionsText(event.target.value)}
+            className="rounded-xl border border-purple-400/25 bg-[#0e0714] px-4 py-3 text-white outline-none focus:border-pink-400/60 md:col-span-3"
+            placeholder="Permissions (e.g. filesystem:read, process:execute, comma-separated)"
+          />
+        </div>
         <button
           type="button"
           onClick={() =>
@@ -116,6 +158,9 @@ export function Skills({ skills, onCreate }: Props) {
               source,
               requirements,
               secrets: secretValues,
+              triggers,
+              permissions,
+              runtime,
             })
           }
           className="mt-5 rounded-xl border border-pink-300/30 bg-gradient-to-br from-pink-500 to-fuchsia-700 px-7 py-3 text-sm font-semibold text-white shadow-[0_0_30px_rgba(236,72,153,0.4)]"
