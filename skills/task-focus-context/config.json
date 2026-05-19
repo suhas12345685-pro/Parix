@@ -1,0 +1,61 @@
+{
+  "id": "task-focus-context",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Triggered when the user switches focused app. Classifies the focused context (terminal, code editor, chat, browser, email, doc) and emits a hint about what kind of help would be useful here. Read-only.",
+  "triggers": [
+    {
+      "eventType": "focus_change",
+      "minConfidence": 0.5,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/focus_context.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "focused_app",
+      "type": "string",
+      "required": true,
+      "description": "Name of the application that now has focus (e.g. 'Code', 'Terminal', 'Chrome', 'Slack')."
+    },
+    {
+      "name": "previous_app",
+      "type": "string",
+      "required": false,
+      "description": "Name of the app that was focused before (may be empty for the first focus event after boot)."
+    },
+    {
+      "name": "focused_element",
+      "type": "object",
+      "required": false,
+      "description": "Optional shape: {role, name, state[]}. The accessibility element that has keyboard focus inside the app."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "contextKind",
+      "type": "string",
+      "description": "terminal | editor | browser | chat | email | docs | media | unknown"
+    },
+    {
+      "name": "appFamily",
+      "type": "string",
+      "description": "Normalized app family — vscode, jetbrains, chrome, slack, etc."
+    },
+    {
+      "name": "helpfulnessHint",
+      "type": "string",
+      "description": "One-line hint about what kind of proactive help is likely useful in this context."
+    },
+    {
+      "name": "shouldDeferAction",
+      "type": "boolean",
+      "description": "True iff Parix should hold non-urgent actions while the user is in a deep-focus context (writing in an editor, on a call)."
+    }
+  ],
+  "reversibility": 1.0,
+  "permissions": ["accessibility:read"],
+  "timeoutMs": 3000,
+  "settings": {}
+}

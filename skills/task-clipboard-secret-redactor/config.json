@@ -1,0 +1,60 @@
+{
+  "id": "task-clipboard-secret-redactor",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Given a clipboard_sensitive_data event, classifies the secret family and produces redaction guidance. Read-only — never reads the raw clipboard, only the sensor's match-category labels.",
+  "triggers": [
+    {
+      "eventType": "clipboard_sensitive_data",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "credential_exposed",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/redactor.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "matches",
+      "type": "array",
+      "required": true,
+      "description": "Category labels from the clipboard sensor (e.g. api_key, github_token, aws_access_key, password, token). NEVER the raw secret value."
+    },
+    {
+      "name": "length",
+      "type": "number",
+      "required": false,
+      "description": "Length of the clipboard payload — for triage, not for echoing."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "families",
+      "type": "array",
+      "description": "Normalized list of detected secret families."
+    },
+    {
+      "name": "severity",
+      "type": "string",
+      "description": "low | medium | high — based on the worst family detected."
+    },
+    {
+      "name": "guidance",
+      "type": "array",
+      "description": "Ordered list of remediation steps for the user (specific to each family)."
+    },
+    {
+      "name": "clipboardClearRecommended",
+      "type": "boolean",
+      "description": "True iff the agent should offer to clear the clipboard immediately (high-severity only)."
+    }
+  ],
+  "reversibility": 1.0,
+  "permissions": [],
+  "timeoutMs": 5000,
+  "settings": {}
+}

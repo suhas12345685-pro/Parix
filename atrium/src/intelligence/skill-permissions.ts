@@ -1,6 +1,8 @@
 import type { SkillPermission } from "../../../shared/types/skill.js";
 
 const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
+  "task-build-watch": ["process:execute", "filesystem:read"],
+  "task-clipboard-secret-redactor": [],
   "task-computer-use-headless": [
     "browser:headless",
     "filesystem:write",
@@ -10,6 +12,7 @@ const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
   "task-dev-env": ["filesystem:read", "process:execute"],
   "task-disk-cleanup": ["filesystem:read", "filesystem:write"],
   "task-docker-mgmt": ["docker:write", "process:execute"],
+  "task-focus-context": ["accessibility:read"],
   "task-git-recovery": ["filesystem:read", "process:execute"],
   "task-log-analysis": ["filesystem:read"],
   "task-network-fix": ["network:read", "process:execute"],

@@ -54,6 +54,7 @@ class AccessibilityPoller:
         self._interval_s = max(MIN_INTERVAL_S, interval_s)
         self._mode = mode
         self._last_fingerprint: str | None = None
+        self._last_focused_app: str | None = None
         self._stop_event = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
 
@@ -98,7 +99,9 @@ class AccessibilityPoller:
         fingerprint = snapshot.fingerprint()
         if fingerprint == self._last_fingerprint:
             return  # nothing meaningful changed
+        prev_app = self._last_focused_app
         self._last_fingerprint = fingerprint
+        self._last_focused_app = snapshot.focused_app
 
         event = AccessibilitySnapshotEvent(
             snapshot_id=str(uuid.uuid4()),
@@ -113,14 +116,50 @@ class AccessibilityPoller:
         except Exception as exc:
             logger.warning("Failed to send ACCESSIBILITY_SNAPSHOT: %s", exc)
 
+        # If the focused application changed (not just the focused
+        # element within the same app), emit a lightweight SENSOR_EVENT
+        # so task-focus-context and other responders can route on it.
+        # The accessibility snapshot is a separate, heavier message —
+        # this is the small "the user switched apps" pulse.
+        if snapshot.focused_app and snapshot.focused_app != prev_app:
+            focus_change_event = {
+                "type": "SENSOR_EVENT",
+                "event_type": "focus_change",
+                "data": {
+                    "focused_app": snapshot.focused_app,
+                    "previous_app": prev_app or "",
+                    "backend_used": snapshot.backend_used,
+                    "focused_element": (
+                        {
+                            "role": snapshot.focused_element.role,
+                            "name": snapshot.focused_element.name,
+                            "state": list(snapshot.focused_element.state),
+                        }
+                        if snapshot.focused_element is not None
+                        else None
+                    ),
+                },
+                "confidence": snapshot.confidence,
+                "timestamp": time.time(),
+            }
+            try:
+                await self._send(focus_change_event)
+            except Exception as exc:
+                logger.warning("Failed to send focus_change SENSOR_EVENT: %s", exc)
+
     # --- introspection helpers (used by tests) ---
 
     @property
     def last_fingerprint(self) -> str | None:
         return self._last_fingerprint
 
+    @property
+    def last_focused_app(self) -> str | None:
+        return self._last_focused_app
+
     def reset_fingerprint(self) -> None:
         self._last_fingerprint = None
+        self._last_focused_app = None
 
 
 def make_synapse_sender(

@@ -99,15 +99,15 @@ not from a sensor signal alone.
 
 **The gap:** there is no skill that says *"when this signal fires,
 plan a multi-step response and execute it."* That's the proactive
-responder layer. Some candidates worth a first pass:
+responder layer. Status of the candidates:
 
-| Skill ID | Trigger | Composes | Why this one is high-value |
-|---|---|---|---|
-| `task-terminal-error-resolver` | `os-sensors:terminal_error` | `cli-executor` → search-docs → `cli-executor` retry | Demo of the moat: agent reads terminal output and proactively offers a fix. Visible win every dev sees daily. |
-| `task-focus-context` | `accessibility:focus_change` | `accessibility-reader` → memory recall → narrative summary | Lets the agent quietly prepare context for whatever the user just focused on. The accessibility moat made visible. |
-| `task-build-watch` | User-invoked, then long-running | `cli-executor` (npm run build) → `os-sensors` → channel notify | Proves long-running autonomous skill works end-to-end with channels. |
-| `task-clipboard-secret-redactor` | `os-sensors:clipboard_secret` | redact → notify | Privacy story made concrete. Fires when the OS sensor detects a key/token on the clipboard. |
-| `task-meeting-prep` | `calendar:upcoming_event` (new sensor) | memory recall → channel digest | Showcases proactiveness — fires N minutes before a meeting, prepares context. Needs a calendar sensor first. |
+| Skill ID | Trigger | Status |
+|---|---|---|
+| `task-terminal-error-resolver` | `terminal_error` | ✅ shipped 2026-05-19 — rule-based classifier across 15 error families. |
+| `task-clipboard-secret-redactor` | `clipboard_sensitive_data` | ✅ shipped 2026-05-19 — classifies family + severity, emits redaction playbook. Different role from `task-security-alert` (detector vs. responder). |
+| `task-build-watch` | `build_watch_tick` / `workspace_changed` | ✅ shipped 2026-05-19 — single-iteration build runner with structured pass/fail. Council loops it; skill does not. Composes with `task-terminal-error-resolver` via `suggestedNextSkill` on failure. |
+| `task-focus-context` | `focus_change` | ✅ shipped 2026-05-19 — needed a new SENSOR_EVENT(focus_change) emitter wired into `a11y_poller.py` (fires on focused-app transitions, not every element change). Classifies 17 app families. |
+| `task-meeting-prep` | `calendar:upcoming_event` | ⏳ deferred — no calendar sensor exists yet. Build the sensor first; the skill is straightforward once the trigger is real. |
 
 ## The infrastructure under each skill type
 
