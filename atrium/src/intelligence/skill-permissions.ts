@@ -31,6 +31,7 @@ const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
     "network:read",
     "network:write",
   ],
+  "task-create-mcp": ["filesystem:read", "filesystem:write"],
   "task-dev-env": ["filesystem:read", "process:execute"],
   "task-disk-cleanup": ["filesystem:read", "filesystem:write"],
   "task-docker-mgmt": ["docker:write", "process:execute"],
