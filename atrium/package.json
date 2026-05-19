@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "prebuild": "tsc -p ../shared",
     "build": "tsc",
     "start": "node dist/index.js",
+    "pretest": "tsc -p ../shared",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:cover": "vitest run --coverage"
+    "test:cover": "vitest run --coverage",
+    "typecheck": "tsc -p ../shared && tsc --noEmit"
   },
   "dependencies": {
     "keytar": "^7.9.0",
