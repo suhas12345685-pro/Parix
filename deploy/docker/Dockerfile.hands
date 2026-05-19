@@ -35,6 +35,11 @@ USER parix
 ENV PYTHONUNBUFFERED=1
 ENV PARIX_WS_PORT=8765
 ENV PARIX_WS_HOST=0.0.0.0
+# Container deployments always bind to non-loopback (other containers reach
+# hands via the orchestrator network). The synapse AUTH handshake still
+# protects the socket; PARIX_SYNAPSE_TOKEN MUST be supplied externally
+# (compose env_file, k8s Secret, etc.) — do not bake a token into images.
+ENV PARIX_ALLOW_REMOTE_SYNAPSE=1
 
 EXPOSE 8765
 

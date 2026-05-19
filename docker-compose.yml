@@ -8,6 +8,8 @@ services:
     environment:
       PARIX_WS_HOST: 0.0.0.0
       PARIX_WS_PORT: 8765
+      PARIX_ALLOW_REMOTE_SYNAPSE: "1"
+      PARIX_SYNAPSE_TOKEN: ${PARIX_SYNAPSE_TOKEN:?set PARIX_SYNAPSE_TOKEN in .env to a long random string}
       PYTHONUNBUFFERED: "1"
     ports:
       - "8765:8765"
@@ -31,6 +33,7 @@ services:
       NODE_ENV: production
       HANDS_WS_URL: ws://hands:8765
       PARIX_DB_PATH: /app/data/memory.db
+      PARIX_SYNAPSE_TOKEN: ${PARIX_SYNAPSE_TOKEN:?set PARIX_SYNAPSE_TOKEN in .env to a long random string}
     env_file:
       - .env
     ports:

@@ -80,7 +80,8 @@ Common variables:
 - `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY`, `PERPLEXITY_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY` - cloud LLM providers.
 - `OLLAMA_BASE_URL`, `LMSTUDIO_BASE_URL` - local model endpoints.
 - `HANDS_WS_URL` - Atrium to Hands URL, defaults to `ws://localhost:8765`.
-- `PARIX_WS_HOST`, `PARIX_WS_PORT` - Hands bind host and port.
+- `PARIX_WS_HOST`, `PARIX_WS_PORT` - Hands bind host and port. Hands refuses to bind to a non-loopback host unless `PARIX_ALLOW_REMOTE_SYNAPSE=1` is also set.
+- `PARIX_SYNAPSE_TOKEN` - Shared secret for the synapse WS handshake. Required when hands binds non-loopback (Docker, k8s). On desktop, hands auto-generates one at `~/.parix/synapse-token`. Both hands and atrium must see the same value.
 - `PARIX_HOME` - profile and auth storage root.
 - `PARIX_DB_PATH` - memory database path for container or deployment overrides.
 - Channel secrets such as Telegram, Slack, Discord, Teams, and webhook URLs are documented in `.env.example`.

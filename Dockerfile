@@ -22,6 +22,10 @@ ENV PARIX_DB_PATH=/app/data/memory.db
 ENV HANDS_WS_URL=ws://hands:8765
 ENV PARIX_WS_HOST=0.0.0.0
 ENV PARIX_WS_PORT=8765
+# Containerized hands always binds non-loopback (other containers reach it
+# via the orchestrator network). PARIX_SYNAPSE_TOKEN MUST be supplied
+# externally — never bake a token into the image.
+ENV PARIX_ALLOW_REMOTE_SYNAPSE=1
 ENV AEGIS_UI_PORT=3000
 
 RUN apt-get update \

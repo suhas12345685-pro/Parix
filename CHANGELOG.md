@@ -57,9 +57,25 @@ adapter plumbing is in; protocol + hands wiring is still in flight (Codex).
   `docs/security-audit-v0.2.md` covering executor, autonomy gates,
   approval policy, skill permission boundaries, and the synapse
   socket. Seven findings catalogued with severity, file/line refs, and
-  recommended fixes. Two HIGH issues remain open as v1.0 launch-
-  blockers (skill permission gate + synapse auth) — see SHIP-PLAN.md
-  rows E3a / E3b.
+  recommended fixes. All HIGH findings now closed (Finding 1 fixed in
+  the audit; Finding 2 closed as won't-fix by design on 2026-05-19;
+  Finding 6 fixed below).
+- **Synapse auth (Finding 6)**: `hands` refuses to bind
+  `PARIX_WS_HOST` to a non-loopback address unless
+  `PARIX_ALLOW_REMOTE_SYNAPSE=1` is also set. Any non-loopback peer
+  must complete a `SYNAPSE_AUTH` handshake within 5 seconds using a
+  shared secret resolved from `PARIX_SYNAPSE_TOKEN` env var or
+  `~/.parix/synapse-token` (auto-generated on first run). Loopback
+  peers (desktop install) keep working with zero configuration.
+  Containerized deploys must supply `PARIX_SYNAPSE_TOKEN` externally —
+  Dockerfiles bake `PARIX_ALLOW_REMOTE_SYNAPSE=1` but never a token.
+  Token comparison uses `secrets.compare_digest`; mismatch returns
+  `SYNAPSE_AUTH_ERROR` and closes with WS code 4401.
+- **Skill permission gate (Finding 2)** closed as won't-fix by design.
+  Parix's trust boundary lives at the policy/approval layer in both
+  Enterprise and personal mode; the first-party allowlist in
+  `atrium/src/skills/skill-permissions.ts` stays as the floor for
+  unknown skills (empty grant set).
 
 ### Added — v1.0 groundwork (pre-launch, not yet user-facing)
 

@@ -16,11 +16,11 @@ breaks if someone external pokes at the agent-control surface.
 | # | Severity | Title | Status |
 |---|---|---|---|
 | 1 | **HIGH** | Self-approval bypass via payload field | **FIXED** in this audit |
-| 2 | **HIGH** | Skill permission gate is a no-op (manifest self-approves) | **FIXED** after audit |
+| 2 | **HIGH** | Skill permission gate is a no-op (manifest self-approves) | **Closed — won't-fix by design** (2026-05-19); first-party allowlist remains as floor |
 | 3 | MEDIUM | `full-auto` autonomy has no Constitution floor | **FIXED** after audit |
 | 4 | MEDIUM | Enterprise `forbiddenScope` only matches `cli` task type | **FIXED** after audit |
 | 5 | LOW | Approval term matching scans `JSON.stringify(payload)` (false-positive prone + evasion via encoding) | Documented |
-| 6 | LOW | Synapse WebSocket binds to `localhost` by default but `PARIX_WS_HOST` is unauthenticated | Documented |
+| 6 | LOW | Synapse WebSocket binds to `localhost` by default but `PARIX_WS_HOST` is unauthenticated | **FIXED** (2026-05-19) — bind-policy gate + AUTH handshake landed |
 | 7 | LOW | `cli.execute` accepts arbitrary `cwd` from payload | Documented |
 
 ---
@@ -74,7 +74,7 @@ agent proposes; context is data the runtime knows.
 
 ---
 
-## Finding 2 — Skill permission gate is a no-op (HIGH)
+## Finding 2 — Skill permission gate is a no-op (HIGH) — closed, won't-fix by design
 
 **Where:** [atrium/src/intelligence/council.ts:1124](../atrium/src/intelligence/council.ts)
 
@@ -118,8 +118,20 @@ manifests.
 `skill-permissions.ts`, not the manifest's own permission list. Known
 first-party skills receive explicit per-skill permissions; unknown
 skills receive an empty grant set and cannot self-approve filesystem,
-network, process, clipboard, or browser powers. A real marketplace still
-needs profile-backed permission grants plus an install-time prompt.
+network, process, clipboard, or browser powers.
+
+**Disposition (2026-05-19): closed, won't-fix by design.** Suhas's
+design call: Parix's trust boundary lives at the policy/approval layer
+— autonomy gates plus the Finding-1 self-approval-bypass fix — not at
+per-skill manifest grants. The agent decides what to execute by itself
+in both Enterprise and personal mode. The first-party allowlist in
+`skill-permissions.ts` stays as the floor for unknown skills (empty
+grant set). The "profile-backed grants + install-time prompt" design
+the original audit proposed is **not** on the v1.0 path. If a future
+third-party skill registry is opened, this disposition is the starting
+point for a new design conversation, not a resumption of the original
+audit recommendation. Tracking note carried in
+`feedback_no_skill_permission_gate.md` in agent memory.
 
 ---
 
@@ -199,7 +211,7 @@ real shell parser, not a JSON haystack.
 
 ---
 
-## Finding 6 — Synapse WebSocket has no auth, `PARIX_WS_HOST` env is unguarded (LOW)
+## Finding 6 — Synapse WebSocket has no auth, `PARIX_WS_HOST` env is unguarded (LOW) — FIXED
 
 **Where:** [hands/main.py:51](../hands/main.py)
 
@@ -228,6 +240,47 @@ process executes.
 
 (2) is the right answer long-term. (1) is the right answer for the
 launch window.
+
+**Fix applied (2026-05-19):** both layers landed.
+
+1. `hands/main.py`'s `_enforce_bind_policy()` refuses to start if
+   `PARIX_WS_HOST` is non-loopback unless `PARIX_ALLOW_REMOTE_SYNAPSE=1` is
+   also set. Containerized deployments bake the opt-in into the Dockerfile
+   (they have to bind non-loopback by definition) and supply
+   `PARIX_SYNAPSE_TOKEN` externally — no token is ever baked into an image.
+2. A new `hands/auth/token.py` resolves a shared secret from
+   `PARIX_SYNAPSE_TOKEN` env, then `~/.parix/synapse-token`, then generates
+   and persists a fresh 64-char hex token on first run. Atrium's
+   `atrium/src/synapse/token.ts` mirrors the same resolution order.
+3. `connection_handler` detects loopback peers (127.0.0.1, ::1) and
+   bypasses auth — desktop installs work with zero configuration. Any
+   non-loopback peer must send a `SYNAPSE_AUTH` message as the first
+   frame within 5s, with a token that `secrets.compare_digest` matches
+   against the server's. Mismatch / timeout / wrong-type-first returns
+   `SYNAPSE_AUTH_ERROR` and closes with WS code 4401.
+4. Atrium's `SynapseClient.connect()` sends `SYNAPSE_AUTH` on `open`
+   whenever it has a token loaded — uniform protocol regardless of
+   whether the peer is local or remote.
+5. Coverage: 9 new tests in `hands/tests/test_synapse_auth.py` (token
+   loader + bind-policy gate + four AUTH handshake paths) and 5 in
+   `atrium/src/synapse/__tests__/token.test.ts`. `shared/protocol.json`
+   and `hands/protocol.py` gain `SYNAPSE_AUTH` / `SYNAPSE_AUTH_OK` /
+   `SYNAPSE_AUTH_ERROR` message types.
+
+What this does **not** cover (deliberate scope decisions):
+
+- **Intra-hands loopback clients** (watcher, a11y poller, shadow loop)
+  do not authenticate. Same-machine same-user is treated as trusted,
+  per the project's "the agent governs itself in personal and
+  Enterprise mode" stance — see Finding 2's disposition.
+- **TLS** is not added. The handshake authenticates the peer; if your
+  threat model requires confidentiality on the wire (cluster network,
+  multi-tenant host) put a TLS-terminating proxy in front and bind
+  hands to the proxy.
+- **Token rotation UX** is manual today — delete `~/.parix/synapse-token`
+  on hands, restart, copy the new value to atrium / your secret store.
+  A built-in rotation command can land in a follow-up if it becomes a
+  real pain point.
 
 ---
 
@@ -263,15 +316,14 @@ layer that doesn't currently exist.
 |---|---|---|
 | (Applied) Remove `hasHumanApproval` payload bypass | HIGH | done |
 | (Applied) Replace manifest self-grant with first-party runtime permission allowlist | HIGH | done |
-| Add `profile.skillPermissions` + install-time prompt before third-party registry | HIGH | 3–4h + UX |
-| Refuse non-localhost synapse bind unless second env var is set | LOW→MEDIUM at launch | 30m |
-| Add shared-secret handshake to synapse | LOW | 2h |
+| ~~Add `profile.skillPermissions` + install-time prompt before third-party registry~~ | HIGH | **closed — won't-fix by design (2026-05-19)** |
+| (Applied 2026-05-19) Refuse non-localhost synapse bind unless second env var is set | LOW→MEDIUM at launch | done |
+| (Applied 2026-05-19) Add shared-secret handshake to synapse | LOW | done |
 | (Applied) Drop `cli`-only gate from enterprise `forbiddenScope` | MEDIUM | done |
 | (Applied) Add hard runtime floor for `full-auto` and clarify TUI wording | MEDIUM | done |
 | Validate `cli.execute` `cwd` against allowlist | LOW | 1h |
 
-None of these are launch-blockers individually. The combination of
-findings 1 + 2 + 6, if all left unfixed, *is* a launch blocker — they
-are the three places where a misbehaving LLM or a hostile network can
-escalate. Finding 1 is fixed in this audit; findings 2 and 6 should
-land before the v1.0 tag.
+Status post-2026-05-19: all three of findings 1, 2, and 6 are now
+closed (1 and 6 by fix; 2 by explicit design decision — see Finding 2
+disposition). None of the remaining items (Finding 5 documentation,
+Finding 7 cwd allowlist) are launch-blockers.

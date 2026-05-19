@@ -127,6 +127,9 @@ spec:
               value: "1"
             - name: PARIX_WS_HOST
               value: "0.0.0.0"
+            - name: PARIX_ALLOW_REMOTE_SYNAPSE
+              value: "1"
+            # PARIX_SYNAPSE_TOKEN must be supplied via parix-secrets below.
           envFrom:
             - secretRef:
                 name: parix-secrets
@@ -190,3 +193,7 @@ stringData:
   GEMINI_API_KEY: "REPLACE_ME"
   TELEGRAM_BOT_TOKEN: "REPLACE_ME"
   TELEGRAM_CHAT_ID: "REPLACE_ME"
+  # Shared secret for the synapse WS handshake. Required because both pods
+  # bind/connect across the cluster network (non-loopback). Generate with
+  # `openssl rand -hex 32` and rotate per install.
+  PARIX_SYNAPSE_TOKEN: "REPLACE_ME"

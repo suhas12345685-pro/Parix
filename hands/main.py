@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 import signal
 import sys
 import threading
@@ -21,6 +22,10 @@ try:
     from hands.protocol import SYNAPSE_PORT
 except ImportError:
     from protocol import SYNAPSE_PORT
+try:
+    from hands.auth.token import load_or_create_token
+except ImportError:
+    from auth.token import load_or_create_token
 try:
     from hands.sensors.shadow_loop import start_shadow_thread
 except ImportError:
@@ -51,9 +56,53 @@ except ImportError:
 HOST = os.getenv("PARIX_WS_HOST", "localhost")
 PORT = int(os.getenv("PARIX_WS_PORT", str(SYNAPSE_PORT)))
 SENSOR_RELAY_BUFFER_SIZE = int(os.getenv("PARIX_SENSOR_RELAY_BUFFER_SIZE", "100"))
+ALLOW_REMOTE_SYNAPSE = os.getenv("PARIX_ALLOW_REMOTE_SYNAPSE", "").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+AUTH_HANDSHAKE_TIMEOUT_S = float(os.getenv("PARIX_AUTH_HANDSHAKE_TIMEOUT_S", "5.0"))
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost", ""}
+LOCALHOST_BIND_HOSTS = {"localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1"}
+
 bridge_connection = None
 shutdown_event = asyncio.Event()
 voice_channel = VoiceChannel() if VoiceChannel else None
+synapse_token: str | None = None
+authenticated_connections: set = set()
+
+
+SYNAPSE_AUTH = "SYNAPSE_AUTH"
+SYNAPSE_AUTH_OK = "SYNAPSE_AUTH_OK"
+SYNAPSE_AUTH_ERROR = "SYNAPSE_AUTH_ERROR"
+
+
+def _is_loopback_peer(peer) -> bool:
+    if not peer:
+        return True
+    host = peer[0] if isinstance(peer, tuple) else str(peer)
+    return host in LOOPBACK_HOSTS
+
+
+def _is_localhost_bind(host: str) -> bool:
+    return host.lower() in LOCALHOST_BIND_HOSTS
+
+
+def _enforce_bind_policy() -> None:
+    if _is_localhost_bind(HOST):
+        return
+    if ALLOW_REMOTE_SYNAPSE:
+        logger.warning(
+            "Synapse bound to non-loopback host %s (PARIX_ALLOW_REMOTE_SYNAPSE=1). "
+            "Non-loopback peers must present a valid PARIX_SYNAPSE_TOKEN.",
+            HOST,
+        )
+        return
+    raise SystemExit(
+        f"Refusing to bind synapse to non-loopback host '{HOST}'. "
+        f"Set PARIX_ALLOW_REMOTE_SYNAPSE=1 if this is intentional (and configure "
+        f"PARIX_SYNAPSE_TOKEN so remote atrium clients can authenticate)."
+    )
 
 ATRIUM_MESSAGE_TYPES = {
     "TASK_REQUEST",
@@ -294,17 +343,92 @@ async def execute_task(msg: dict) -> dict:
 sensor_connections = set()
 
 
+async def _send_auth_error(ws, reason: str) -> None:
+    payload = Message(
+        SYNAPSE_AUTH_ERROR,
+        {"reason": reason, "timestamp": time.time()},
+    )
+    try:
+        await ws.send(payload.to_json())
+    except websockets.ConnectionClosed:
+        pass
+
+
+async def _await_auth(ws, peer) -> bool:
+    """Block until a SYNAPSE_AUTH arrives. Returns True iff token is valid."""
+    try:
+        raw = await asyncio.wait_for(ws.recv(), timeout=AUTH_HANDSHAKE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        logger.warning("AUTH handshake timed out from %s", peer)
+        await _send_auth_error(ws, "auth_timeout")
+        return False
+    except websockets.ConnectionClosed:
+        return False
+
+    try:
+        msg = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("AUTH handshake malformed from %s", peer)
+        await _send_auth_error(ws, "auth_malformed")
+        return False
+
+    if msg.get("type") != SYNAPSE_AUTH:
+        logger.warning(
+            "First message from non-loopback peer %s was %s, not SYNAPSE_AUTH",
+            peer,
+            msg.get("type"),
+        )
+        await _send_auth_error(ws, "auth_required")
+        return False
+
+    if not synapse_token:
+        logger.error("Non-loopback peer %s connected but no synapse token loaded", peer)
+        await _send_auth_error(ws, "server_unconfigured")
+        return False
+
+    if not secrets.compare_digest(msg.get("token", ""), synapse_token):
+        logger.warning("AUTH handshake rejected from %s (bad token)", peer)
+        await _send_auth_error(ws, "auth_invalid")
+        return False
+
+    ok = Message(SYNAPSE_AUTH_OK, {"timestamp": time.time()})
+    await ws.send(ok.to_json())
+    logger.info("AUTH handshake OK for %s", peer)
+    return True
+
+
 async def connection_handler(ws):
     global bridge_connection
     peer = ws.remote_address
-    logger.info("Client connected from %s", peer)
+    is_loopback = _is_loopback_peer(peer)
+    logger.info(
+        "Client connected from %s (loopback=%s)", peer, is_loopback
+    )
+
+    if not is_loopback:
+        if not await _await_auth(ws, peer):
+            await ws.close(code=4401, reason="auth_failed")
+            return
+        authenticated_connections.add(ws)
 
     try:
         async for raw in ws:
+            # Loopback peers may still send SYNAPSE_AUTH for protocol uniformity;
+            # accept and ack without revalidating.
+            try:
+                preview = json.loads(raw)
+            except json.JSONDecodeError:
+                preview = None
+            if isinstance(preview, dict) and preview.get("type") == SYNAPSE_AUTH:
+                if is_loopback:
+                    ok = Message(SYNAPSE_AUTH_OK, {"timestamp": time.time()})
+                    await ws.send(ok.to_json())
+                continue
             await handle_message(ws, raw)
     except websockets.ConnectionClosed:
         pass
     finally:
+        authenticated_connections.discard(ws)
         if ws == bridge_connection:
             logger.warning("Atrium disconnected")
             await fail_pending_vision_ocr_requests("atrium_disconnected")
@@ -339,6 +463,10 @@ async def main():
 
     watchdog = threading.Thread(target=watchdog_loop, daemon=True)
     watchdog.start()
+
+    global synapse_token
+    _enforce_bind_policy()
+    synapse_token = load_or_create_token()
 
     # Start the shadow loop (proactive health monitor)
     start_shadow_thread(interval=60.0, url=f"ws://{HOST}:{PORT}")

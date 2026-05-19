@@ -73,12 +73,20 @@ findings catalogued. One HIGH was fixed in this release:
   shaped payload self-approve "delete data," "send external messages,"
   "spend money" actions.
 
-Two HIGH findings remain open as v1.0 launch-blockers (skill
-permission gate is a no-op; synapse socket has no auth) — tracked as
-rows E3a and E3b in [SHIP-PLAN.md](../SHIP-PLAN.md). Neither is
-exploitable in default config (localhost-only synapse, first-party
-skills only). They are pre-launch hardening work for the v1.0 tag,
-not currently-exploited vulnerabilities.
+Both audit findings the release notes originally tracked as open are
+now closed:
+
+- **Finding 6 (synapse auth)** — fixed 2026-05-19. `hands` refuses
+  non-loopback binds without `PARIX_ALLOW_REMOTE_SYNAPSE=1`, and every
+  non-loopback peer must complete a `SYNAPSE_AUTH` handshake using a
+  shared secret resolved from `PARIX_SYNAPSE_TOKEN` or
+  `~/.parix/synapse-token` (auto-generated on first run). See SHIP-PLAN
+  row E3b and Finding 6 in the audit doc.
+- **Finding 2 (skill permission gate)** — closed as won't-fix by
+  design 2026-05-19. Parix's trust boundary lives at the policy/approval
+  layer in both Enterprise and personal mode, not at per-skill manifest
+  grants; the first-party allowlist stays as the floor for unknown
+  skills. Disposition recorded on Finding 2 in the audit doc.
 
 ### Auto-update groundwork
 
