@@ -1,0 +1,85 @@
+{
+  "id": "task-gcloud",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Run a Google Cloud SDK (`gcloud`) command with auth-context awareness and operation-class detection. Refuses destructive commands unless dryRun=false is explicit.",
+  "triggers": [
+    {
+      "eventType": "gcloud_command_request",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/gcloud_wrapper.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "args",
+      "type": "array",
+      "required": true,
+      "description": "argv tail to pass to gcloud, e.g. [\"compute\", \"instances\", \"list\"]. The literal `gcloud` is prepended by the skill."
+    },
+    {
+      "name": "dryRun",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "If true (default), classifies + reports the command without executing. Set false to actually run."
+    },
+    {
+      "name": "timeoutSeconds",
+      "type": "number",
+      "required": false,
+      "default": 60,
+      "description": "Hard cap on the gcloud call."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "installed",
+      "type": "boolean",
+      "description": "True iff `gcloud --version` succeeded."
+    },
+    {
+      "name": "authenticated",
+      "type": "boolean",
+      "description": "True iff `gcloud auth list` shows an active account."
+    },
+    {
+      "name": "project",
+      "type": "string",
+      "description": "Current default project from `gcloud config get-value project`, or empty."
+    },
+    {
+      "name": "operationClass",
+      "type": "string",
+      "description": "read | mutate | destroy — classification of the requested command."
+    },
+    {
+      "name": "executed",
+      "type": "boolean",
+      "description": "True iff the command actually ran (dryRun=false and classification was acceptable)."
+    },
+    {
+      "name": "stdout",
+      "type": "string"
+    },
+    {
+      "name": "stderr",
+      "type": "string"
+    },
+    {
+      "name": "exitCode",
+      "type": "number"
+    },
+    {
+      "name": "refusalReason",
+      "type": "string",
+      "description": "Set when executed=false. e.g. 'dry_run', 'not_installed', 'not_authenticated', 'destructive_requires_approval'."
+    }
+  ],
+  "reversibility": 0.7,
+  "permissions": ["process:read", "process:execute"],
+  "timeoutMs": 90000,
+  "settings": {}
+}

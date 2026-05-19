@@ -23,6 +23,7 @@ export function clearUserCreatedSkillPermissions(): void {
 }
 
 const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
+  "task-azure-cli": ["process:read", "process:execute"],
   "task-build-watch": ["process:execute", "filesystem:read"],
   "task-clipboard-secret-redactor": [],
   "task-computer-use-headless": [
@@ -36,6 +37,7 @@ const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
   "task-disk-cleanup": ["filesystem:read", "filesystem:write"],
   "task-docker-mgmt": ["docker:write", "process:execute"],
   "task-focus-context": ["accessibility:read"],
+  "task-gcloud": ["process:read", "process:execute"],
   "task-git-recovery": ["filesystem:read", "process:execute"],
   "task-log-analysis": ["filesystem:read"],
   "task-network-fix": ["network:read", "process:execute"],
