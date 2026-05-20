@@ -12,6 +12,7 @@ import {
   type VisionOcrRequestMessage,
   type VisionOcrResponseMessage,
 } from "./vision-handler.js";
+import { loadSynapseToken } from "./token.js";
 import type { LLMRouter } from "../llm/router.js";
 
 import protocol from "../../../shared/protocol.json" with { type: "json" };
@@ -61,6 +62,7 @@ export class SynapseClient extends EventEmitter {
   private intentionalDisconnect = false;
   private url: string;
   private llmRouter: LLMRouter | null = null;
+  private token: string | null;
   private worldState: { lastTask: string | null; activeState: string } = {
     lastTask: null,
     activeState: "IDLE",
@@ -69,6 +71,7 @@ export class SynapseClient extends EventEmitter {
   constructor(port = protocol.ports.synapse) {
     super();
     this.url = process.env.HANDS_WS_URL || `ws://localhost:${port}`;
+    this.token = loadSynapseToken();
   }
 
   connect(): void {
@@ -81,6 +84,13 @@ export class SynapseClient extends EventEmitter {
     this.ws.on("open", () => {
       console.log("[SYNAPSE] Connected to Hands");
       this.retryCount = 0;
+      if (this.token) {
+        this.send({
+          type: "SYNAPSE_AUTH",
+          token: this.token,
+          timestamp: Date.now() / 1000,
+        });
+      }
       this.setStatus("CONNECTED");
       this.pushWorldState();
     });
@@ -233,6 +243,19 @@ export class SynapseClient extends EventEmitter {
         this.emit("reboot_sync");
         break;
       case "HEARTBEAT":
+        break;
+      case "SYNAPSE_AUTH_OK":
+        console.log("[SYNAPSE] AUTH ok");
+        break;
+      case "SYNAPSE_AUTH_ERROR":
+        console.error(
+          "[SYNAPSE] AUTH rejected by Hands:",
+          msg.reason ?? "unknown",
+        );
+        this.emit(
+          "error",
+          new Error(`Synapse AUTH rejected: ${msg.reason ?? "unknown"}`),
+        );
         break;
       case "ERROR":
         console.error("[SYNAPSE] Error from Hands:", msg.message);

@@ -1,0 +1,77 @@
+{
+  "id": "task-build-watch",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Runs a build/test command once and reports structured pass/fail with extracted error context. The council invokes this on a timer or on file-change events to monitor a workspace build.",
+  "triggers": [
+    {
+      "eventType": "build_watch_tick",
+      "minConfidence": 0.5,
+      "platforms": ["any"]
+    },
+    {
+      "eventType": "workspace_changed",
+      "minConfidence": 0.6,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/build_watch.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "command",
+      "type": "array",
+      "required": true,
+      "description": "argv array to execute, e.g. [\"npm\", \"run\", \"build\"]. shell=False — no string commands."
+    },
+    {
+      "name": "cwd",
+      "type": "string",
+      "required": false,
+      "description": "Working directory. Defaults to the current working directory."
+    },
+    {
+      "name": "timeoutSeconds",
+      "type": "number",
+      "required": false,
+      "default": 120,
+      "description": "Hard cap on the build run."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "success",
+      "type": "boolean",
+      "description": "True iff exit code is 0 and the run did not time out."
+    },
+    {
+      "name": "exitCode",
+      "type": "number",
+      "description": "Process exit code; null on spawn error or timeout."
+    },
+    {
+      "name": "durationMs",
+      "type": "number",
+      "description": "Wall-clock time of the build run."
+    },
+    {
+      "name": "firstErrorLine",
+      "type": "string",
+      "description": "First line that looks like an error in stdout/stderr, for fast triage."
+    },
+    {
+      "name": "tail",
+      "type": "string",
+      "description": "Last ~2KB of combined stdout+stderr — feed to task-terminal-error-resolver for classification."
+    },
+    {
+      "name": "suggestedNextSkill",
+      "type": "string",
+      "description": "task-terminal-error-resolver when there's a failure with recognizable terminal output."
+    }
+  ],
+  "reversibility": 0.95,
+  "permissions": ["process:execute", "filesystem:read"],
+  "timeoutMs": 180000,
+  "settings": {}
+}

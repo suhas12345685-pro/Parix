@@ -1,0 +1,60 @@
+{
+  "id": "task-terminal-error-resolver",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Classifies a terminal error and suggests a likely fix. Read-only — produces a structured suggestion, never applies it.",
+  "triggers": [
+    {
+      "eventType": "terminal_error",
+      "minConfidence": 0.55,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/resolve.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "output",
+      "type": "string",
+      "required": true,
+      "description": "Tail of terminal output that triggered the sensor (last ~4KB)."
+    },
+    {
+      "name": "matches",
+      "type": "array",
+      "required": false,
+      "description": "Regex patterns from terminal_error sensor that matched."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "category",
+      "type": "string",
+      "description": "High-level error family: npm | python | git | docker | port-in-use | permission | network | disk | generic."
+    },
+    {
+      "name": "cause",
+      "type": "string",
+      "description": "Best-guess human-readable cause."
+    },
+    {
+      "name": "suggestedFix",
+      "type": "string",
+      "description": "Concrete next-step suggestion (e.g. an exact shell command)."
+    },
+    {
+      "name": "confidence",
+      "type": "number",
+      "description": "0..1 — how sure we are about the classification."
+    },
+    {
+      "name": "safeToAutoFix",
+      "type": "boolean",
+      "description": "True iff the suggested fix is reversible enough to run without approval (rare — most are false)."
+    }
+  ],
+  "reversibility": 1.0,
+  "permissions": [],
+  "timeoutMs": 5000,
+  "settings": {}
+}

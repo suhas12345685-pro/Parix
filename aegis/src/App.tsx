@@ -14,6 +14,8 @@ import { Instances } from "./pages/Instances";
 import { Sessions } from "./pages/Sessions";
 import { Nodes } from "./pages/Nodes";
 import { Debug } from "./pages/Debug";
+import { FirstRunBoot } from "./components/FirstRunBoot";
+import { NowPanel } from "./components/NowPanel";
 
 export type Page =
   | "chat"
@@ -71,6 +73,15 @@ export function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#07040c] text-[#f8f2ff]">
+      <FirstRunBoot
+        connected={socket.connected}
+        reconnecting={socket.reconnecting}
+        reconnectAttempt={socket.reconnectAttempt}
+        lastError={socket.lastError}
+        lastMessageAt={socket.lastMessageAt}
+        health={socket.health}
+        eventsSeen={socket.events.length}
+      />
       <div className="flex h-full w-full bg-[radial-gradient(circle_at_12%_8%,rgba(236,72,153,0.12),transparent_30%),radial-gradient(circle_at_85%_15%,rgba(124,58,237,0.08),transparent_36%),linear-gradient(145deg,#0c0612_0%,#08050e_50%,#0a0710_100%)]">
         <Sidebar
           page={page}
@@ -267,6 +278,11 @@ export function App() {
               )}
             </ErrorBoundary>
           </section>
+          <NowPanel
+            health={socket.health}
+            events={socket.events}
+            connected={socket.connected}
+          />
         </main>
       </div>
     </div>

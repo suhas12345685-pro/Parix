@@ -45,6 +45,18 @@
       "from": "atrium",
       "fields": ["request_id", "text", "error", "timestamp"]
     },
+    "SYNAPSE_AUTH": {
+      "from": "atrium",
+      "fields": ["token", "timestamp"]
+    },
+    "SYNAPSE_AUTH_OK": {
+      "from": "hands",
+      "fields": ["timestamp"]
+    },
+    "SYNAPSE_AUTH_ERROR": {
+      "from": "hands",
+      "fields": ["reason", "timestamp"]
+    },
     "HEARTBEAT": {
       "both": true,
       "fields": ["timestamp"]

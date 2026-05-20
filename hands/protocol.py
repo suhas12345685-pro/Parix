@@ -113,6 +113,23 @@ class VisionOcrResponse:
 
 
 @dataclass
+class SynapseAuth:
+    token: str
+    timestamp: float = 0.0
+
+
+@dataclass
+class SynapseAuthOk:
+    timestamp: float = 0.0
+
+
+@dataclass
+class SynapseAuthError:
+    reason: str
+    timestamp: float = 0.0
+
+
+@dataclass
 class ErrorMsg:
     task_id: str | None = None
     code: str = ""

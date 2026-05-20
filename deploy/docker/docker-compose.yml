@@ -19,6 +19,7 @@ services:
       - HANDS_WS_URL=ws://hands:8765
       - AEGIS_WS_PORT=8766
       - PARIX_DB_PATH=/app/data/parix.db
+      - PARIX_SYNAPSE_TOKEN=${PARIX_SYNAPSE_TOKEN:?set PARIX_SYNAPSE_TOKEN in .env to a long random string}
     env_file:
       - ../../.env
     depends_on:
@@ -44,6 +45,8 @@ services:
       - PYTHONUNBUFFERED=1
       - PARIX_WS_PORT=8765
       - PARIX_WS_HOST=0.0.0.0
+      - PARIX_ALLOW_REMOTE_SYNAPSE=1
+      - PARIX_SYNAPSE_TOKEN=${PARIX_SYNAPSE_TOKEN:?set PARIX_SYNAPSE_TOKEN in .env to a long random string}
     env_file:
       - ../../.env
     networks:

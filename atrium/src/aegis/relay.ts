@@ -50,6 +50,8 @@ import { getAttentionStats } from "../cognition/attention.js";
 import { getAllActiveTrees, getProgress } from "../cognition/planner/index.js";
 import { getActiveNarratives } from "../cognition/horizon.js";
 import { getLatestAccessibility } from "../synapse/a11y-handler.js";
+import { loadSkills } from "../intelligence/skill-registry.js";
+import { registerUserCreatedSkillPermissions } from "../intelligence/skill-permissions.js";
 
 import protocol from "../../../shared/protocol.json" with { type: "json" };
 
@@ -62,6 +64,7 @@ let startTime = Date.now();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "../../..");
 const AGENT_SKILLS_DIR = resolve(PROJECT_ROOT, ".agents/skills");
+const TASK_SKILLS_DIR = resolve(PROJECT_ROOT, "skills");
 
 /**
  * Start the Aegis relay WebSocket server.
@@ -473,8 +476,11 @@ function getSkillSource(skillId: string): string {
 
 function createSkill(msg: Record<string, unknown>): void {
   const rawName = String(msg.name ?? "").trim();
-  const id = slugifySkill(rawName);
-  if (!id) return;
+  const slug = slugifySkill(rawName);
+  if (!slug) return;
+  // task-* prefix is required for the atrium skill-registry to load the
+  // skill. Without it the skill would be invisible to council.matchSkills.
+  const id = slug.startsWith("task-") ? slug : `task-${slug}`;
   const description =
     String(msg.description ?? "").trim() || `Parix skill for ${rawName}.`;
   const requirements = Array.isArray(msg.requirements)
@@ -487,13 +493,64 @@ function createSkill(msg: Record<string, unknown>): void {
     msg.secrets && typeof msg.secrets === "object"
       ? (msg.secrets as Record<string, unknown>)
       : {};
-  const skillDir = join(AGENT_SKILLS_DIR, id);
+  const triggers = Array.isArray(msg.triggers)
+    ? (msg.triggers as unknown[]).filter(
+        (t): t is Record<string, unknown> =>
+          !!t && typeof t === "object" && typeof (t as Record<string, unknown>).eventType === "string",
+      )
+    : [];
+  const declaredPermissions = Array.isArray(msg.permissions)
+    ? (msg.permissions as unknown[])
+        .filter((p): p is string => typeof p === "string")
+    : [];
+  const runtime = ((): "py" | "node" | "sh" => {
+    const r = String(msg.runtime ?? "").toLowerCase();
+    return r === "node" || r === "sh" ? r : "py";
+  })();
+
+  // Write to skills/task-<id>/ (the atrium-registry-loaded path) and
+  // ALSO keep the Anthropic-style mirror at .agents/skills/<id>/ for the
+  // Aegis list. Mirror is symlink-style: same SKILL.md, no scripts.
+  const skillDir = join(TASK_SKILLS_DIR, id);
   mkdirSync(join(skillDir, "scripts"), { recursive: true });
   mkdirSync(join(skillDir, "references"), { recursive: true });
   mkdirSync(join(skillDir, "templates"), { recursive: true });
+
+  const entryFile =
+    runtime === "node" ? "run.cjs" : runtime === "sh" ? "run.sh" : "run.py";
+  const entryPath = join(skillDir, "scripts", entryFile);
+  const stub =
+    runtime === "node"
+      ? `let buf = "";\nprocess.stdin.on("data", (c) => (buf += c));\nprocess.stdin.on("end", () => {\n  let inputs = {};\n  try { inputs = JSON.parse(buf || "{}"); } catch {}\n  process.stdout.write(JSON.stringify({ ok: true, skill: "${id}", inputs }));\n});\n`
+      : runtime === "sh"
+        ? `#!/usr/bin/env bash\nINPUT=$(cat)\necho '{"ok": true, "skill": "${id}", "input_bytes": '"\${#INPUT}"'}'\n`
+        : `#!/usr/bin/env python3\nimport json, sys\nraw = sys.stdin.read().strip()\ntry:\n    inputs = json.loads(raw) if raw else {}\nexcept json.JSONDecodeError:\n    inputs = {}\nprint(json.dumps({"ok": True, "skill": "${id}", "inputs": inputs}))\n`;
+  writeFileSync(entryPath, stub, "utf-8");
+
+  const manifest = {
+    id,
+    version: "1.0",
+    enabled: true,
+    description,
+    triggers,
+    entry: `scripts/${entryFile}`,
+    runtime,
+    inputs: [],
+    outputs: [],
+    reversibility: 1.0,
+    permissions: declaredPermissions,
+    timeoutMs: 30000,
+    settings: {},
+  };
+  writeFileSync(
+    join(skillDir, "config.json"),
+    JSON.stringify(manifest, null, 2) + "\n",
+    "utf-8",
+  );
+
   writeFileSync(
     join(skillDir, "SKILL.md"),
-    `---\nname: ${id}\ndescription: ${description.replace(/\n/g, " ")}\n---\n\n# ${rawName || id}\n\n${description}\n\n## Setup Requirements\n\n${requirements.length ? requirements.map((req) => `- ${req}`).join("\n") : "- None"}\n\n## Usage\n\nUse this skill when the user asks for ${rawName || id} work.\n`,
+    `---\nname: ${id}\ndescription: ${description.replace(/\n/g, " ")}\n---\n\n# ${rawName || id}\n\n${description}\n\n## Setup Requirements\n\n${requirements.length ? requirements.map((req) => `- ${req}`).join("\n") : "- None"}\n\n## Triggers\n\n${triggers.length ? triggers.map((t) => `- \`${(t as Record<string, unknown>).eventType}\``).join("\n") : "- None (skill is library-only — invoked explicitly, not on sensor events)"}\n\n## Permissions\n\n${declaredPermissions.length ? declaredPermissions.map((p) => `- \`${p}\``).join("\n") : "- None"}\n\n## Usage\n\nThe stub at \`scripts/${entryFile}\` echoes its stdin JSON back. Replace it with real logic.\n`,
     "utf-8",
   );
   writeFileSync(
@@ -505,6 +562,22 @@ function createSkill(msg: Record<string, unknown>): void {
     ) + "\n",
     "utf-8",
   );
+
+  // Mirror a thin SKILL.md into .agents/skills/<id>/ so the existing Aegis
+  // "Installed Skills" list keeps surfacing user-created skills. The mirror
+  // is metadata-only; the runnable artifact lives under skills/.
+  try {
+    const mirrorDir = join(AGENT_SKILLS_DIR, id);
+    mkdirSync(mirrorDir, { recursive: true });
+    writeFileSync(
+      join(mirrorDir, "SKILL.md"),
+      `---\nname: ${id}\ndescription: ${description.replace(/\n/g, " ")}\nmirror_of: skills/${id}\n---\n\n# ${rawName || id}\n\nUser-created via Aegis. Runnable manifest lives at \`skills/${id}/config.json\`.\n`,
+      "utf-8",
+    );
+  } catch {
+    // mirror is best-effort — failing here must not block skill creation
+  }
+
   getDb().run(
     `INSERT INTO skill_setup (skill_id, source, requirements, configured, updated_at)
      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -515,11 +588,31 @@ function createSkill(msg: Record<string, unknown>): void {
        updated_at = CURRENT_TIMESTAMP`,
     [
       id,
-      String(msg.source ?? "hatchery"),
-      JSON.stringify({ requirements, secrets: Object.keys(secrets) }),
-      requirements.length ? 1 : 1,
+      String(msg.source ?? "aegis-create"),
+      JSON.stringify({
+        requirements,
+        secrets: Object.keys(secrets),
+        permissions: declaredPermissions,
+      }),
+      requirements.length || declaredPermissions.length ? 1 : 1,
     ],
   );
+
+  // Register the declared permissions in the runtime grant map so the
+  // skill-runner's permission gate doesn't reject a user-authored skill
+  // for asking for filesystem:read etc. User-created skills are trusted
+  // because the user created them in their own Aegis instance.
+  registerUserCreatedSkillPermissions(id, declaredPermissions);
+
+  // Hot-reload the skill registry so the council can immediately route
+  // events to the new skill without restarting atrium.
+  try {
+    loadSkills(TASK_SKILLS_DIR);
+  } catch (err) {
+    console.warn(
+      `[AEGIS] Created skill ${id} but failed to reload registry: ${(err as Error).message}`,
+    );
+  }
 }
 
 function getWorkspaceFiles(): Array<{ path: string; exists: boolean }> {

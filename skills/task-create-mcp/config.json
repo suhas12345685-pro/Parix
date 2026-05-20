@@ -1,0 +1,80 @@
+{
+  "id": "task-create-mcp",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Scaffold a Model Context Protocol (MCP) server from a name, description, and tool list. Produces a self-contained Node.js project with @modelcontextprotocol/sdk, ready to install and run.",
+  "triggers": [
+    {
+      "eventType": "mcp_scaffold_request",
+      "minConfidence": 0.5,
+      "platforms": ["any"]
+    }
+  ],
+  "entry": "scripts/create_mcp.py",
+  "runtime": "py",
+  "inputs": [
+    {
+      "name": "name",
+      "type": "string",
+      "required": true,
+      "description": "Slug-cased name for the new MCP server (lowercase, hyphens). Becomes the directory name."
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": true,
+      "description": "One-sentence description of what this MCP server does."
+    },
+    {
+      "name": "tools",
+      "type": "array",
+      "required": false,
+      "default": [],
+      "description": "Array of tool definitions: [{name, description, inputSchema?}]. Each becomes a registered tool on the MCP server with a placeholder handler the user fills in."
+    },
+    {
+      "name": "outputDir",
+      "type": "string",
+      "required": false,
+      "description": "Where to create the MCP server. Defaults to './mcps/<name>/' relative to the cwd."
+    },
+    {
+      "name": "transport",
+      "type": "string",
+      "required": false,
+      "default": "stdio",
+      "description": "MCP transport: 'stdio' (default — most common for desktop clients) or 'http'."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "path",
+      "type": "string",
+      "description": "Absolute path to the created MCP server directory."
+    },
+    {
+      "name": "entry",
+      "type": "string",
+      "description": "Path to the main server file."
+    },
+    {
+      "name": "filesCreated",
+      "type": "array",
+      "description": "Every file the skill wrote, relative to the project root."
+    },
+    {
+      "name": "runCommand",
+      "type": "string",
+      "description": "Shell command to install deps and start the server."
+    },
+    {
+      "name": "nextSteps",
+      "type": "array",
+      "description": "Ordered manual steps the user must do next (replace placeholder handlers, register with their MCP client, etc.)."
+    }
+  ],
+  "reversibility": 0.7,
+  "permissions": ["filesystem:read", "filesystem:write"],
+  "timeoutMs": 15000,
+  "settings": {}
+}

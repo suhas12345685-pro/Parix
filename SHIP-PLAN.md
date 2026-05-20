@@ -118,9 +118,8 @@ down post-audit; previous range assumed worst-case rewrite).
 |---|---|---|---|
 | E1 | Crash reports wired into hands + atrium + aegis (Sentry or self-hosted) | Codex | 2h |
 | E2 | ✅ Done (Claude, 2026-05-18) — `telemetry: {enabled, consentedAt}` on profile (default off, validator forbids `enabled=true` without `consentedAt`); `collectTelemetry()` step in hatchery TUI between modules and personality, default-no, clear what-is-and-isn't-sent prompt copy; full `docs/privacy.md` documenting the contract (default state, opt-in scope, never-list, enterprise air-gap recipe). | Claude | 1h |
-| E3 | ✅ Done (Claude, 2026-05-18) — audit at `docs/security-audit-v0.2.md`: 7 findings (2 HIGH, 2 MEDIUM, 3 LOW). Finding 1 (self-approval bypass via `payload.approved`) **fixed in this pass** — the dead-code bypass is removed and the new approval-context contract is sketched in code comments. Findings 2 (skill permission gate is a no-op) and 6 (synapse has no auth) are flagged as **launch-blockers if left unfixed together with each other or finding 1** — both have follow-up rows below. | Claude | 1h audit + 30m fix |
-| E3a | Wire a real skill permission gate before opening any third-party skill registry — needs `profile.skillPermissions` + install-time prompt; current `permittedPermissions` arg is the manifest itself, so the gate can't reject anything | Claude | 3–4h + UX |
-| E3b | Refuse non-localhost synapse bind unless `PARIX_ALLOW_REMOTE_SYNAPSE=1` is *also* set; longer-term, add a shared-secret handshake from `~/.parix/synapse-token` | Codex | 30m (env gate) + 2h (handshake) |
+| E3 | ✅ Done (Claude, 2026-05-18) — audit at `docs/security-audit-v0.2.md`: 7 findings (2 HIGH, 2 MEDIUM, 3 LOW). Finding 1 (self-approval bypass via `payload.approved`) **fixed in this pass** — the dead-code bypass is removed and the new approval-context contract is sketched in code comments. Finding 6 (synapse has no auth) is closed in row E3b below. Finding 2 (skill permission gate is a no-op) is **closed as won't-fix by design** (2026-05-19): trust boundary lives at the policy/approval layer in both Enterprise and personal mode, not at per-skill manifest grants. | Claude | 1h audit + 30m fix |
+| E3b | ✅ Done (Claude, 2026-05-19) — `_enforce_bind_policy()` refuses non-loopback `PARIX_WS_HOST` without `PARIX_ALLOW_REMOTE_SYNAPSE=1`; `hands/auth/token.py` + `atrium/src/synapse/token.ts` resolve a shared secret from env → `~/.parix/synapse-token` → auto-generate-and-persist; `connection_handler` requires `SYNAPSE_AUTH` (compared with `secrets.compare_digest`) from non-loopback peers within 5s, closes with WS 4401 on mismatch; `SynapseClient.connect()` sends `SYNAPSE_AUTH` on open. Docker compose + k8s + .env.example updated. 14 new tests (9 hands, 5 atrium). | Claude | done |
 | E4 | `[HUMAN]` Decide telemetry backend + own privacy story | Suhas | — |
 
 ### Track F — Onboarding polish
@@ -129,7 +128,7 @@ down post-audit; previous range assumed worst-case rewrite).
 |---|---|---|---|
 | F1 | Smoke-test each of the 13 providers' API key flow end-to-end | Codex | 13×30m = 6.5h |
 | F2 | Smoke-test account-auth flows where supported (OpenAI, Anthropic CLI, etc.) | Codex | 4h |
-| F3 | Aegis "first-run" UX polish: progress bar, "what Parix is doing right now" panel | Claude | 3h |
+| F3 | ✅ Done (Claude, 2026-05-19) — `aegis/src/components/FirstRunBoot.tsx` overlays a 4-step boot checklist (Aegis relay → Atrium → Hands → Sensors) with a gradient progress bar that fills as each subsystem reports in; auto-dismisses 1.5s after all steps green; manual "Skip to dashboard" exit. `aegis/src/components/NowPanel.tsx` is a persistent footer strip (every page) showing engine-state badge with pulsing dot, primary activity (plan goal → attention focus → latest event), supporting context (active plan node / accessibility focus), plan progress, queue depth, and hands status. Verified in dev server: boot overlay renders, dismiss works, panel persists across navigation, no console/compile errors. | Claude | done |
 | F4 | `[HUMAN]` Suhas to actually hold accounts on each provider for verification | Suhas | — |
 
 ### Track G — Docs + launch surface
