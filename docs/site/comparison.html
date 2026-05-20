@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parix Comparison</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img src="../../aegis/public/parix.svg" alt="" />
+        <span>Parix Docs</span>
+      </a>
+      <nav>
+        <a href="./index.html">Docs</a>
+        <a href="./comparison.html">Comparison</a>
+        <a href="../security-audit-v0.2.md">Audit</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero compact">
+        <div>
+          <p class="kicker">Comparison</p>
+          <h1>Parix vs OpenClaw vs generic GPT-4V desktop agents</h1>
+          <p>
+            The differentiator is not that Parix can see pixels. It is that it
+            prefers operating-system structure, uses vision only when structure
+            is insufficient, and keeps a local audit trail around every action.
+          </p>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="table-wrap">
+          <table class="comparison">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>Parix</th>
+                <th>OpenClaw-style agents</th>
+                <th>Generic GPT-4V agents</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Primary perception</td>
+                <td>Accessibility APIs, then fused OCR fallback.</td>
+                <td>Accessibility-heavy, app control focused.</td>
+                <td>Screenshot and visual reasoning first.</td>
+              </tr>
+              <tr>
+                <td>Action safety</td>
+                <td>Constitution rules, reversibility scoring, pause switch, audit ledger.</td>
+                <td>Depends on implementation and host permissions.</td>
+                <td>Prompt policy and model refusal boundaries.</td>
+              </tr>
+              <tr>
+                <td>Runtime ownership</td>
+                <td>Local Node/Python processes with SQLite memory.</td>
+                <td>Usually local automation runtime.</td>
+                <td>Often cloud-model centered with thin local control.</td>
+              </tr>
+              <tr>
+                <td>Crash visibility</td>
+                <td>Hands, Atrium, and Aegis crash queues with opt-in upload.</td>
+                <td>Project-specific.</td>
+                <td>Project-specific or absent.</td>
+              </tr>
+              <tr>
+                <td>Best demo</td>
+                <td>Detect a terminal/app failure, explain it in Aegis, propose a reversible fix.</td>
+                <td>Operate a known GUI workflow.</td>
+                <td>Interpret a screen and click through a task.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

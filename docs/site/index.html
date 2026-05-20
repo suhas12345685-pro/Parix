@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parix Docs</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./index.html">
+        <img src="../../aegis/public/parix.svg" alt="" />
+        <span>Parix Docs</span>
+      </a>
+      <nav>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#skills">Skills</a>
+        <a href="#security">Security</a>
+        <a href="./comparison.html">Comparison</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="kicker">v0.2 alpha operator guide</p>
+          <h1>Run Parix locally, see what it sees, and keep every action inspectable.</h1>
+          <p>
+            Parix is a local-first desktop agent with a TypeScript brain, Python
+            OS sensors, an accessibility-first perception layer, and the Aegis
+            dashboard for live control.
+          </p>
+        </div>
+        <pre><code>npm install
+python -m pip install -r hands\requirements.txt
+npm run build:all
+npm run onboarding:web
+npm run test:e2e</code></pre>
+      </section>
+
+      <section id="quickstart" class="band">
+        <div class="section-head">
+          <p class="kicker">Quickstart</p>
+          <h2>Verified Windows Path</h2>
+        </div>
+        <ol class="steps">
+          <li>Install Node.js 20.10+ and Python 3.12.</li>
+          <li>Clone the repository and install Node/Python dependencies.</li>
+          <li>Run `npm run onboarding:web` and create a local profile.</li>
+          <li>Open Aegis at `http://localhost:3000` and verify Hands is connected.</li>
+          <li>Run `npm run test:e2e` before any demo or release rehearsal.</li>
+        </ol>
+      </section>
+
+      <section id="skills" class="band split">
+        <div class="section-head">
+          <p class="kicker">Skills</p>
+          <h2>Local Skill Registry</h2>
+          <p>
+            Skills live in `.agents/skills/<skill-id>/` with a `SKILL.md`
+            manifest and optional scripts, references, and templates. The v0.2
+            registry is first-party and local.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Part</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>`SKILL.md`</td>
+                <td>Human-readable trigger rules and workflow steps.</td>
+              </tr>
+              <tr>
+                <td>`scripts/`</td>
+                <td>Reusable executors for repeatable operator work.</td>
+              </tr>
+              <tr>
+                <td>`references/`</td>
+                <td>Small, task-specific context files.</td>
+              </tr>
+              <tr>
+                <td>`templates/`</td>
+                <td>Reusable output shapes for reports and configs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="accessibility" class="band">
+        <div class="section-head">
+          <p class="kicker">Accessibility moat</p>
+          <h2>Structured UI First</h2>
+        </div>
+        <div class="grid">
+          <article>
+            <h3>Windows</h3>
+            <p>UIAutomation and pywinauto are the production path.</p>
+          </article>
+          <article>
+            <h3>macOS</h3>
+            <p>AX API backend is code-complete and awaiting real hardware verification.</p>
+          </article>
+          <article>
+            <h3>Linux</h3>
+            <p>AT-SPI2 backend is code-complete and awaiting distro verification.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="security" class="band split">
+        <div class="section-head">
+          <p class="kicker">Security model</p>
+          <h2>Local by Default, Opt-In by Contract</h2>
+        </div>
+        <ul class="checks">
+          <li>Telemetry is disabled unless the profile has explicit consent.</li>
+          <li>Crash reports are sanitized and queued locally before optional upload.</li>
+          <li>Synapse binds to localhost by default.</li>
+          <li>Aegis exposes pause/resume and audit visibility.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

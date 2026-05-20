@@ -83,3 +83,5 @@ desktop.ini
 .tmp/
 .local/
 .env.local
+
+.claude/worktrees/

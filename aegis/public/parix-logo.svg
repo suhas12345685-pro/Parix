@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 220" role="img" aria-labelledby="parix-logo-title">
+  <title id="parix-logo-title">Parix</title>
+  <g transform="translate(66 12)">
+    <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M34 100V28h44v23H57v25L34 100Z" stroke="#6f7d86" stroke-width="7"/>
+      <path d="M33 65 51 47" stroke="#6f7d86" stroke-width="7"/>
+      <circle cx="31" cy="67" r="6" fill="#6f7d86" stroke="none"/>
+      <path d="M71 29a37 37 0 0 1 29 28" stroke="#963b38" stroke-width="6"/>
+      <path d="M96 65a37 37 0 0 1-51 29" stroke="#963b38" stroke-width="6"/>
+      <path d="M45 83a28 28 0 0 0 13 9" stroke="#6f7d86" stroke-width="6"/>
+      <circle cx="68" cy="28" r="6" fill="#963b38" stroke="none"/>
+      <circle cx="100" cy="61" r="6" fill="#963b38" stroke="none"/>
+      <circle cx="72" cy="94" r="6" fill="#963b38" stroke="none"/>
+      <rect x="57" y="47" width="26" height="26" rx="4" stroke="#963b38" stroke-width="5"/>
+      <rect x="64" y="54" width="12" height="12" rx="2" stroke="#6f7d86" stroke-width="4"/>
+      <path d="M70 39v8M70 73v8M49 60h8M83 60h8M56 50l-6-6M84 76l6 6" stroke="#6f7d86" stroke-width="4"/>
+    </g>
+  </g>
+  <text x="38" y="196" fill="#283039" font-family="Montserrat, Inter, Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="0">PARIX</text>
+</svg>

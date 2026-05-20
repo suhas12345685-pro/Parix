@@ -1,0 +1,29 @@
+{
+  "name": "parix-marketplace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Parix skill marketplace API — registry of third-party skills, reviews, download metadata. Postgres in prod; sqlite for dev.",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "migrate": "tsx src/migrate.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.21.0",
+    "pg": "^8.13.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.16.0",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

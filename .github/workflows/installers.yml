@@ -1,0 +1,185 @@
+name: Installer Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-runtime:
+    name: Build runtime bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: npm ci
+      - run: python -m pip install -r hands/requirements.txt
+      - run: npm run build:all
+
+      - name: Stage runtime payload
+        run: |
+          mkdir -p release/parix
+          cp -R atrium/dist release/parix/atrium-dist
+          cp -R hatchery/dist release/parix/hatchery-dist
+          cp -R aegis/dist release/parix/aegis-dist
+          cp -R hands shared deploy package.json package-lock.json README.md LICENSE release/parix/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parix-runtime
+          path: release/parix
+
+  windows:
+    name: Windows installer payload
+    needs: build-runtime
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: parix-runtime
+          path: parix
+
+      - name: Optional Authenticode signing
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace("${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}")) {
+            Write-Host "WINDOWS_CODESIGN_PFX_BASE64 not configured; skipping signing."
+            exit 0
+          }
+          $certPath = Join-Path $env:RUNNER_TEMP "parix-codesign.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String("${{ secrets.WINDOWS_CODESIGN_PFX_BASE64 }}"))
+          $securePassword = ConvertTo-SecureString "${{ secrets.WINDOWS_CODESIGN_PFX_PASSWORD }}" -AsPlainText -Force
+          Get-ChildItem parix/deploy/windows -Filter *.ps1 | ForEach-Object {
+            Set-AuthenticodeSignature -FilePath $_.FullName -Certificate (Get-PfxCertificate -FilePath $certPath -Password $securePassword) -TimestampServer "http://timestamp.digicert.com"
+          }
+
+      - name: Create Windows bootstrap archive
+        shell: pwsh
+        run: Compress-Archive -Path parix/* -DestinationPath parix-windows-bootstrap.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parix-windows-bootstrap
+          path: parix-windows-bootstrap.zip
+
+  macos:
+    name: macOS app bundle
+    needs: build-runtime
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: parix-runtime
+          path: payload
+
+      - name: Create .app bundle
+        run: |
+          mkdir -p Parix.app/Contents/MacOS Parix.app/Contents/Resources
+          cp -R payload Parix.app/Contents/Resources/parix
+          cat > Parix.app/Contents/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>parix</string>
+            <key>CFBundleIdentifier</key><string>dev.parix.app</string>
+            <key>CFBundleName</key><string>Parix</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>0.1.0</string>
+          </dict>
+          </plist>
+          PLIST
+          cat > Parix.app/Contents/MacOS/parix <<'SH'
+          #!/bin/sh
+          DIR="$(cd "$(dirname "$0")/../Resources/parix" && pwd)"
+          cd "$DIR"
+          ./deploy/macos/install.sh
+          SH
+          chmod +x Parix.app/Contents/MacOS/parix
+
+      - name: Optional code signing
+        run: |
+          if [ -z "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]; then
+            echo "APPLE_CERTIFICATE_BASE64 not configured; skipping signing."
+            exit 0
+          fi
+          CERT_PATH="$RUNNER_TEMP/parix-apple.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/parix-signing.keychain-db"
+          echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 -D > "$CERT_PATH"
+          security create-keychain -p "${{ secrets.APPLE_KEYCHAIN_PASSWORD }}" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          codesign --force --deep --options runtime --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" Parix.app
+
+      - name: Package app
+        run: ditto -c -k --keepParent Parix.app parix-macos-app.zip
+
+      - name: Optional notarization
+        run: |
+          if [ -z "${{ secrets.APPLE_ID }}" ]; then
+            echo "APPLE_ID not configured; skipping notarization."
+            exit 0
+          fi
+          xcrun notarytool submit parix-macos-app.zip \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+            --wait
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parix-macos-app
+          path: parix-macos-app.zip
+
+  linux:
+    name: Linux deb package
+    needs: build-runtime
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: parix-runtime
+          path: payload
+
+      - name: Create deb package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${VERSION:-0.1.0}"
+          mkdir -p pkg/DEBIAN pkg/usr/lib/parix pkg/usr/bin
+          cp -R payload/* pkg/usr/lib/parix/
+          cat > pkg/DEBIAN/control <<CONTROL
+          Package: parix
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: all
+          Depends: nodejs (>= 20), python3
+          Maintainer: Parix <release@parix.dev>
+          Description: Proactive local desktop AI agent
+          CONTROL
+          cat > pkg/usr/bin/parix <<'SH'
+          #!/bin/sh
+          cd /usr/lib/parix
+          exec ./deploy/linux/install.sh "$@"
+          SH
+          chmod +x pkg/usr/bin/parix
+          dpkg-deb --build pkg "parix_${VERSION}_all.deb"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parix-linux-deb
+          path: parix_*_all.deb
