@@ -19,6 +19,44 @@ function Write-Ok($msg)    { Write-Host "  + $msg" -ForegroundColor Green }
 function Write-Warn($msg)  { Write-Host "  ! $msg" -ForegroundColor Yellow }
 function Write-Fail($msg)  { Write-Host "  x $msg" -ForegroundColor Red; exit 1 }
 
+function Get-PythonCandidate {
+    $candidates = @(
+        @{ Command = "python"; Args = @("--version"); RuntimeArgs = @() },
+        @{ Command = "python3"; Args = @("--version"); RuntimeArgs = @() },
+        @{ Command = "py"; Args = @("-3", "--version"); RuntimeArgs = @("-3") }
+    )
+
+    foreach ($candidate in $candidates) {
+        if (-not (Get-Command $candidate.Command -ErrorAction SilentlyContinue)) {
+            continue
+        }
+
+        try {
+            $version = & $candidate.Command @($candidate.Args) 2>$null
+        }
+        catch {
+            continue
+        }
+
+        if ($LASTEXITCODE -ne 0) {
+            continue
+        }
+
+        $versionText = ($version | Select-Object -First 1).ToString()
+        if ($versionText -match "Python\s+(\d+)\.(\d+)") {
+            return [pscustomobject]@{
+                Command = $candidate.Command
+                Args = $candidate.RuntimeArgs
+                Version = $versionText
+                Major = [int]$Matches[1]
+                Minor = [int]$Matches[2]
+            }
+        }
+    }
+
+    return $null
+}
+
 # â”€â”€â”€ Preflight â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Step "Running preflight checks..."
 
@@ -38,12 +76,12 @@ $npmVer = & npm -v 2>$null
 if (-not $npmVer) { Write-Fail "npm not found" }
 Write-Ok "npm $npmVer"
 
-$pyCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { "python3" }
-         elseif (Get-Command python -ErrorAction SilentlyContinue) { "python" }
-         else { Write-Fail "Python 3.12+ not found" }
-$pyVer = & $pyCmd --version 2>&1
-if ($pyVer -notmatch "Python\s+(\d+)\.(\d+)") { Write-Fail "Could not read Python version" }
-if ([int]$Matches[1] -lt 3 -or ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -lt 12)) {
+$python = Get-PythonCandidate
+if (-not $python) { Write-Fail "Python 3.12+ not found" }
+$pyCmd = $python.Command
+$pyArgs = $python.Args
+$pyVer = $python.Version
+if ($python.Major -lt 3 -or ($python.Major -eq 3 -and $python.Minor -lt 12)) {
     Write-Fail "Python 3.12+ required (found $pyVer)"
 }
 Write-Ok "$pyVer"
@@ -79,7 +117,7 @@ foreach ($file in @("ecosystem.config.js", ".env.example")) {
 }
 
 # â”€â”€â”€ Install Node dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-Write-Step "Installing Node.js dependencies..."
+Write-Step "Installing or reusing Node.js dependencies..."
 Push-Location $PARIX_HOME
 npm ci 2>$null
 if (-not $?) { npm install }
@@ -87,17 +125,17 @@ Pop-Location
 Write-Ok "Node.js dependencies installed"
 
 # â”€â”€â”€ Install Python dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-Write-Step "Installing Python dependencies..."
+Write-Step "Installing or reusing Python dependencies..."
 $reqFile = "$PARIX_HOME\hands\requirements.txt"
 if (Test-Path $reqFile) {
-    & $pyCmd -m pip install -r $reqFile --quiet
+    & $pyCmd @pyArgs -m pip install -r $reqFile --quiet
     Write-Ok "Python dependencies installed"
 } else {
     Write-Warn "requirements.txt not found"
 }
 
 # â”€â”€â”€ Build Atrium â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-Write-Step "Building Atrium..."
+Write-Step "Building Parix workspaces..."
 Push-Location $PARIX_HOME
 npm run build --workspace=atrium
 npm run build --workspace=hatchery
@@ -109,8 +147,9 @@ Write-Ok "Workspaces compiled"
 Write-Step "Creating launcher..."
 $launcherPs1 = @'
 param(
-    [ValidateSet("start", "stop", "status", "onboarding")]
+    [ValidateSet("start", "stop", "restart", "status", "onboarding")]
     [string]$Action = "start",
+    [string]$Target = "all",
     [switch]$Reset,
     [switch]$Web
 )
@@ -118,23 +157,25 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = if ($env:PARIX_HOME) { $env:PARIX_HOME } else { Split-Path -Parent $PSScriptRoot }
 Set-Location $Root
-
-function Invoke-ParixPm2([string[]]$Args) {
-    & npx pm2 @Args
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
+$env:PARIX_HOME = $Root
+$env:PARIX_DB_PATH = if ($env:PARIX_DB_PATH) { $env:PARIX_DB_PATH } else { Join-Path $Root "data\parix.db" }
 
 switch ($Action) {
     "start" {
-        Invoke-ParixPm2 @("start", "ecosystem.config.js", "--update-env")
-        Invoke-ParixPm2 @("save")
+        & node "$Root\hatchery\dist\index.js" --runtime start $Target
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     "stop" {
-        Invoke-ParixPm2 @("stop", "parix-hands", "parix-atrium", "parix-aegis")
-        Invoke-ParixPm2 @("save")
+        & node "$Root\hatchery\dist\index.js" --runtime stop $Target
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    "restart" {
+        & node "$Root\hatchery\dist\index.js" --runtime restart $Target
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     "status" {
-        Invoke-ParixPm2 @("status")
+        & node "$Root\hatchery\dist\index.js" --runtime status $Target
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     "onboarding" {
         $hatchArgs = @()
@@ -148,16 +189,24 @@ $launcherContent = @"
 @echo off
 setlocal
 set "PARIX_HOME=$PARIX_HOME"
-if "%1"=="stop" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" stop
-) else if "%1"=="--stop" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" stop
-) else if "%1"=="status" (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" status
-) else if "%1"=="onboarding" (
+set "TARGET=%~2"
+if "%TARGET%"=="" set "TARGET=all"
+if /I "%1"=="stop" (
+    powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PARIX_HOME%\bin\parix.ps1" stop "%TARGET%"
+) else if /I "%1"=="--stop" (
+    powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PARIX_HOME%\bin\parix.ps1" stop all
+) else if /I "%1"=="restart" (
+    powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PARIX_HOME%\bin\parix.ps1" restart "%TARGET%"
+) else if /I "%1"=="status" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" status "%TARGET%"
+) else if /I "%1"=="onboarding" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" onboarding %2 %3
+) else if /I "%1"=="atrium" (
+    powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PARIX_HOME%\bin\parix.ps1" start all
+) else if /I "%1"=="start" (
+    powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PARIX_HOME%\bin\parix.ps1" start "%TARGET%"
 ) else (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%PARIX_HOME%\bin\parix.ps1" start
+    powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PARIX_HOME%\bin\parix.ps1" start all
 )
 "@
 Set-Content -Path "$PARIX_BIN\parix.ps1" -Value $launcherPs1 -Encoding UTF8
@@ -206,6 +255,9 @@ if ($userPath -notlike "*$PARIX_BIN*") {
 Write-Step "Setting environment variables..."
 [Environment]::SetEnvironmentVariable("PARIX_HOME", $PARIX_HOME, "User")
 [Environment]::SetEnvironmentVariable("PARIX_DB_PATH", "$PARIX_DATA\parix.db", "User")
+$env:PARIX_HOME = $PARIX_HOME
+$env:PARIX_DB_PATH = "$PARIX_DATA\parix.db"
+$env:PARIX_WORKSPACE = $PARIX_HOME
 Write-Ok "PARIX_HOME=$PARIX_HOME"
 
 # Installer context: tells Hatchery/Atrium which OS skill pack is active.
@@ -241,9 +293,9 @@ if (-not (Test-Path $envFile)) {
 }
 
 # â”€â”€â”€ Run onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-Write-Step "Starting onboarding wizard..."
+Write-Step "Starting Hatchery onboarding or runtime..."
 try {
-    & node "$PARIX_HOME\hatchery\dist\index.js"
+    & node "$PARIX_HOME\hatchery\dist\index.js" --post-install
 } catch {
     Write-Warn "Onboarding skipped - run parix onboarding later to configure."
 }
@@ -257,8 +309,11 @@ Write-Step "  Logs:    $PARIX_LOG"
 Write-Step "  Command: parix  (after reopening terminal)"
 Write-Step ""
 Write-Step "  Commands:"
-Write-Step "    parix start       â€” start the agent"
-Write-Step "    parix stop        â€” stop the agent"
-Write-Step "    parix status      â€” check status"
-Write-Step "    parix onboarding  â€” reconfigure"
+Write-Step "    parix start          - start the agent"
+Write-Step "    parix stop           - stop the agent"
+Write-Step "    parix restart        - restart the agent"
+Write-Step "    parix status         - check status"
+Write-Step "    parix start atrium   - start only Atrium"
+Write-Step "    start parix atrium   - PowerShell quick start"
+Write-Step "    parix onboarding     - reconfigure"
 

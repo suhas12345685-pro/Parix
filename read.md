@@ -1,5 +1,9 @@
 # Enterprise Resilience One-Liners
 
+- Windows install: powershell -c "irm https://openclaw.ai/install.ps1 | iex"
+- macOS install: curl -fsSL https://openclaw.ai/install.sh | bash
+- Linux install: curl -fsSL https://openclaw.ai/install.sh | bash
+- Install one-liners clone the Parix repo, install packages, build workspaces, and start Hatchery onboarding.
 - Planner now runs as a DAG with dynamic node metadata instead of a linear checklist.
 - Planner runtime can execute ready DAG nodes concurrently within a configurable cap.
 - Planner reflection can inject alternate nodes when schema drift or environment shifts appear.
