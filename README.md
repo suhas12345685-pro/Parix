@@ -6,12 +6,56 @@ Parix is a local-first self-healing AI agent. Atrium is the Node.js brain, Hands
 
 ## Quickstart
 
+One-line installers download a small bootstrapper, clone the Parix repo, install all Node and Python packages, build the workspaces, start Hatchery immediately, and bring the agent online after onboarding. Hatchery uses the terminal wizard when it can; if prompts are unavailable, it automatically opens the web onboarding flow in your browser.
+
+Windows PowerShell:
+
+```powershell
+powershell -c "irm https://openclaw.ai/install.ps1 | iex"
+```
+
+macOS:
+
+```bash
+curl -fsSL https://openclaw.ai/install.sh | bash
+```
+
+Linux:
+
+```bash
+curl -fsSL https://openclaw.ai/install.sh | bash
+```
+
+From a repo clone:
+
+```powershell
+.\install.ps1
+```
+
+After Hatchery finishes, Parix starts Hands, Atrium, and Aegis automatically in the background. Aegis opens at `http://localhost:3000`, or the next free local port if 3000 is busy.
+
+Runtime commands:
+
+```powershell
+parix status
+parix stop
+parix restart
+parix start
+start parix atrium
+```
+
+Inside Aegis chat, you can say `stop parix`, `resume parix`, `start parix atrium`, `status`, or `flush queue`.
+
+Development setup:
+
 ```powershell
 npm install
 python -m pip install -r hands\requirements.txt
-npm run build:all
-npm run onboarding -- --web
+python -m pip install -r hands\requirements-dev.txt
+npm run onboarding
 ```
+
+`npm run onboarding` builds all workspaces first, then starts Hatchery. Use `npm run onboarding:web` only when you specifically want to skip the terminal wizard and go straight to the browser flow.
 
 Development run:
 
@@ -55,9 +99,10 @@ Main packages:
 
 ## Cognition
 
-Parix v0.1.3-alpha adds a cognitive loop that filters noisy OS events before
-they reach the Council, chooses the right thinking strategy, decomposes work
-into plan trees, and remembers long-running narratives across sessions.
+Parix v0.2.0-alpha includes a cognitive loop that filters noisy OS events
+before they reach the Council, chooses the right thinking strategy,
+decomposes work into plan trees, and remembers long-running narratives
+across sessions.
 
 ```text
 event -> attention -> working memory -> desire -> hypotheses
@@ -112,10 +157,7 @@ Recommended structure:
 ## Verification
 
 ```powershell
-npm run build:all
-npm run test --workspace=atrium
-npm run test:coverage
-npm run coverage:badge
-python -m pytest hands/tests
-npx tsx scripts/test-e2e.ts
+npm run verify:ship
 ```
+
+`npm run verify:ship` runs the same local push-readiness gate used for the alpha ship check: workspace build, lint, Atrium tests and coverage, Hands tests and compile, skill manifest validation, the e2e pipeline, and the high-severity npm audit.

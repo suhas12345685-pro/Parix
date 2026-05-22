@@ -78,13 +78,13 @@ cp "$SRC_ROOT/package.json" "$PARIX_HOME/"
 [ -f "$SRC_ROOT/.env.example" ] && cp "$SRC_ROOT/.env.example" "$PARIX_HOME/"
 
 # ─── Install Node dependencies ────────────────────────────────────
-log "Installing Node.js dependencies..."
+log "Installing or reusing Node.js dependencies..."
 cd "$PARIX_HOME"
 npm ci 2>/dev/null || npm install
 ok "Node.js dependencies installed"
 
 # ─── Install Python dependencies ──────────────────────────────────
-log "Installing Python dependencies..."
+log "Installing or reusing Python dependencies..."
 if [ -f "$PARIX_HOME/hands/requirements.txt" ]; then
     $PYTHON_CMD -m pip install -r "$PARIX_HOME/hands/requirements.txt" --quiet
     ok "Python dependencies installed"
@@ -96,7 +96,7 @@ else
 fi
 
 # ─── Build Atrium ─────────────────────────────────────────────────
-log "Building Atrium..."
+log "Building Parix workspaces..."
 cd "$PARIX_HOME"
 npm run build --workspace=atrium
 npm run build --workspace=hatchery
@@ -110,47 +110,32 @@ cat > "$PARIX_BIN/parix" << 'LAUNCHER'
 set -euo pipefail
 PARIX_HOME="${PARIX_HOME:-$HOME/.parix}"
 ACTION="${1:-start}"
+TARGET="${2:-all}"
+export PARIX_HOME
+export PARIX_DB_PATH="${PARIX_DB_PATH:-$PARIX_HOME/data/parix.db}"
 
 case "$ACTION" in
     start)
-        echo "[parix] Starting Hands..."
-        cd "$PARIX_HOME"
-        python3 -m hands.main &
-        HANDS_PID=$!
-        sleep 2
-        echo "[parix] Starting Atrium..."
-        node atrium/dist/index.js &
-        ATRIUM_PID=$!
-        echo "$HANDS_PID" > "$PARIX_HOME/data/hands.pid"
-        echo "$ATRIUM_PID" > "$PARIX_HOME/data/atrium.pid"
-        echo "[parix] Agent running (Hands=$HANDS_PID, Atrium=$ATRIUM_PID)"
+        node "$PARIX_HOME/hatchery/dist/index.js" --runtime start "$TARGET"
         ;;
     stop)
-        echo "[parix] Stopping..."
-        for pidfile in "$PARIX_HOME/data/hands.pid" "$PARIX_HOME/data/atrium.pid"; do
-            if [ -f "$pidfile" ]; then
-                kill "$(cat "$pidfile")" 2>/dev/null || true
-                rm -f "$pidfile"
-            fi
-        done
-        echo "[parix] Stopped."
+        node "$PARIX_HOME/hatchery/dist/index.js" --runtime stop "$TARGET"
+        ;;
+    restart)
+        node "$PARIX_HOME/hatchery/dist/index.js" --runtime restart "$TARGET"
         ;;
     status)
-        for name in hands atrium; do
-            pidfile="$PARIX_HOME/data/$name.pid"
-            if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then
-                echo "[parix] $name: running (PID $(cat "$pidfile"))"
-            else
-                echo "[parix] $name: stopped"
-            fi
-        done
+        node "$PARIX_HOME/hatchery/dist/index.js" --runtime status "$TARGET"
+        ;;
+    atrium)
+        node "$PARIX_HOME/hatchery/dist/index.js" --runtime start all
         ;;
     onboarding)
         shift
         node "$PARIX_HOME/hatchery/dist/index.js" "$@"
         ;;
     *)
-        echo "Usage: parix [start|stop|status|onboarding]"
+        echo "Usage: parix [start|stop|restart|status|onboarding] [all|hands|atrium|aegis]"
         ;;
 esac
 LAUNCHER
@@ -263,8 +248,11 @@ log "  System Settings > Privacy & Security > Accessibility"
 log "  Add Terminal.app (or your terminal) to the allowed list."
 
 # ─── Run onboarding ────────────────────────────────────────────────
-log "Starting onboarding wizard..."
-node "$PARIX_HOME/hatchery/dist/index.js" || \
+log "Starting Hatchery onboarding or runtime..."
+export PARIX_HOME
+export PARIX_DB_PATH="$PARIX_DATA/parix.db"
+export PARIX_WORKSPACE="$PARIX_HOME"
+node "$PARIX_HOME/hatchery/dist/index.js" --post-install || \
     warn "Onboarding skipped — run 'parix onboarding' later to configure."
 
 # ─── Summary ──────────────────────────────────────────────────────
@@ -273,12 +261,14 @@ log "Installation complete!"
 log "  Home:    $PARIX_HOME"
 log "  Data:    $PARIX_DATA"
 log "  Logs:    $PARIX_LOG"
-log "  Command: parix [start|stop|status|onboarding]"
+log "  Command: parix [start|stop|restart|status|onboarding] [all|hands|atrium|aegis]"
 log ""
 log "  Commands:"
 log "    parix start          (manual start)"
 log "    parix stop           (manual stop)"
+log "    parix restart        (restart)"
 log "    parix status         (check status)"
+log "    parix start atrium   (start only Atrium)"
 log "    parix onboarding     (reconfigure)"
 log ""
 log "  Notes:"

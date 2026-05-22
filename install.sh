@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${PARIX_REPO_URL:-https://github.com/openclaw-ai/openclaw.git}"
+REPO_URL="${PARIX_REPO_URL:-https://github.com/suhas12345685-pro/Parix.git}"
 BRANCH="${PARIX_BRANCH:-main}"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/parix-install.XXXXXX")"
 
@@ -19,6 +19,7 @@ case "$OS_NAME" in
   *) DETECTED_OS="unsupported" ;;
 esac
 log "Detected OS: $DETECTED_OS ($ARCH)"
+log "This will clone Parix, install packages, build workspaces, and start Hatchery onboarding."
 
 if ! command -v git >/dev/null 2>&1; then
   echo "Git is required for one-line installation. Install git, then rerun this command." >&2
@@ -35,6 +36,12 @@ if [ "$NODE_MAJOR" -lt 20 ]; then
   exit 1
 fi
 log "Node.js $(node -v)"
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required. Install Node.js 20+ with npm, then rerun this command." >&2
+  exit 1
+fi
+log "npm $(npm -v)"
 
 PYTHON_CMD=""
 for cmd in python3 python; do

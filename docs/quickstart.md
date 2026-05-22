@@ -17,7 +17,7 @@ Get Parix running on a clean machine in under 10 minutes.
 ### Windows (run in an **Administrator** PowerShell)
 
 ```powershell
-irm https://install.parix.ai/win.ps1 | iex
+powershell -c "irm https://openclaw.ai/install.ps1 | iex"
 ```
 
 Or, from a clone of the repo:
@@ -26,10 +26,16 @@ Or, from a clone of the repo:
 .\install.ps1
 ```
 
-### macOS / Linux
+### macOS
 
 ```bash
-curl -fsSL https://install.parix.ai/install.sh | bash
+curl -fsSL https://openclaw.ai/install.sh | bash
+```
+
+### Linux
+
+```bash
+curl -fsSL https://openclaw.ai/install.sh | bash
 ```
 
 Or, from a clone:
@@ -38,18 +44,20 @@ Or, from a clone:
 ./install.sh
 ```
 
-The installer:
+The installer downloads a bootstrapper that clones the Parix repo, then:
 
 1. Checks Node, Python, git, and platform-specific accessibility deps.
 2. Copies Parix into `%LOCALAPPDATA%\Parix` (Windows) or `~/.parix` (mac/Linux).
-3. Builds Atrium, Hatchery, and Aegis.
-4. Registers an auto-start hook (Task Scheduler on Windows, `systemd --user`
-   on Linux; macOS auto-start is not yet wired — see ROADMAP.md Phase 0).
-5. Drops you into the Hatchery onboarding wizard.
+3. Installs or reuses Node.js and Python packages.
+4. Builds Atrium, Hatchery, and Aegis.
+5. Registers an auto-start hook (Task Scheduler on Windows, `systemd --user`
+   on Linux, launchd on macOS).
+6. Starts Hatchery onboarding immediately, using terminal prompts when available or the web flow when they are not.
+7. Starts Hands, Atrium, and Aegis as soon as you finish onboarding.
 
 ## First run
 
-The Hatchery wizard asks for:
+Hatchery onboarding asks for:
 
 - **Mode** — Personal or Enterprise.
 - **LLM provider** — pick one; you can change it later in `~/.parix/profile.json`.
@@ -57,8 +65,23 @@ The Hatchery wizard asks for:
 - **Wake word** — defaults to `aegis`; use this to talk to Parix in the UI.
 - **Channels** — Aegis is always on; Telegram, Discord, etc. are optional.
 
-Saves to `~/.parix/profile.json` and `~/.parix/.env`. Then auto-starts the
-three runtime processes via PM2.
+Saves to `~/.parix/profile.json`, `~/.parix/.env`, and the agent workspace
+files (`SOUL.md`, `IDENTITY.md`, `USER.md`, memory, tools, and checklists).
+Then it auto-starts the three runtime processes through Hatchery.
+
+From a repo clone, the equivalent development entrypoint is:
+
+```bash
+npm install
+python -m pip install -r hands/requirements.txt
+npm run onboarding
+```
+
+That script builds all workspaces before launching Hatchery, so a fresh clone does not need a separate build command before onboarding.
+
+The runtime stays in the background. On Windows it uses hidden process launch
+flags and prefers `pythonw.exe` for Hands so a `py.exe` console window should
+not appear.
 
 ## Verify it works
 
@@ -69,12 +92,25 @@ parix status
 You should see:
 
 ```
-parix-hands   online
-parix-atrium  online
-parix-aegis   online
+[hatchery] hands: running
+[hatchery] atrium: running
+[hatchery] aegis: running
 ```
 
-Open `http://localhost:3000` in your browser to reach the Aegis UI.
+Open `http://localhost:3000` in your browser to reach the Aegis UI. If 3000 is
+already busy, Hatchery chooses the next free local port and opens that instead.
+
+Useful commands:
+
+```bash
+parix stop
+parix restart
+parix start
+parix start atrium
+```
+
+In Aegis chat, say `stop parix` to pause autonomous actions, `start parix
+atrium` to resume, or `status` for a quick health readout.
 
 ## If something goes wrong
 
