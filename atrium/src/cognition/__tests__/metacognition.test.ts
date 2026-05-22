@@ -4,6 +4,7 @@ import {
   computeLoad,
   getCalibrationScore,
   recordCalibration,
+  recordSkillCalibration,
 } from "../metacognition.js";
 import type { DesireInference, Hypothesis, WorkingMemory } from "../types.js";
 import type { GoalTree, PlanNode } from "../planner/types.js";
@@ -114,6 +115,28 @@ describe("metacognition", () => {
     expect(emptyLoad).toBeCloseTo(0.02);
     expect(loaded).toBeGreaterThan(emptyLoad);
     expect(loaded).toBeGreaterThanOrEqual(0.4);
+  });
+
+  it("localizes poor calibration to a single skill capability", () => {
+    for (let i = 0; i < 8; i++) {
+      recordSkillCalibration("task-flaky-cloud-cli", 0.95, false);
+    }
+
+    const assessment = assess(
+      makeDesire({ inferredGoal: "repair cloud CLI auth" }),
+      [makeHypothesis({ confidence: 0.7 })],
+      makeMemory({ uncertainty: 0.2 }),
+      [],
+      false,
+      {
+        skillManifestId: "task-flaky-cloud-cli",
+        escalationChannel: "slack",
+      },
+    );
+
+    expect(assessment.strategy).toBe("delegate");
+    expect(assessment.sandboxedCapabilityId).toBe("task-flaky-cloud-cli");
+    expect(assessment.asyncEscalation?.channel).toBe("slack");
   });
 });
 

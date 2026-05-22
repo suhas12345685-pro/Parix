@@ -8,6 +8,7 @@
 
 import { EventEmitter } from "events";
 import { getDb, persistToFile } from "../memory/db.js";
+import { maybeRequestVisualFallback } from "./vision-handler.js";
 
 export interface FocusedElementSummary {
   role: string;
@@ -68,6 +69,13 @@ export function handleA11ySnapshot(msg: AccessibilitySnapshotMessage): void {
     receivedAt: Date.now(),
   };
   latest = next;
+  const fallback = maybeRequestVisualFallback({
+    snapshotId: next.snapshotId,
+    focusedApp: next.focusedApp,
+    backendUsed: next.backendUsed,
+    confidence: next.confidence,
+    treeSummary: msg.tree_summary ?? {},
+  });
 
   try {
     getDb().run(
@@ -98,6 +106,9 @@ export function handleA11ySnapshot(msg: AccessibilitySnapshotMessage): void {
   }
 
   emitter.emit("snapshot", next);
+  if (fallback) {
+    emitter.emit("visual_fallback", fallback);
+  }
 }
 
 export function getLatestAccessibility(): LatestAccessibility | null {

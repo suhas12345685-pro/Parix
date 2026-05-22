@@ -4,6 +4,7 @@ import {
   decayFocus,
   gate,
   getAttentionState,
+  getAttentionStats,
   resetStats,
   setFocus,
   strengthenFocus,
@@ -139,6 +140,21 @@ describe("attention gate", () => {
     );
 
     expect(getAttentionState().focusStrength).toBeGreaterThan(before);
+  });
+
+  it("tracks contextual token load in a sliding window", () => {
+    for (let i = 0; i < 8; i++) {
+      gate(
+        makeEvent("build_log_line", { output: "x".repeat(200 + i) }, 0.7),
+        makeMemory(),
+      );
+    }
+
+    const stats = getAttentionStats();
+    expect(stats.recentTokenLoad).toBeGreaterThan(0);
+    expect(["idle", "normal", "busy", "saturated"]).toContain(
+      stats.contextualLoad,
+    );
   });
 });
 

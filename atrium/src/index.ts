@@ -1,13 +1,14 @@
 import { mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
-import { initDb, lastEventId, closeDb } from "./memory/db.js";
+import { initDb, initMemoryStore, lastEventId, closeDb } from "./memory/db.js";
 import { SynapseClient } from "./synapse/client.js";
 import { AtriumEngine } from "./intelligence/council.js";
 import { initAuditChain, verifyChain } from "./intelligence/audit.js";
 import { getSkillStats } from "./intelligence/skillcache.js";
 import { getStats as getDlqStats } from "./intelligence/deadletter.js";
 import "./channels/index.js";
+import { registerTelegramEngine } from "./channels/telegram.js";
 import {
   registerStateGetter,
   resumeFromCheckpoint,
@@ -18,6 +19,7 @@ import {
   pause as pauseAgent,
   resume as resumeAgent,
   getStatus as getPauseStatus,
+  toggle as togglePauseState,
 } from "./intelligence/pause.js";
 import {
   getRecentExplanations,
@@ -32,8 +34,11 @@ import { loadNarratives } from "./cognition/horizon-store.js";
 import { loadTrees } from "./cognition/planner/index.js";
 import { loadActivePlanTrees } from "./cognition/planner/store.js";
 import { loadSkills, getRegistryStats } from "./intelligence/skill-registry.js";
+import { initDocsRouter, loadBootDocs } from "./docs/index.js";
+import { seedDefaultBenchmarks } from "./nexus/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(__dirname, "../..");
 const DATA_DIR = resolve(__dirname, "../../data");
 const SKILLS_DIR = resolve(__dirname, "../../skills");
 
@@ -42,6 +47,12 @@ async function main() {
 
   console.log("[ATRIUM] Initializing...");
   await initDb(resolve(DATA_DIR, "memory.db"));
+  if (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL) {
+    const store = await initMemoryStore({
+      databaseUrl: process.env.SUPABASE_DB_URL ?? process.env.DATABASE_URL,
+    });
+    console.log(`[ATRIUM] Enterprise memory store initialized (${store.kind})`);
+  }
   console.log("[ATRIUM] Database initialized");
 
   const narrativeRows = loadNarratives();
@@ -57,6 +68,11 @@ async function main() {
   console.log(
     `[BOOT] Loaded ${registryStats.totalSkills} skill manifest(s), ${registryStats.totalTriggers} trigger(s)`,
   );
+
+  // ─── Documentation Router ──────────────────────────────────────
+  initDocsRouter(PROJECT_ROOT);
+  const bootDocs = loadBootDocs();
+  console.log(`[BOOT] Routed ${bootDocs.length} boot documents (SOUL, IDENTITY, USER, MEMORY, HEARTBEAT, TOOLS)`);
 
   // ─── Load profile (Hatchery config) ─────────────────────────────
   const profileResult = loadAndApplyProfile();
@@ -79,8 +95,13 @@ async function main() {
     console.log("[ATRIUM] Audit chain verified");
   }
 
+  // ─── Nexus — Beyonder Self-Improvement Layer ─────────────────
+  seedDefaultBenchmarks();
+  console.log("[BOOT] Nexus evolutionary architecture initialized");
+
   const synapse = new SynapseClient();
   const engine = new AtriumEngine(synapse);
+  registerTelegramEngine(engine);
 
   // ─── LLM Router (v0.2 planning) ───────────────────────────────
   try {
@@ -103,7 +124,7 @@ async function main() {
       );
     } else {
       console.log(
-        "[ATRIUM] No LLM API keys found — using rule-based planning (v0.1)",
+        "[ATRIUM] No LLM API keys found - using local rule-based planning",
       );
     }
   } catch (err) {
@@ -154,6 +175,14 @@ async function main() {
 
   synapse.on("reboot_sync", () => {
     console.log("[ATRIUM] Hands rebooted — world state pushed");
+  });
+
+  synapse.on("pause_toggle", () => {
+    console.log("[ATRIUM] Pause toggle requested via global hotkey");
+    const isPaused = togglePauseState();
+    if (!isPaused) {
+      engine.onResume();
+    }
   });
 
   synapse.on("error", (err) => {

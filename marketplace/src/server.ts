@@ -26,6 +26,14 @@ const app = express();
 app.use(express.json({ limit: "256kb" }));
 
 let db: DbAdapter;
+const skillDeltas: Array<Record<string, unknown> & { revision: string }> = [];
+
+function recordSkillDelta(delta: Record<string, unknown>): string {
+  const revision = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  skillDeltas.push({ ...delta, revision });
+  if (skillDeltas.length > 500) skillDeltas.splice(0, skillDeltas.length - 500);
+  return revision;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 function requireAdmin(req: Request, res: Response, next: NextFunction): void {
@@ -77,6 +85,13 @@ const AddVersionSchema = z.object({
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
   reviewerId: z.string().min(1).max(64),
   changelog: z.string().max(4000).optional(),
+});
+
+const SkillDeltaSchema = z.object({
+  op: z.enum(["upsert", "remove", "refresh"]),
+  id: z.string().min(1),
+  manifest: z.record(z.string(), z.unknown()).optional(),
+  skillDir: z.string().optional(),
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────
@@ -153,6 +168,18 @@ app.get("/v1/skills/:id/download", async (req, res) => {
   res.redirect(302, `${skill.repo_url.replace(/\.git$/, "")}/archive/refs/tags/${v.tag_ref}.tar.gz`);
 });
 
+app.get("/v1/skill-deltas", async (req, res) => {
+  const cursor = String(req.query.cursor || "");
+  const start = cursor
+    ? skillDeltas.findIndex((delta) => delta.revision === cursor) + 1
+    : 0;
+  const deltas = skillDeltas.slice(Math.max(0, start));
+  res.json({
+    cursor: deltas.at(-1)?.revision ?? cursor || null,
+    deltas,
+  });
+});
+
 app.post("/v1/skills/:id/reviews", async (req, res) => {
   const parsed = ReviewSchema.safeParse(req.body);
   if (!parsed.success) return badRequest(res, parsed.error.format());
@@ -213,7 +240,11 @@ app.post("/v1/admin/skills/:id/status", requireAdmin, async (req, res) => {
       [reason, req.params.id],
     );
   }
-  res.json({ ok: true });
+  const revision =
+    status === "banned" || status === "rejected"
+      ? recordSkillDelta({ op: "remove", id: req.params.id })
+      : recordSkillDelta({ op: "refresh", id: req.params.id });
+  res.json({ ok: true, revision });
 });
 
 app.post("/v1/admin/skills/:id/versions", requireAdmin, async (req, res) => {
@@ -230,7 +261,15 @@ app.post("/v1/admin/skills/:id/versions", requireAdmin, async (req, res) => {
     `UPDATE skills SET latest_version = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
     [p.version, req.params.id],
   );
-  res.status(201).json({ ok: true });
+  const revision = recordSkillDelta({ op: "refresh", id: req.params.id });
+  res.status(201).json({ ok: true, revision });
+});
+
+app.post("/v1/admin/skill-deltas", requireAdmin, async (req, res) => {
+  const parsed = SkillDeltaSchema.safeParse(req.body);
+  if (!parsed.success) return badRequest(res, parsed.error.format());
+  const revision = recordSkillDelta(parsed.data);
+  res.status(202).json({ ok: true, revision });
 });
 
 // ─── Bootstrap ────────────────────────────────────────────────────────

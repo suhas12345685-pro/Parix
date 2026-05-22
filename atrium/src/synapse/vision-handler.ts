@@ -9,6 +9,7 @@
  * fall back to tesseract instead of waiting on a timeout.
  */
 
+import { EventEmitter } from "events";
 import type { LLMRouter } from "../llm/router.js";
 
 export interface VisionOcrRequestMessage {
@@ -30,8 +31,35 @@ export interface VisionOcrResponseMessage {
 
 export type VisionOcrSend = (msg: VisionOcrResponseMessage) => void;
 
+export interface VisualFallbackRequest {
+  requestId: string;
+  snapshotId: string;
+  focusedApp: string;
+  reason: string;
+  entropy: number;
+  timestamp: number;
+}
+
+export interface AccessibilityEntropyInput {
+  snapshotId: string;
+  focusedApp: string;
+  backendUsed: string;
+  confidence: number;
+  treeSummary: {
+    focused_element?: {
+      role?: string;
+      name?: string;
+      value?: string | null;
+      childCount?: number;
+      children?: unknown[];
+    } | null;
+    had_raw_text?: boolean;
+  };
+}
+
 const DEFAULT_PROMPT =
   "Extract all readable text from this image. Return only the text, no commentary.";
+const fallbackEmitter = new EventEmitter();
 
 export async function handleVisionOcrRequest(
   msg: VisionOcrRequestMessage,
@@ -76,4 +104,61 @@ export async function handleVisionOcrRequest(
     const reason = err instanceof Error ? err.message : String(err);
     respond("", reason);
   }
+}
+
+export function computeAccessibilityEntropy(
+  snapshot: AccessibilityEntropyInput,
+): number {
+  const focused = snapshot.treeSummary.focused_element;
+  if (!focused) return 0;
+
+  const signals = [
+    focused.role,
+    focused.name,
+    focused.value,
+    snapshot.treeSummary.had_raw_text ? "raw_text" : "",
+    ...(focused.children ?? []).slice(0, 6).map((child) => JSON.stringify(child)),
+  ]
+    .filter(Boolean)
+    .join("|");
+
+  const uniqueChars = new Set(signals).size;
+  const childCount =
+    focused.childCount ??
+    (Array.isArray(focused.children) ? focused.children.length : 0);
+  const structureScore = Math.min(1, childCount / 8);
+  const textScore = Math.min(1, uniqueChars / 80);
+  return Math.min(1, snapshot.confidence * 0.5 + structureScore * 0.25 + textScore * 0.25);
+}
+
+export function maybeRequestVisualFallback(
+  snapshot: AccessibilityEntropyInput,
+): VisualFallbackRequest | null {
+  const entropy = computeAccessibilityEntropy(snapshot);
+  const backendLooksNative =
+    snapshot.backendUsed !== "vision" && snapshot.backendUsed !== "ocr";
+  if (!backendLooksNative || entropy >= 0.35) return null;
+
+  const request: VisualFallbackRequest = {
+    requestId: `som-${snapshot.snapshotId}`,
+    snapshotId: snapshot.snapshotId,
+    focusedApp: snapshot.focusedApp,
+    reason: `low_accessibility_entropy:${entropy.toFixed(2)}`,
+    entropy,
+    timestamp: Date.now(),
+  };
+
+  queueMicrotask(() => fallbackEmitter.emit("visual_fallback", request));
+  return request;
+}
+
+export function onVisualFallbackRequest(
+  listener: (request: VisualFallbackRequest) => void,
+): () => void {
+  fallbackEmitter.on("visual_fallback", listener);
+  return () => fallbackEmitter.off("visual_fallback", listener);
+}
+
+export function _resetVisionFallbackState(): void {
+  fallbackEmitter.removeAllListeners();
 }

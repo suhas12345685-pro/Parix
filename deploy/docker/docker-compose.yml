@@ -1,5 +1,5 @@
 # ─── Parix — Docker Compose ────────────────────────────────────
-# Full stack: Atrium (Brain) + Hands (Executor) + SQLite volume
+# Enterprise stack: stateless Atrium + outbound Hands + Postgres + Redis broker
 # Usage: docker compose up -d
 # ───────────────────────────────────────────────────────────────
 
@@ -12,18 +12,19 @@ services:
     restart: unless-stopped
     ports:
       - "8766:8766"
-    volumes:
-      - parix-data:/app/data
     environment:
       - NODE_ENV=production
-      - HANDS_WS_URL=ws://hands:8765
       - AEGIS_WS_PORT=8766
-      - PARIX_DB_PATH=/app/data/parix.db
+      - DATABASE_URL=postgres://parix:parix@postgres:5432/parix
+      - PARIX_EVENT_BROKER_URL=redis://redis:6379
+      - PARIX_TENANT_ID=${PARIX_TENANT_ID:-local}
       - PARIX_SYNAPSE_TOKEN=${PARIX_SYNAPSE_TOKEN:?set PARIX_SYNAPSE_TOKEN in .env to a long random string}
     env_file:
       - ../../.env
     depends_on:
-      hands:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - parix-net
@@ -46,19 +47,56 @@ services:
       - PARIX_WS_PORT=8765
       - PARIX_WS_HOST=0.0.0.0
       - PARIX_ALLOW_REMOTE_SYNAPSE=1
+      - PARIX_EVENT_BROKER_URL=redis://redis:6379
+      - PARIX_TENANT_ID=${PARIX_TENANT_ID:-local}
       - PARIX_SYNAPSE_TOKEN=${PARIX_SYNAPSE_TOKEN:?set PARIX_SYNAPSE_TOKEN in .env to a long random string}
     env_file:
       - ../../.env
     networks:
       - parix-net
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')"]
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 8765), 2); s.close()"]
       interval: 15s
       timeout: 5s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: parix-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=parix
+      - POSTGRES_PASSWORD=parix
+      - POSTGRES_DB=parix
+    volumes:
+      - parix-postgres:/var/lib/postgresql/data
+    networks:
+      - parix-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parix -d parix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: parix-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - parix-redis:/data
+    networks:
+      - parix-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
-  parix-data:
+  parix-postgres:
+    driver: local
+  parix-redis:
     driver: local
 
 networks:

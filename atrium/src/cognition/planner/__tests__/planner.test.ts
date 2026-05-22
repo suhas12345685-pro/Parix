@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  TaskGraphRuntime,
+  applyReflectionPatch,
   advance,
   decompose,
   getAllActiveTrees,
   getProgress,
+  isAcyclic,
   nextExecutable,
   removeTree,
   repairStrategy,
@@ -216,8 +219,70 @@ describe("planner", () => {
       skipped: 1,
       failed: 1,
       active: 0,
+      blocked: 0,
       percent: 50,
     });
+  });
+
+  it("injects an alternate DAG path when schema drift is detected", () => {
+    const failed = makeNode({
+      id: "schema-step",
+      error: "schema drift: field action_type renamed",
+      maxRetries: 0,
+    });
+    const dependent = makeNode({
+      id: "downstream",
+      dependsOn: ["schema-step"],
+    });
+    const tree = makeTree([failed, dependent]);
+
+    const advanced = advance(
+      tree,
+      "schema-step",
+      false,
+      undefined,
+      failed.error,
+    );
+    const injected = advanced.nodes.find(
+      (node) => node.alternativeFor === "schema-step",
+    );
+
+    expect(injected).toBeDefined();
+    expect(injected?.dynamic).toBe(true);
+    expect(
+      advanced.nodes.find((node) => node.id === "downstream")?.dependsOn,
+    ).toEqual([injected?.id]);
+    expect(isAcyclic(advanced)).toBe(true);
+  });
+
+  it("runtime reflection can hot-inject nodes without restarting the plan", async () => {
+    const root = makeNode({ id: "root" });
+    const tree = makeTree([root], { maxConcurrency: 2 });
+    const runtime = new TaskGraphRuntime(tree, async (node) => ({
+      success: true,
+      result: `done:${node.id}`,
+    }));
+
+    applyReflectionPatch(tree, {
+      kind: "environment_shift",
+      reason: "workspace path changed",
+      affectedNodeIds: ["root"],
+      newNodes: [
+        {
+          id: "dynamic-check",
+          goal: "validate new workspace",
+          taskType: "silent_prep",
+          dependsOn: [],
+        },
+      ],
+    });
+
+    await runtime.tick();
+
+    expect(tree.nodes.find((node) => node.id === "dynamic-check")?.status).toBe(
+      "done",
+    );
+    expect(tree.revisions?.at(-1)?.kind).toBe("environment_shift");
   });
 });
 
