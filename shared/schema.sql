@@ -1,8 +1,11 @@
 -- Parix SQLite Schema — All 16 tables
--- Created at boot by atrium/src/memory/db.ts
+-- Created at boot by atrium/src/memory/db.ts.
+-- Enterprise deployments use shared/schema.postgres.sql. The local memory
+-- adapter backfills tenant_id onto existing SQLite/sql.js tables at boot.
 
 -- Phase 1: Core
 CREATE TABLE IF NOT EXISTS tasks (
+  tenant_id   TEXT NOT NULL DEFAULT 'local',
   task_id     TEXT PRIMARY KEY,
   type        TEXT NOT NULL,
   state       TEXT NOT NULL DEFAULT 'pending',  -- pending | acked | completed | failed | dead
@@ -14,6 +17,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 
 CREATE TABLE IF NOT EXISTS events (
+  tenant_id   TEXT NOT NULL DEFAULT 'local',
   event_id    TEXT PRIMARY KEY,
   event_type  TEXT NOT NULL,
   data        TEXT,
@@ -27,6 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
 -- Phase 1: Crash recovery
 CREATE TABLE IF NOT EXISTS checkpoints (
   id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id TEXT NOT NULL DEFAULT 'local',
   data  TEXT NOT NULL,
   ts    INTEGER NOT NULL
 );
@@ -282,11 +287,13 @@ CREATE TABLE IF NOT EXISTS storage_sync_state (
 
 -- Cognition v1.3: Planning
 CREATE TABLE IF NOT EXISTS plan_trees (
+  tenant_id TEXT NOT NULL DEFAULT 'local',
   id TEXT PRIMARY KEY,
   root_goal TEXT NOT NULL,
   trigger TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
   nodes_json TEXT NOT NULL,
+  graph_json TEXT NOT NULL DEFAULT '{}',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -309,6 +316,7 @@ CREATE INDEX IF NOT EXISTS idx_narratives_status ON narratives(status);
 -- Cognition v1.3: Metacognition Calibration
 CREATE TABLE IF NOT EXISTS calibration_records (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  skill_manifest_id TEXT,
   predicted_confidence REAL NOT NULL,
   actual_outcome INTEGER NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -325,7 +333,53 @@ CREATE TABLE IF NOT EXISTS attention_log (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Accessibility v0.1.6: each row = one ACCESSIBILITY_SNAPSHOT from hands.
+-- Cognition v1.4: Proactive Pulse memory
+CREATE TABLE IF NOT EXISTS pulse_memory (
+  key TEXT PRIMARY KEY,
+  value_json TEXT NOT NULL,
+  confidence REAL DEFAULT 0.5,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pulse_memory_updated ON pulse_memory(updated_at DESC);
+
+-- Cognition v1.4: Error-Shadow pre-computation drafts
+CREATE TABLE IF NOT EXISTS error_shadow_drafts (
+  id TEXT PRIMARY KEY,
+  event_hash TEXT NOT NULL,
+  cwd TEXT,
+  error_excerpt TEXT NOT NULL,
+  draft_path TEXT NOT NULL,
+  suggested_fix TEXT,
+  confidence REAL NOT NULL,
+  notification_score REAL NOT NULL,
+  notification_channel TEXT NOT NULL DEFAULT 'silent',
+  repeat_count INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_error_shadow_hash ON error_shadow_drafts(event_hash);
+CREATE INDEX IF NOT EXISTS idx_error_shadow_last_seen ON error_shadow_drafts(last_seen_at DESC);
+
+-- Cognition v1.4: Dependency Foresight pre-error drafts
+CREATE TABLE IF NOT EXISTS dependency_foresight_drafts (
+  id TEXT PRIMARY KEY,
+  import_hash TEXT NOT NULL,
+  cwd TEXT,
+  file_path TEXT,
+  manifest_path TEXT,
+  missing_imports_json TEXT NOT NULL,
+  draft_path TEXT NOT NULL,
+  suggested_commands_json TEXT,
+  confidence REAL NOT NULL,
+  notification_score REAL NOT NULL,
+  notification_channel TEXT NOT NULL DEFAULT 'silent',
+  created_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dependency_foresight_hash ON dependency_foresight_drafts(import_hash);
+CREATE INDEX IF NOT EXISTS idx_dependency_foresight_last_seen ON dependency_foresight_drafts(last_seen_at DESC);
+
+-- Accessibility snapshots: each row = one ACCESSIBILITY_SNAPSHOT from hands.
 -- The poller debounces on UI state change, so rows mark transitions.
 CREATE TABLE IF NOT EXISTS accessibility_snapshots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -340,3 +394,44 @@ CREATE TABLE IF NOT EXISTS accessibility_snapshots (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_a11y_snapshot_ts ON accessibility_snapshots(ts DESC);
+
+-- Beyonder v1.0: Cognition Metrics for Recursive Self-Improvement
+CREATE TABLE IF NOT EXISTS cognition_metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  prompt_hash TEXT NOT NULL,
+  execution_time_ms INTEGER NOT NULL,
+  success_score REAL NOT NULL DEFAULT 0.0,
+  tokens_used INTEGER NOT NULL DEFAULT 0,
+  pattern_type TEXT,
+  context_summary TEXT,
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_cognition_metrics_hash ON cognition_metrics(prompt_hash);
+CREATE INDEX IF NOT EXISTS idx_cognition_metrics_score ON cognition_metrics(success_score);
+CREATE INDEX IF NOT EXISTS idx_cognition_metrics_ts ON cognition_metrics(timestamp DESC);
+
+-- Beyonder v1.0: Evolution Ledger — tracks self-improvement patches
+CREATE TABLE IF NOT EXISTS evolution_ledger (
+  id TEXT PRIMARY KEY,
+  prompt_hash TEXT NOT NULL,
+  old_prompt_summary TEXT,
+  new_prompt_summary TEXT,
+  improvement_delta REAL,
+  benchmark_pass INTEGER NOT NULL DEFAULT 0,
+  applied INTEGER NOT NULL DEFAULT 0,
+  draft_path TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_evolution_ledger_applied ON evolution_ledger(applied);
+
+-- Beyonder v1.0: Benchmark Suite — the 10 critical tasks that guard evolution
+CREATE TABLE IF NOT EXISTS benchmark_suite (
+  id TEXT PRIMARY KEY,
+  task_name TEXT NOT NULL,
+  input_json TEXT NOT NULL,
+  expected_output_json TEXT NOT NULL,
+  weight REAL NOT NULL DEFAULT 1.0,
+  last_run_at DATETIME,
+  last_pass INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

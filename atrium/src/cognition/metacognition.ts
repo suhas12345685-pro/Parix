@@ -20,12 +20,23 @@ export interface MetacognitiveAssessment {
   cognitiveLoad: number;
   timeBudgetMs: number;
   shouldExplain: boolean;
+  sandboxedCapabilityId?: string;
+  asyncEscalation?: {
+    channel: "slack" | "teams" | "aegis" | "telegram";
+    ticket: Record<string, unknown>;
+  };
 }
 
 interface CalibrationRecord {
   predictedConfidence: number;
   actualOutcome: boolean;
   timestamp: number;
+  skillManifestId?: string;
+}
+
+export interface MetacognitiveContext {
+  skillManifestId?: string;
+  escalationChannel?: "slack" | "teams" | "aegis" | "telegram";
 }
 
 // ---------------------------------------------------------------------------
@@ -33,6 +44,7 @@ interface CalibrationRecord {
 // ---------------------------------------------------------------------------
 
 const calibrationHistory: CalibrationRecord[] = [];
+const skillCalibrationHistory = new Map<string, CalibrationRecord[]>();
 const MAX_CALIBRATION_RECORDS = 200;
 const CALIBRATION_WINDOW = 100;
 
@@ -50,9 +62,12 @@ export function assess(
   workingMemory: WorkingMemory,
   activeGoalTrees: GoalTree[],
   hasSkillCacheHit: boolean = false,
+  context: MetacognitiveContext = {},
 ): MetacognitiveAssessment {
   const load = computeLoad(activeGoalTrees, workingMemory);
-  const calibration = getCalibrationScore();
+  const calibration = context.skillManifestId
+    ? getSkillCalibrationScore(context.skillManifestId)
+    : getCalibrationScore();
   const topConf = hypotheses[0]?.confidence ?? 0;
   const spread = hypothesisSpread(hypotheses);
   const reversibility = estimateReversibility(desire);
@@ -80,6 +95,29 @@ export function assess(
       load,
       1000,
       false,
+    );
+  }
+
+  if (context.skillManifestId && calibration < 0.4 && topConf < 0.75) {
+    return build(
+      "delegate",
+      `Capability ${context.skillManifestId} degraded by local calibration (${calibration.toFixed(2)}); sandboxing that path and continuing unrelated work`,
+      0.65,
+      load,
+      1000,
+      false,
+      {
+        sandboxedCapabilityId: context.skillManifestId,
+        asyncEscalation: {
+          channel: context.escalationChannel ?? "aegis",
+          ticket: {
+            skillManifestId: context.skillManifestId,
+            calibration,
+            topConfidence: topConf,
+            rootGoal: desire.inferredGoal,
+          },
+        },
+      },
     );
   }
 
@@ -253,6 +291,37 @@ export function recordCalibration(
   calibrationDirty = true;
 }
 
+export function recordSkillCalibration(
+  skillManifestId: string,
+  predictedConfidence: number,
+  actualOutcome: boolean,
+): void {
+  const record: CalibrationRecord = {
+    predictedConfidence,
+    actualOutcome,
+    timestamp: Date.now(),
+    skillManifestId,
+  };
+  const history = skillCalibrationHistory.get(skillManifestId) ?? [];
+  history.push(record);
+  if (history.length > MAX_CALIBRATION_RECORDS) {
+    history.splice(0, history.length - MAX_CALIBRATION_RECORDS);
+  }
+  skillCalibrationHistory.set(skillManifestId, history);
+
+  try {
+    getDb().run(
+      "INSERT INTO calibration_records (skill_manifest_id, predicted_confidence, actual_outcome) VALUES (?, ?, ?)",
+      [skillManifestId, predictedConfidence, actualOutcome ? 1 : 0],
+    );
+    persistToFile();
+  } catch {
+    // Skill-local calibration still works in memory during tests.
+  }
+
+  calibrationDirty = true;
+}
+
 export function getCalibrationScore(): number {
   hydrateCalibrationFromDb();
 
@@ -278,6 +347,20 @@ export function getCalibrationScore(): number {
   cachedCalibrationScore = Math.max(0, 1 - brierScore);
   calibrationDirty = false;
   return cachedCalibrationScore;
+}
+
+export function getSkillCalibrationScore(skillManifestId: string): number {
+  hydrateSkillCalibrationFromDb(skillManifestId);
+  const recent = (skillCalibrationHistory.get(skillManifestId) ?? []).slice(
+    -CALIBRATION_WINDOW,
+  );
+  if (recent.length === 0) return getCalibrationScore();
+
+  const brierSum = recent.reduce((sum, record) => {
+    const actual = record.actualOutcome ? 1 : 0;
+    return sum + (record.predictedConfidence - actual) ** 2;
+  }, 0);
+  return Math.max(0, 1 - brierSum / recent.length);
 }
 
 export function hydrateCalibrationFromDb(): void {
@@ -310,6 +393,36 @@ export function hydrateCalibrationFromDb(): void {
     }
   } catch {
     // DB may not be initialized during isolated cognition tests.
+  }
+}
+
+function hydrateSkillCalibrationFromDb(skillManifestId: string): void {
+  if (skillCalibrationHistory.has(skillManifestId)) return;
+
+  try {
+    const stmt = getDb().prepare(
+      `SELECT predicted_confidence, actual_outcome, created_at
+       FROM calibration_records
+       WHERE skill_manifest_id = ?
+       ORDER BY id DESC
+       LIMIT ?`,
+    );
+    stmt.bind([skillManifestId, CALIBRATION_WINDOW]);
+
+    const hydrated: CalibrationRecord[] = [];
+    while (stmt.step()) {
+      const [predictedConfidence, actualOutcome, timestamp] = stmt.get();
+      hydrated.push({
+        predictedConfidence: Number(predictedConfidence),
+        actualOutcome: Number(actualOutcome) === 1,
+        timestamp: Date.parse(String(timestamp)) || Date.now(),
+        skillManifestId,
+      });
+    }
+    stmt.free();
+    skillCalibrationHistory.set(skillManifestId, hydrated.reverse());
+  } catch {
+    skillCalibrationHistory.set(skillManifestId, []);
   }
 }
 
@@ -391,6 +504,9 @@ function build(
   cognitiveLoad: number,
   timeBudgetMs: number,
   shouldExplain: boolean,
+  extras: Partial<
+    Pick<MetacognitiveAssessment, "sandboxedCapabilityId" | "asyncEscalation">
+  > = {},
 ): MetacognitiveAssessment {
   return {
     strategy,
@@ -399,5 +515,6 @@ function build(
     cognitiveLoad,
     timeBudgetMs,
     shouldExplain,
+    ...extras,
   };
 }

@@ -12,6 +12,13 @@ import {
   type VisionOcrRequestMessage,
   type VisionOcrResponseMessage,
 } from "./vision-handler.js";
+import {
+  createEventBrokerFromEnv,
+  estimatePayloadTokens,
+  makeBrokerEnvelope,
+  TokenBucket,
+  type EventBroker,
+} from "./broker.js";
 import { loadSynapseToken } from "./token.js";
 import type { LLMRouter } from "../llm/router.js";
 
@@ -49,6 +56,7 @@ export interface SynapseEvents {
   sensor_event: (event: any) => void;
   silent_intent: (event: any) => void;
   reboot_sync: () => void;
+  pause_toggle: () => void;
   "synapse:error": (err: Error) => void;
   error: (err: Error) => void;
 }
@@ -63,6 +71,11 @@ export class SynapseClient extends EventEmitter {
   private url: string;
   private llmRouter: LLMRouter | null = null;
   private token: string | null;
+  private broker: EventBroker;
+  private ingressBucket = new TokenBucket({
+    capacity: Number(process.env.PARIX_INGRESS_TOKEN_BUCKET ?? 16_000),
+    refillPerSecond: Number(process.env.PARIX_INGRESS_REFILL_PER_SEC ?? 4_000),
+  });
   private worldState: { lastTask: string | null; activeState: string } = {
     lastTask: null,
     activeState: "IDLE",
@@ -72,6 +85,7 @@ export class SynapseClient extends EventEmitter {
     super();
     this.url = process.env.HANDS_WS_URL || `ws://localhost:${port}`;
     this.token = loadSynapseToken();
+    this.broker = createEventBrokerFromEnv();
   }
 
   connect(): void {
@@ -211,6 +225,19 @@ export class SynapseClient extends EventEmitter {
     }
 
     const type = msg.type;
+    const tokenCost = estimatePayloadTokens(msg);
+    if (this.shouldThrottle(type, tokenCost)) {
+      const err = new Error(
+        `Synapse ingress backpressure held ${type} (${tokenCost} token estimate)`,
+      );
+      console.warn("[SYNAPSE] Backpressure:", err.message);
+      this.emit("synapse:error", err);
+      return;
+    }
+
+    void this.broker.publish(
+      makeBrokerEnvelope("synapse.ingress", type ?? "UNKNOWN", msg),
+    );
 
     switch (type) {
       case "TASK_ACK":
@@ -241,6 +268,10 @@ export class SynapseClient extends EventEmitter {
         console.log("[SYNAPSE] Received REBOOT_SYNC from Hands");
         this.pushWorldState();
         this.emit("reboot_sync");
+        break;
+      case "PAUSE_TOGGLE":
+        console.log("[SYNAPSE] Received PAUSE_TOGGLE from Hands");
+        this.emit("pause_toggle");
         break;
       case "HEARTBEAT":
         break;
@@ -339,6 +370,18 @@ export class SynapseClient extends EventEmitter {
     }
   }
 
+  private shouldThrottle(type: unknown, tokenCost: number): boolean {
+    const msgType = String(type ?? "");
+    const throttleable = new Set([
+      "SENSOR_EVENT",
+      "SILENT_INTENT_EVENT",
+      "ACCESSIBILITY_SNAPSHOT",
+      "VISION_OCR_REQUEST",
+    ]);
+    if (!throttleable.has(msgType)) return false;
+    return !this.ingressBucket.tryRemove(tokenCost);
+  }
+
   getStatus(): HandsStatus {
     return this.status;
   }
@@ -354,6 +397,7 @@ export class SynapseClient extends EventEmitter {
     this.rejectAllPending("Client disconnecting");
     this.ws?.close();
     this.ws = null;
+    void this.broker.close();
     this.setStatus("DISCONNECTED");
   }
 }

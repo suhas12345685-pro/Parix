@@ -35,9 +35,20 @@ try:
 except ImportError:
     from sensors.watcher import watch_loop as watcher_loop
 try:
+    from hands.sensors.hotkey_watch import start_hotkey_listener
+except ImportError:
+    from sensors.hotkey_watch import start_hotkey_listener
+try:
     from hands.sensors.a11y_poller import run_loop as a11y_poller_loop
 except ImportError:
     from sensors.a11y_poller import run_loop as a11y_poller_loop
+try:
+    from hands.neurosymbolic.sidecar import serve as neurosymbolic_sidecar_loop
+except ImportError:
+    try:
+        from neurosymbolic.sidecar import serve as neurosymbolic_sidecar_loop
+    except ImportError:
+        neurosymbolic_sidecar_loop = None
 try:
     from hands.executor.cli import execute as cli_execute
     from hands.executor.vision import execute as vision_execute
@@ -66,6 +77,7 @@ LOOPBACK_HOSTS = {"127.0.0.1", "::1", "::ffff:127.0.0.1", "localhost", ""}
 LOCALHOST_BIND_HOSTS = {"localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1"}
 
 bridge_connection = None
+main_loop = None
 shutdown_event = asyncio.Event()
 voice_channel = VoiceChannel() if VoiceChannel else None
 synapse_token: str | None = None
@@ -137,8 +149,42 @@ class Message:
         return json.dumps({"type": self.type, **self.data})
 
 
+class TokenBucket:
+    def __init__(self, capacity: int, refill_per_second: int) -> None:
+        self.capacity = float(capacity)
+        self.refill_per_second = float(refill_per_second)
+        self.tokens = float(capacity)
+        self.last_refill = time.monotonic()
+
+    def try_remove(self, cost: int) -> bool:
+        self._refill()
+        if cost > self.tokens:
+            return False
+        self.tokens -= cost
+        return True
+
+    def _refill(self) -> None:
+        now = time.monotonic()
+        elapsed = max(0.0, now - self.last_refill)
+        if elapsed <= 0:
+            return
+        self.tokens = min(
+            self.capacity,
+            self.tokens + elapsed * self.refill_per_second,
+        )
+        self.last_refill = now
+
+
 sensor_relay_buffer = deque(maxlen=SENSOR_RELAY_BUFFER_SIZE)
 vision_ocr_requesters = {}
+sensor_ingress_bucket = TokenBucket(
+    capacity=int(os.getenv("PARIX_SENSOR_TOKEN_BUCKET", "64000")),
+    refill_per_second=int(os.getenv("PARIX_SENSOR_REFILL_PER_SEC", "16000")),
+)
+
+
+def estimate_token_cost(raw: str) -> int:
+    return max(1, len(raw) // 4)
 
 
 def buffer_sensor_event(raw: str, msg_type: str) -> None:
@@ -297,6 +343,16 @@ async def handle_message(ws, raw: str):
         logger.info("Voice output: speaking agent response")
 
     elif msg_type in SENSOR_MESSAGE_TYPES:
+        token_cost = estimate_token_cost(raw)
+        if not sensor_ingress_bucket.try_remove(token_cost):
+            if msg_type in BUFFERED_SENSOR_MESSAGE_TYPES:
+                buffer_sensor_event(raw, msg_type)
+            logger.warning(
+                "Backpressure held %s (%d token estimate)",
+                msg_type,
+                token_cost,
+            )
+            return
         if ws != bridge_connection:
             sensor_connections.add(ws)
         if bridge_connection and bridge_connection != ws:
@@ -338,6 +394,27 @@ async def execute_task(msg: dict) -> dict:
         return {"success": result.get("success", True), "output": json.dumps(result)}
     else:
         return {"success": True, "output": f"executed {task_type}"}
+
+
+async def send_pause_toggle():
+    global bridge_connection
+    if bridge_connection:
+        try:
+            msg = Message("PAUSE_TOGGLE", {"timestamp": time.time()})
+            await bridge_connection.send(msg.to_json())
+            logger.info("Sent PAUSE_TOGGLE to Atrium")
+        except Exception as e:
+            logger.error("Failed to send PAUSE_TOGGLE: %s", e)
+    else:
+        logger.warning("Hotkey triggered but Atrium not connected")
+
+
+def send_pause_toggle_from_thread():
+    global main_loop
+    if main_loop and main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(send_pause_toggle(), main_loop)
+    else:
+        logger.warning("Hotkey triggered but main loop is not running")
 
 
 sensor_connections = set()
@@ -449,7 +526,12 @@ def watchdog_loop():
 
 
 async def main():
+    global main_loop
     loop = asyncio.get_event_loop()
+    main_loop = loop
+
+    # Start global hotkey listener for Ctrl+Shift+P
+    start_hotkey_listener(send_pause_toggle_from_thread)
 
     def signal_handler():
         logger.info("Shutdown signal received")
@@ -499,10 +581,23 @@ async def main():
             a11y_task = None
             logger.info("Accessibility poller disabled by PARIX_A11Y_DISABLED")
 
+        if (
+            neurosymbolic_sidecar_loop is not None
+            and os.getenv("PARIX_NEUROSYMBOLIC_DISABLED", "").lower()
+            not in ("1", "true", "yes")
+        ):
+            neuro_task = asyncio.create_task(neurosymbolic_sidecar_loop())
+            logger.info("Neuro-symbolic sidecar started")
+        else:
+            neuro_task = None
+            logger.info("Neuro-symbolic sidecar disabled")
+
         await shutdown_event.wait()
         watcher_task.cancel()
         if a11y_task is not None:
             a11y_task.cancel()
+        if neuro_task is not None:
+            neuro_task.cancel()
     logger.info("Hands shut down cleanly")
 
 

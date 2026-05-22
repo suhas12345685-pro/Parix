@@ -22,9 +22,9 @@ metadata:
     app.kubernetes.io/name: atrium
     app.kubernetes.io/component: brain
 spec:
-  replicas: 1  # Singleton — Council state machine is not horizontally scalable
+  replicas: 3
   strategy:
-    type: Recreate  # Avoid split-brain during upgrades
+    type: RollingUpdate
   selector:
     matchLabels:
       app: atrium
@@ -44,15 +44,24 @@ spec:
             - name: NODE_ENV
               value: production
             - name: HANDS_WS_URL
-              value: ws://hands-svc:8765
-            - name: PARIX_DB_PATH
-              value: /app/data/parix.db
+              value: ""
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: parix-secrets
+                  key: DATABASE_URL
+            - name: PARIX_EVENT_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: parix-secrets
+                  key: PARIX_EVENT_BROKER_URL
+            - name: PARIX_TENANT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           envFrom:
             - secretRef:
                 name: parix-secrets
-          volumeMounts:
-            - name: data
-              mountPath: /app/data
           resources:
             requests:
               cpu: 200m
@@ -72,11 +81,6 @@ spec:
               port: aegis-ws
             initialDelaySeconds: 5
             periodSeconds: 10
-      volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: atrium-pvc
-
 ---
 # ─── Atrium Service ───────────────────────────────────────────
 apiVersion: v1
@@ -96,7 +100,7 @@ spec:
 ---
 # ─── Hands Deployment ─────────────────────────────────────────
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: hands
   namespace: parix
@@ -104,9 +108,6 @@ metadata:
     app.kubernetes.io/name: hands
     app.kubernetes.io/component: executor
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: hands
@@ -129,6 +130,15 @@ spec:
               value: "0.0.0.0"
             - name: PARIX_ALLOW_REMOTE_SYNAPSE
               value: "1"
+            - name: PARIX_EVENT_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: parix-secrets
+                  key: PARIX_EVENT_BROKER_URL
+            - name: PARIX_TENANT_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
             # PARIX_SYNAPSE_TOKEN must be supplied via parix-secrets below.
           envFrom:
             - secretRef:
@@ -193,6 +203,8 @@ stringData:
   GEMINI_API_KEY: "REPLACE_ME"
   TELEGRAM_BOT_TOKEN: "REPLACE_ME"
   TELEGRAM_CHAT_ID: "REPLACE_ME"
+  DATABASE_URL: "postgres://USER:PASSWORD@HOST:5432/parix"
+  PARIX_EVENT_BROKER_URL: "redis://HOST:6379"
   # Shared secret for the synapse WS handshake. Required because both pods
   # bind/connect across the cluster network (non-loopback). Generate with
   # `openssl rand -hex 32` and rotate per install.

@@ -10,14 +10,36 @@ export interface RegisteredSkill {
   skillDir: string; // absolute path to the skill folder
 }
 
+export interface SkillRegistryDelta {
+  op: "upsert" | "remove" | "refresh";
+  id: string;
+  manifest?: SkillManifest;
+  skillDir?: string;
+  revision?: string;
+}
+
+export interface SkillRegistrySubscriptionOptions {
+  endpoint: string;
+  token?: string;
+  intervalMs?: number;
+  onError?: (error: Error) => void;
+}
+
+export interface SkillRegistrySubscription {
+  stop(): void;
+  getCursor(): string | null;
+}
+
 interface RegistryState {
   bySkillId: Map<string, RegisteredSkill>;
   byEventType: Map<string, RegisteredSkill[]>;
+  revision: string | null;
 }
 
 let state: RegistryState = {
   bySkillId: new Map(),
   byEventType: new Map(),
+  revision: null,
 };
 
 const PLATFORM: "windows" | "macos" | "linux" =
@@ -34,7 +56,7 @@ const PLATFORM: "windows" | "macos" | "linux" =
  * Idempotent: clears prior state. Safe to call again on hot reload.
  */
 export function loadSkills(skillsRoot: string): RegisteredSkill[] {
-  state = { bySkillId: new Map(), byEventType: new Map() };
+  state = { bySkillId: new Map(), byEventType: new Map(), revision: null };
 
   if (!existsSync(skillsRoot)) {
     console.warn(`[ATRIUM:SKILLS] Skills root missing: ${skillsRoot}`);
@@ -80,12 +102,7 @@ export function loadSkills(skillsRoot: string): RegisteredSkill[] {
     }
 
     const reg: RegisteredSkill = { manifest, skillDir };
-    state.bySkillId.set(manifest.id, reg);
-    for (const trig of manifest.triggers) {
-      const bucket = state.byEventType.get(trig.eventType) ?? [];
-      bucket.push(reg);
-      state.byEventType.set(trig.eventType, bucket);
-    }
+    registerSkill(reg);
     registered.push(reg);
   }
 
@@ -93,6 +110,91 @@ export function loadSkills(skillsRoot: string): RegisteredSkill[] {
     `[ATRIUM:SKILLS] Loaded ${registered.length} skill manifest(s) from ${skillsRoot}`,
   );
   return registered;
+}
+
+export function applySkillDelta(delta: SkillRegistryDelta): RegisteredSkill | null {
+  if (delta.op === "refresh") {
+    state.revision = delta.revision ?? state.revision;
+    return null;
+  }
+
+  if (delta.op === "remove") {
+    unregisterSkill(delta.id);
+    state.revision = delta.revision ?? state.revision;
+    return null;
+  }
+
+  if (!delta.manifest) {
+    throw new Error(`Skill delta ${delta.id} missing manifest`);
+  }
+  const skillDir =
+    delta.skillDir ??
+    resolve(process.env.PARIX_SKILLS_DIR ?? resolve(process.cwd(), "..", "skills"), delta.id);
+
+  const issues = validateManifest(delta.manifest);
+  if (issues.length > 0) {
+    throw new Error(`Skill delta ${delta.id} rejected: ${issues.join("; ")}`);
+  }
+
+  const entryPath = resolve(skillDir, delta.manifest.entry);
+  if (!existsSync(entryPath) || !statSync(entryPath).isFile()) {
+    throw new Error(`Skill delta ${delta.id} entry not found at ${entryPath}`);
+  }
+
+  const reg: RegisteredSkill = {
+    manifest: delta.manifest,
+    skillDir,
+  };
+  unregisterSkill(delta.manifest.id);
+  if (delta.manifest.enabled) registerSkill(reg);
+  state.revision = delta.revision ?? state.revision;
+  return delta.manifest.enabled ? reg : null;
+}
+
+export function createSkillRegistrySubscriptionWorker(
+  options: SkillRegistrySubscriptionOptions,
+): SkillRegistrySubscription {
+  let stopped = false;
+  let cursor: string | null = null;
+  const intervalMs = options.intervalMs ?? 15_000;
+
+  const tick = async (): Promise<void> => {
+    if (stopped) return;
+    try {
+      const url = new URL(options.endpoint);
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const response = await fetch(url, {
+        headers: options.token
+          ? { authorization: `Bearer ${options.token}` }
+          : undefined,
+      });
+      if (!response.ok) {
+        throw new Error(`registry sync failed: ${response.status}`);
+      }
+      const body = (await response.json()) as {
+        cursor?: string;
+        deltas?: SkillRegistryDelta[];
+      };
+      for (const delta of body.deltas ?? []) {
+        applySkillDelta(delta);
+      }
+      cursor = body.cursor ?? cursor;
+    } catch (err) {
+      options.onError?.(err instanceof Error ? err : new Error(String(err)));
+    }
+  };
+
+  void tick();
+  const timer = setInterval(() => void tick(), intervalMs);
+  return {
+    stop() {
+      stopped = true;
+      clearInterval(timer);
+    },
+    getCursor() {
+      return cursor;
+    },
+  };
 }
 
 /**
@@ -168,6 +270,7 @@ export function getRegistryStats(): {
   totalSkills: number;
   totalTriggers: number;
   eventTypes: string[];
+  revision: string | null;
 } {
   let totalTriggers = 0;
   for (const reg of state.bySkillId.values()) {
@@ -177,12 +280,36 @@ export function getRegistryStats(): {
     totalSkills: state.bySkillId.size,
     totalTriggers,
     eventTypes: [...state.byEventType.keys()].sort(),
+    revision: state.revision,
   };
 }
 
 // Test-only: reset state between isolated tests.
 export function _resetRegistry(): void {
-  state = { bySkillId: new Map(), byEventType: new Map() };
+  state = { bySkillId: new Map(), byEventType: new Map(), revision: null };
+}
+
+function registerSkill(reg: RegisteredSkill): void {
+  state.bySkillId.set(reg.manifest.id, reg);
+  for (const trig of reg.manifest.triggers) {
+    const bucket = state.byEventType.get(trig.eventType) ?? [];
+    bucket.push(reg);
+    state.byEventType.set(trig.eventType, bucket);
+  }
+}
+
+function unregisterSkill(id: string): void {
+  const existing = state.bySkillId.get(id);
+  if (!existing) return;
+  state.bySkillId.delete(id);
+  for (const [eventType, regs] of state.byEventType) {
+    const filtered = regs.filter((reg) => reg.manifest.id !== id);
+    if (filtered.length > 0) {
+      state.byEventType.set(eventType, filtered);
+    } else {
+      state.byEventType.delete(eventType);
+    }
+  }
 }
 
 // Minimal runtime validation — defensive layer beyond the JSON schema validator
