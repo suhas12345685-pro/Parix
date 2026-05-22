@@ -1,3 +1,4 @@
+          add-greeting-feature
 # 🧠 Parix
 
 > **The Proactive, Local-First Self-Healing Workstation Agent**
@@ -181,3 +182,6 @@ Copy `.env.example` to `.env` and fill the variables for your preferred integrat
 ## 📄 License & Terms
 
 Parix is open-source software licensed under the MIT License. It operates locally and values user data privacy by executing code directly on your local workstation without external telemetry streaming. Check [`SOUL.md`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/SOUL.md) for core principles.
+ 
+Parix
+       main
