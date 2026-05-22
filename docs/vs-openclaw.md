@@ -121,7 +121,7 @@ Parix:
 - Parix is **pre-1.0**. We crash. File bugs.
 - The macOS and Linux backends pass synthetic tests but haven't been
   verified on real hardware end-to-end. Suhas is working through both.
-- The skill marketplace is empty as of v0.2-alpha. Phase 2.8 of the
+- The skill marketplace is empty as of v0.2.0-alpha. Phase 2.8 of the
   roadmap is "land the first 3 third-party skills."
 - Signed binaries don't exist yet. Phase 2.1/2.2. If you need a signed
   installer right now, OpenClaw has one.

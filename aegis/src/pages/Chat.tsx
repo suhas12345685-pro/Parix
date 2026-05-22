@@ -1,21 +1,28 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AtriumState } from "../types";
+
+interface ChatResponse {
+  id: string;
+  text: string;
+}
 
 interface Props {
   connected: boolean;
   state: AtriumState;
   paused: boolean;
+  responses: ChatResponse[];
   onSend: (message: string) => void;
 }
 
 interface ChatMessage {
-  id: number;
+  id: number | string;
   role: "atrium" | "operator";
   text: string;
 }
 
-export function Chat({ connected, state, paused, onSend }: Props) {
+export function Chat({ connected, state, paused, responses, onSend }: Props) {
   const [draft, setDraft] = useState("");
+  const seenResponseIdsRef = useRef<Set<string>>(new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 1,
@@ -23,6 +30,26 @@ export function Chat({ connected, state, paused, onSend }: Props) {
       text: "Atrium is standing by. Ask for a fix, a system readout, or a quick explanation of the last action.",
     },
   ]);
+
+  useEffect(() => {
+    const freshResponses = responses.filter(
+      (response) => !seenResponseIdsRef.current.has(response.id),
+    );
+    if (freshResponses.length === 0) return;
+
+    for (const response of freshResponses) {
+      seenResponseIdsRef.current.add(response.id);
+    }
+
+    setMessages((prev) => [
+      ...prev,
+      ...freshResponses.map((response) => ({
+        id: `atrium-${response.id}`,
+        role: "atrium" as const,
+        text: response.text,
+      })),
+    ]);
+  }, [responses]);
 
   function submit() {
     const text = draft.trim();
@@ -63,7 +90,7 @@ export function Chat({ connected, state, paused, onSend }: Props) {
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-purple-400/30 bg-purple-500/10 text-lg text-purple-400">
                 {message.role === "operator" ? "✦" : "◇"}
               </span>
-              <span className="pt-1.5">{message.text}</span>
+              <span className="whitespace-pre-line pt-1.5">{message.text}</span>
             </div>
           ))}
         </div>

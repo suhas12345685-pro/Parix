@@ -3,15 +3,25 @@
  * Hatchery CLI - Parix onboarding entry point.
  *
  * Usage:
- *   parix onboarding          - TUI wizard (default)
- *   parix onboarding --web    - Start Hatchery Web UI, then Parix runtime
+ *   parix onboarding          - TUI wizard, with web fallback when unavailable
+ *   parix onboarding --web    - Start Hatchery web UI, then Parix runtime
  *   parix onboarding --reset  - Clear config + secrets, restart onboarding
  *   parix onboarding --check  - Non-interactive health check
  */
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer as createNetServer } from 'node:net';
+import {
+  closeSync,
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -31,8 +41,17 @@ import { renderOnboardingHtml as renderWebOnboardingHtml } from './web/onboardin
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '../..');
 const PORTS = readProtocolPorts();
-const AEGIS_UI_PORT = PORTS.aegis_ui ?? 3000;
+const AEGIS_UI_PORT = Number(process.env.AEGIS_UI_PORT || PORTS.aegis_ui || 3000);
 const AEGIS_RELAY_PORT = PORTS.aegis_relay ?? 8766;
+const RUNTIME_NAMES = ['hands', 'atrium', 'aegis'] as const;
+type RuntimeName = (typeof RUNTIME_NAMES)[number];
+type RuntimeTarget = RuntimeName | 'all';
+type RuntimeAction = 'start' | 'stop' | 'restart' | 'status';
+
+interface CommandSpec {
+  cmd: string;
+  args: string[];
+}
 
 function readProtocolPorts(): Record<string, number> {
   try {
@@ -50,19 +69,48 @@ function findPython(): string | null {
   const candidates =
     process.platform === 'win32'
       ? [
-          { cmd: 'py', args: ['-3', '--version'] },
-          { cmd: 'python', args: ['--version'] },
+          { cmd: 'python',  args: ['--version'] },
           { cmd: 'python3', args: ['--version'] },
+          { cmd: 'py',      args: ['-3', '--version'] },
         ]
       : [
           { cmd: 'python3', args: ['--version'] },
-          { cmd: 'python', args: ['--version'] },
+          { cmd: 'python',  args: ['--version'] },
         ];
 
   for (const candidate of candidates) {
-    const result = spawnSync(candidate.cmd, candidate.args, { stdio: 'ignore' });
+    const result = spawnSync(candidate.cmd, candidate.args, {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
     if (!result.error && result.status === 0) {
       return candidate.cmd === 'py' ? 'py -3' : candidate.cmd;
+    }
+  }
+  return null;
+}
+
+function findPythonRuntime(): CommandSpec | null {
+  const candidates: CommandSpec[] =
+    process.platform === 'win32'
+      ? [
+          { cmd: 'pythonw', args: [] },
+          { cmd: 'python',  args: [] },
+          { cmd: 'python3', args: [] },
+          { cmd: 'py',      args: ['-3'] },
+        ]
+      : [
+          { cmd: 'python3', args: [] },
+          { cmd: 'python',  args: [] },
+        ];
+
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate.cmd, [...candidate.args, '-c', 'import sys'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    if (!result.error && result.status === 0) {
+      return candidate;
     }
   }
   return null;
@@ -90,7 +138,26 @@ function openBrowser(url: string): void {
   }
 }
 
+function hasInteractiveTerminal(): boolean {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+function isMissingTuiDependency(err: unknown): boolean {
+  return (err as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND';
+}
+
+async function startWebFallback(reason: string): Promise<void> {
+  console.log(`[hatchery] ${reason}`);
+  console.log('[hatchery] Opening web-based onboarding instead.');
+  await startWebOnboarding();
+}
+
 async function startTuiOnboarding(): Promise<void> {
+  if (!hasInteractiveTerminal()) {
+    await startWebFallback('Interactive terminal prompts are not available.');
+    return;
+  }
+
   try {
     const { runTuiWizard } = await import('./tui.js');
     const result = await runTuiWizard();
@@ -101,12 +168,11 @@ async function startTuiOnboarding(): Promise<void> {
     }
 
     console.log('\n[hatchery] Configuration saved!');
-    await startBackgroundRuntime();
+    await startBackgroundRuntime({ openDashboard: true });
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ERR_MODULE_NOT_FOUND') {
-      console.log('[hatchery] TUI wizard not yet implemented.');
-      console.log('[hatchery] Run with --web for web-based onboarding.');
-      process.exit(1);
+    if (isMissingTuiDependency(err)) {
+      await startWebFallback('Terminal onboarding is unavailable in this build.');
+      return;
     }
     throw err;
   }
@@ -115,10 +181,7 @@ async function startTuiOnboarding(): Promise<void> {
 async function startWebOnboarding(): Promise<void> {
   if (isOnboarded()) {
     console.log('[hatchery] Profile found. Starting Parix runtime...');
-    await startBackgroundRuntime({ savePm2: true });
-    const url = `http://localhost:${AEGIS_UI_PORT}/`;
-    console.log(`[hatchery] Opening ${url} ...`);
-    openBrowser(url);
+    await startBackgroundRuntime({ openDashboard: true });
     return;
   }
 
@@ -176,10 +239,7 @@ function startOnboardingServer(): Promise<void> {
 
           server.close(async () => {
             await sleep(500);
-            await startBackgroundRuntime({ savePm2: true });
-            const dashboardUrl = `http://localhost:${AEGIS_UI_PORT}/`;
-            console.log(`[hatchery] Opening ${dashboardUrl} ...`);
-            openBrowser(dashboardUrl);
+            await startBackgroundRuntime({ openDashboard: true });
           });
           return;
         }
@@ -493,26 +553,29 @@ function mimeType(path: string): string {
   return types[extname(path)] ?? 'application/octet-stream';
 }
 
-async function startBackgroundRuntime(options: { savePm2?: boolean } = {}): Promise<void> {
+interface RuntimeOptions {
+  openDashboard?: boolean;
+}
+
+interface RuntimeSpec {
+  name: RuntimeName;
+  command: string;
+  args: string[];
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+}
+
+async function startBackgroundRuntime(options: RuntimeOptions = {}): Promise<void> {
   console.log('[hatchery] Starting Parix in background...\n');
 
-  const pm2Result = spawnSync('npx', ['pm2', 'start', 'ecosystem.config.js', '--update-env'], {
-    cwd: PROJECT_ROOT,
-    stdio: 'inherit',
-    shell: true,
-  });
-
-  if (pm2Result.status !== 0) {
-    console.error('[hatchery] PM2 start failed. Try manually: npm start');
-    process.exit(1);
-  }
-
-  if (options.savePm2 !== false) {
-    spawnSync('npx', ['pm2', 'save'], {
-      cwd: PROJECT_ROOT,
-      stdio: 'ignore',
-      shell: true,
-    });
+  const aegisPort = await resolveAegisRuntimePort();
+  writeRuntimeState({ aegisPort });
+  const specs = getRuntimeSpecs(aegisPort);
+  for (const spec of specs) {
+    startRuntimeProcess(spec);
+    if (spec.name === 'hands') {
+      await sleep(1000);
+    }
   }
 
   console.log('');
@@ -521,22 +584,441 @@ async function startBackgroundRuntime(options: { savePm2?: boolean } = {}): Prom
   console.log('  You can safely close this terminal.');
   console.log('');
   console.log('  Commands:');
-  console.log('    parix status     - check agent status');
-  console.log('    parix stop       - stop the agent');
-  console.log('    parix onboarding - reconfigure');
+  console.log('    parix status       - check agent status');
+  console.log('    parix stop         - stop the agent');
+  console.log('    parix restart      - restart the agent');
+  console.log('    parix start atrium - start only Atrium');
+  console.log('    parix onboarding   - reconfigure');
   console.log('===========================================');
   console.log('');
+
+  if (options.openDashboard) {
+    const url = `http://localhost:${aegisPort}/`;
+    console.log(`[hatchery] Opening ${url} ...`);
+    openBrowser(url);
+  }
+}
+
+async function pickAegisPort(preferredPort: number): Promise<number> {
+  for (let port = preferredPort; port < preferredPort + 20; port += 1) {
+    if (await isPortAvailable(port)) {
+      if (port !== preferredPort) {
+        console.log(
+          `[hatchery] Aegis port ${preferredPort} is in use; using ${port} instead.`
+        );
+      }
+      return port;
+    }
+  }
+  throw new Error(`No available Aegis UI port found from ${preferredPort} to ${preferredPort + 19}.`);
+}
+
+async function resolveAegisRuntimePort(): Promise<number> {
+  const existingPid = readPid('aegis');
+  const state = readRuntimeState();
+  if (existingPid && isPidRunning(existingPid) && state?.aegisPort) {
+    return state.aegisPort;
+  }
+  return pickAegisPort(AEGIS_UI_PORT);
+}
+
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolvePort) => {
+    const server = createNetServer();
+    server.once('error', () => resolvePort(false));
+    server.once('listening', () => {
+      server.close(() => resolvePort(true));
+    });
+    server.listen(port, '127.0.0.1');
+  });
+}
+
+function getRuntimeSpecs(aegisPort = AEGIS_UI_PORT): RuntimeSpec[] {
+  const python = findPythonRuntime();
+  if (!python) {
+    throw new Error('Unable to find python3 or python on PATH.');
+  }
+
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    AEGIS_UI_PORT: String(aegisPort),
+    NODE_ENV: 'production',
+    PARIX_DB_PATH: process.env.PARIX_DB_PATH || resolve(PROJECT_ROOT, 'data/parix.db'),
+    PARIX_HOME: process.env.PARIX_HOME || PROJECT_ROOT,
+    PYTHONUNBUFFERED: '1',
+  };
+
+  return [
+    {
+      name: 'hands',
+      command: python.cmd,
+      args: [...python.args, '-m', 'hands.main'],
+      cwd: PROJECT_ROOT,
+      env,
+    },
+    {
+      name: 'atrium',
+      command: process.execPath,
+      args: [resolve(PROJECT_ROOT, 'atrium/dist/index.js')],
+      cwd: PROJECT_ROOT,
+      env,
+    },
+    {
+      name: 'aegis',
+      command: process.execPath,
+      args: [resolve(PROJECT_ROOT, 'hatchery/dist/index.js'), '--serve-aegis'],
+      cwd: PROJECT_ROOT,
+      env,
+    },
+  ];
+}
+
+function startRuntimeProcess(spec: RuntimeSpec): void {
+  const existingPid = readPid(spec.name);
+  if (existingPid && isPidRunning(existingPid)) {
+    console.log(`[hatchery] ${spec.name} already running (PID ${existingPid})`);
+    return;
+  }
+
+  ensureRuntimeDirs();
+  const outFd = openSync(resolve(PROJECT_ROOT, 'logs', `${spec.name}.out.log`), 'a');
+  const errFd = openSync(resolve(PROJECT_ROOT, 'logs', `${spec.name}.err.log`), 'a');
+
+  try {
+    const spawnOpts: Parameters<typeof spawn>[2] = {
+      cwd: spec.cwd,
+      detached: true,
+      env: spec.env,
+      stdio: ['ignore', outFd, errFd],
+      windowsHide: true,
+    };
+
+    // On Windows, suppress the console window at the OS level using
+    // CREATE_NO_WINDOW (0x08000000). This is the most reliable method
+    // and prevents any flash of a black terminal on screen.
+    if (process.platform === 'win32') {
+      const windowsSpawnOpts = spawnOpts as typeof spawnOpts & {
+        creationFlags?: number;
+        windowsVerbatimArguments?: boolean;
+      };
+      windowsSpawnOpts.windowsVerbatimArguments = false;
+      windowsSpawnOpts.creationFlags = 0x08000000;
+    }
+
+    const child = spawn(spec.command, spec.args, spawnOpts);
+    child.unref();
+    writeFileSync(pidPath(spec.name), `${child.pid}\n`, 'utf-8');
+    console.log(`[hatchery] ${spec.name} started (PID ${child.pid})`);
+  } finally {
+    closeSync(outFd);
+    closeSync(errFd);
+  }
+}
+
+function stopBackgroundRuntime(): void {
+  for (const name of [...RUNTIME_NAMES].reverse()) {
+    const pid = readPid(name);
+    if (!pid) {
+      console.log(`[hatchery] ${name}: stopped`);
+      continue;
+    }
+
+    if (isPidRunning(pid)) {
+      try {
+        process.kill(pid);
+        console.log(`[hatchery] ${name}: stopped PID ${pid}`);
+      } catch (err) {
+        console.warn(
+          `[hatchery] ${name}: could not stop PID ${pid}: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    } else {
+      console.log(`[hatchery] ${name}: stale PID ${pid}`);
+    }
+
+    try {
+      unlinkSync(pidPath(name));
+    } catch {
+      // already removed
+    }
+  }
+  clearRuntimeState();
+}
+
+function printRuntimeStatus(target: RuntimeTarget = 'all'): void {
+  printStatusTarget(target);
+}
+
+function ensureRuntimeDirs(): void {
+  mkdirSync(resolve(PROJECT_ROOT, 'data'), { recursive: true });
+  mkdirSync(resolve(PROJECT_ROOT, 'logs'), { recursive: true });
+}
+
+function pidPath(name: RuntimeName): string {
+  ensureRuntimeDirs();
+  return resolve(PROJECT_ROOT, 'data', `${name}.pid`);
+}
+
+interface RuntimeState {
+  aegisPort: number;
+}
+
+function runtimeStatePath(): string {
+  ensureRuntimeDirs();
+  return resolve(PROJECT_ROOT, 'data', 'runtime.json');
+}
+
+function readRuntimeState(): RuntimeState | null {
+  try {
+    const parsed = JSON.parse(readFileSync(runtimeStatePath(), 'utf-8')) as Partial<RuntimeState>;
+    return typeof parsed.aegisPort === 'number' ? { aegisPort: parsed.aegisPort } : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRuntimeState(state: RuntimeState): void {
+  writeFileSync(runtimeStatePath(), JSON.stringify(state, null, 2) + '\n', 'utf-8');
+}
+
+function clearRuntimeState(): void {
+  try {
+    unlinkSync(runtimeStatePath());
+  } catch {
+    // already removed
+  }
+}
+
+function readPid(name: RuntimeName): number | null {
+  try {
+    const raw = readFileSync(pidPath(name), 'utf-8').trim();
+    const pid = Number(raw);
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPidRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+function serveAegisDist(): Promise<void> {
+  return new Promise((resolveServer, rejectServer) => {
+    const root = resolve(PROJECT_ROOT, 'aegis/dist');
+    if (!existsSync(resolve(root, 'index.html'))) {
+      rejectServer(new Error(`Aegis build not found at ${root}. Run npm run build:all first.`));
+      return;
+    }
+
+    const server = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', `http://localhost:${AEGIS_UI_PORT}`);
+      if (url.pathname === '/health' || url.pathname === '/healthz') {
+        sendJson(res, { ok: true, service: 'aegis' });
+        return;
+      }
+
+      const requested = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+      if (requested.includes('..')) {
+        sendText(res, 'Not found', 404);
+        return;
+      }
+
+      const requestedPath = resolve(join(root, requested));
+      const filePath =
+        requestedPath.startsWith(root) && existsSync(requestedPath)
+          ? requestedPath
+          : resolve(root, 'index.html');
+      res.writeHead(200, { 'Content-Type': mimeType(filePath) });
+      createReadStream(filePath).pipe(res);
+    });
+
+    server.once('error', rejectServer);
+    server.listen(AEGIS_UI_PORT, '127.0.0.1', () => {
+      console.log(`[AEGIS] Dashboard listening on http://localhost:${AEGIS_UI_PORT}`);
+      resolveServer();
+    });
+  });
 }
 
 function renderOnboardingHtml(): string {
   return renderWebOnboardingHtml(AEGIS_UI_PORT);
 }
 
+// ---------------------------------------------------------------------------
+// Natural-language command aliases
+// Recognised phrases (case-insensitive, any order of tokens):
+//   start parix atrium - start the full hidden desktop runtime
+//   parix start atrium - start only Atrium
+//   parix stop         - stop the runtime
+//   parix status       - print runtime status
+// ---------------------------------------------------------------------------
+function parseNaturalCommand(
+  argv: string[]
+): { action: RuntimeAction; target: RuntimeTarget } | null {
+  const tokens = argv.map((t) => t.toLowerCase().replace(/^-+/, ''));
+  if (tokens.length === 0) return null;
+
+  if (tokens.length === 1 && tokens[0] === 'atrium') {
+    return { action: 'start', target: 'all' };
+  }
+
+  const action = parseRuntimeAction(tokens);
+  if (!action) return null;
+
+  if (!tokens.includes('parix') && !RUNTIME_NAMES.some((name) => tokens.includes(name))) {
+    return null;
+  }
+
+  if (
+    tokens.length === 3 &&
+    tokens[0] === 'start' &&
+    tokens[1] === 'parix' &&
+    tokens[2] === 'atrium'
+  ) {
+    return { action: 'start', target: 'all' };
+  }
+
+  return { action, target: parseRuntimeTarget(tokens) };
+}
+
+function parseRuntimeAction(tokens: string[]): RuntimeAction | null {
+  if (tokens.includes('restart')) return 'restart';
+  if (tokens.includes('start')) return 'start';
+  if (tokens.includes('stop')) return 'stop';
+  if (tokens.includes('status')) return 'status';
+  return null;
+}
+
+function parseRuntimeTarget(tokens: string[]): RuntimeTarget {
+  if (tokens.includes('hands')) return 'hands';
+  if (tokens.includes('aegis')) return 'aegis';
+  if (tokens.includes('atrium')) return 'atrium';
+  return 'all';
+}
+
+function readRuntimeTarget(raw: string | undefined): RuntimeTarget {
+  const target = raw?.toLowerCase();
+  if (!target || target === 'parix' || target === 'all') return 'all';
+  if ((RUNTIME_NAMES as readonly string[]).includes(target)) return target as RuntimeName;
+  throw new Error(`Unknown runtime target: ${raw}`);
+}
+
+async function startRuntimeTarget(target: RuntimeTarget): Promise<void> {
+  if (target === 'all') {
+    await startBackgroundRuntime();
+    return;
+  }
+  const aegisPort = await resolveAegisRuntimePort();
+  writeRuntimeState({ aegisPort });
+  const allSpecs = getRuntimeSpecs(aegisPort);
+  const specs = allSpecs.filter((s) => s.name === target);
+  if (specs.length === 0) {
+    throw new Error(`Unknown runtime target: ${target}`);
+  }
+  console.log(`[hatchery] Starting ${target} in background...\n`);
+  for (const spec of specs) {
+    startRuntimeProcess(spec);
+  }
+  console.log(`\n[hatchery] ${target} started. Logs: logs/${target}.out.log`);
+}
+
+function stopRuntimeTarget(target: RuntimeTarget): void {
+  if (target === 'all') {
+    stopBackgroundRuntime();
+    return;
+  }
+  const names: RuntimeName[] = RUNTIME_NAMES.filter((n) => n === target) as RuntimeName[];
+  for (const name of [...names].reverse()) {
+    const pid = readPid(name);
+    if (!pid) {
+      console.log(`[hatchery] ${name}: stopped`);
+      continue;
+    }
+    if (isPidRunning(pid)) {
+      try {
+        process.kill(pid);
+        console.log(`[hatchery] ${name}: stopped PID ${pid}`);
+      } catch (err) {
+        console.warn(`[hatchery] ${name}: could not stop PID ${pid}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    } else {
+      console.log(`[hatchery] ${name}: stale PID ${pid}`);
+    }
+    try { unlinkSync(pidPath(name)); } catch { /* already removed */ }
+  }
+  if (target === 'aegis') {
+    clearRuntimeState();
+  }
+}
+
+function printStatusTarget(target: RuntimeTarget): void {
+  const names: RuntimeName[] = target === 'all' ? [...RUNTIME_NAMES] : [target as RuntimeName];
+  for (const name of names) {
+    const pid = readPid(name);
+    const running = pid !== null && isPidRunning(pid);
+    console.log(`[hatchery] ${name}: ${running ? `running (PID ${pid})` : 'stopped'}`);
+  }
+}
+
+async function restartRuntimeTarget(target: RuntimeTarget): Promise<void> {
+  stopRuntimeTarget(target);
+  await sleep(500);
+  await startRuntimeTarget(target);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+
+  // --- Natural-language command check (highest priority) ---
+  const natural = parseNaturalCommand(args);
+  if (natural) {
+    if (natural.action === 'start')  { await startRuntimeTarget(natural.target); return; }
+    if (natural.action === 'stop')   { stopRuntimeTarget(natural.target); return; }
+    if (natural.action === 'restart') { await restartRuntimeTarget(natural.target); return; }
+    if (natural.action === 'status') { printStatusTarget(natural.target); return; }
+  }
+
   const flagReset = args.includes('--reset');
   const flagWeb = args.includes('--web');
   const flagCheck = args.includes('--check');
+  const flagPostInstall = args.includes('--post-install');
+  const flagServeAegis = args.includes('--serve-aegis');
+  const runtimeFlagIndex = args.indexOf('--runtime');
+
+  if (flagServeAegis) {
+    await serveAegisDist();
+    return;
+  }
+
+  if (runtimeFlagIndex >= 0) {
+    const action = args[runtimeFlagIndex + 1] ?? 'start';
+    const target = readRuntimeTarget(args[runtimeFlagIndex + 2]);
+    if (action === 'start') {
+      await startRuntimeTarget(target);
+      return;
+    }
+    if (action === 'stop') {
+      stopRuntimeTarget(target);
+      return;
+    }
+    if (action === 'restart') {
+      await restartRuntimeTarget(target);
+      return;
+    }
+    if (action === 'status') {
+      printRuntimeStatus(target);
+      return;
+    }
+    throw new Error(`Unknown runtime action: ${action}`);
+  }
 
   if (flagCheck) {
     const python = findPython();
@@ -558,6 +1040,14 @@ async function main(): Promise<void> {
 
   if (flagWeb) {
     await startWebOnboarding();
+    return;
+  }
+
+  if (flagPostInstall && !flagReset && isOnboarded()) {
+    const profilePath = getProfilePath();
+    console.log('[hatchery] Existing Parix profile found.');
+    console.log(`  Profile: ${profilePath}`);
+    await startBackgroundRuntime({ openDashboard: true });
     return;
   }
 

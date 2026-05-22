@@ -16,6 +16,9 @@ export interface ActionExplanation {
   safety: string;
   outcome: string;
   chain: AuditStep[];
+  confidence?: number;
+  situation?: string;
+  episode?: string;
 }
 
 interface AuditStep {
@@ -64,6 +67,12 @@ export function explainAction(taskId?: string): ActionExplanation | null {
 
   // Look up the triggering event
   const triggerEvent = getTriggerEvent(targetTaskId);
+  const confidence = triggerEvent ? (triggerEvent.confidence as number) : 0.0;
+
+  const sit = getInferredSituation(targetTaskId);
+  const situation = sit ? `${sit.inferred} (confidence: ${(sit.confidence * 100).toFixed(0)}%, user state: ${sit.user_state})` : "Unknown Situation";
+
+  const episode = getEpisodicRecall(targetTaskId) ?? "No relevant episodic memory found";
 
   const taskType = execAction?.action.replace("execute:", "") ?? "unknown";
 
@@ -75,7 +84,93 @@ export function explainAction(taskId?: string): ActionExplanation | null {
     safety: describeSafety(chain),
     outcome: resultStep?.action ?? "pending",
     chain,
+    confidence,
+    situation,
+    episode,
   };
+}
+
+interface SituationData {
+  inferred: string;
+  confidence: number;
+  user_state: string;
+}
+
+function getInferredSituation(taskId: string): SituationData | null {
+  try {
+    const stmt = getDb().prepare(
+      `SELECT inferred, confidence, user_state FROM situations
+       WHERE ts <= (SELECT strftime('%s', MIN(ts)) * 1000 FROM audit_ledger WHERE task_id = ?) + 5000
+       ORDER BY ts DESC LIMIT 1`
+    );
+    stmt.bind([taskId]);
+    if (stmt.step()) {
+      const vals = stmt.get();
+      stmt.free();
+      return {
+        inferred: String(vals[0] ?? ""),
+        confidence: Number(vals[1] ?? 0.0),
+        user_state: String(vals[2] ?? ""),
+      };
+    }
+    stmt.free();
+
+    const fallbackStmt = getDb().prepare(
+      "SELECT inferred, confidence, user_state FROM situations ORDER BY ts DESC LIMIT 1"
+    );
+    if (fallbackStmt.step()) {
+      const vals = fallbackStmt.get();
+      fallbackStmt.free();
+      return {
+        inferred: String(vals[0] ?? ""),
+        confidence: Number(vals[1] ?? 0.0),
+        user_state: String(vals[2] ?? ""),
+      };
+    }
+    fallbackStmt.free();
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function getEpisodicRecall(taskId: string): string | null {
+  try {
+    const stmt = getDb().prepare(
+      "SELECT summary FROM episodes WHERE task_ids LIKE ? ORDER BY id DESC LIMIT 1"
+    );
+    stmt.bind([`%"${taskId}"%`]);
+    if (stmt.step()) {
+      const val = stmt.get()[0];
+      stmt.free();
+      return String(val);
+    }
+    stmt.free();
+
+    const stmt2 = getDb().prepare(
+      "SELECT summary FROM episodes WHERE task_ids LIKE ? ORDER BY id DESC LIMIT 1"
+    );
+    stmt2.bind([`%${taskId}%`]);
+    if (stmt2.step()) {
+      const val = stmt2.get()[0];
+      stmt2.free();
+      return String(val);
+    }
+    stmt2.free();
+
+    const stmt3 = getDb().prepare(
+      "SELECT summary FROM episodes ORDER BY id DESC LIMIT 1"
+    );
+    if (stmt3.step()) {
+      const val = stmt3.get()[0];
+      stmt3.free();
+      return String(val);
+    }
+    stmt3.free();
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 /**
@@ -229,9 +324,12 @@ export function getRecentExplanations(count = 5): ActionExplanation[] {
  * Format for human display (console or notification).
  */
 export function formatExplanation(exp: ActionExplanation): string {
+  const confidenceStr = exp.confidence !== undefined ? ` (Confidence: ${(exp.confidence * 100).toFixed(0)}%)` : "";
   const lines = [
     `📋 Action: ${exp.what}`,
-    `💡 Why: ${exp.why}`,
+    `💡 Why: ${exp.why}${confidenceStr}`,
+    `🧠 Inferred Situation: ${exp.situation ?? "Unknown Situation"}`,
+    `📖 Episodic Recall: ${exp.episode ?? "No relevant episodic memory found"}`,
     `🕐 When: ${exp.when}`,
     `🛡️ Safety: ${exp.safety}`,
     `✅ Outcome: ${exp.outcome}`,

@@ -15,7 +15,7 @@ jobs:
   build-test:
     name: Build and Unit Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -30,29 +30,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: npm ci
-      - run: npm run build --workspace=shared
-      - run: npm run build --workspace=atrium
-      - run: npm run build --workspace=hatchery
-      - run: npm run build --workspace=aegis
-      - run: npm test --workspace=atrium
-
-      # Python smoke tests — accessibility backends are platform-specific.
-      # macOS/Linux/Windows each load a different native module via the
-      # `_detect_backend()` dispatch; the suite verifies the dispatch path
-      # without requiring the native libs.
-      - name: Install Python test deps
-        shell: bash
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest pillow mss
-      - name: Run Python tests
-        shell: bash
-        run: |
-          python -m pytest \
-            hands/tests/test_a11y_poller.py \
-            hands/tests/test_accessibility.py \
-            hands/tests/test_vision_gemini.py \
-            hands/tests/test_platform.py
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r hands/requirements-dev.txt
+      - run: npm run build:all
+      - run: npm run lint
+      - run: npm test
+      - run: npm run skills:validate
+      - run: npm run test:hands
+      - run: npm run test:hands:compile
 
   coverage:
     name: Coverage
@@ -102,7 +87,7 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install websockets mss psutil
+      - run: python -m pip install -r hands/requirements-dev.txt
       - run: npm run build --workspace=shared
       - run: npm run test:e2e
       - name: Upload e2e diagnostics

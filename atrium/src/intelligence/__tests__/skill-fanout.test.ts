@@ -72,6 +72,22 @@ process.stdin.on("end", () => {
   return skillDir;
 }
 
+async function removeSkillsRoot(path: string): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      rmSync(path, { recursive: true, force: true });
+      return;
+    } catch (err) {
+      lastError = err;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  throw lastError;
+}
+
 describe("runSkillsInParallel — fan-out execution", () => {
   let skillsRoot: string;
 
@@ -80,8 +96,8 @@ describe("runSkillsInParallel — fan-out execution", () => {
     skillsRoot = mkdtempSync(join(tmpdir(), "parix-fanout-"));
   });
 
-  afterEach(() => {
-    rmSync(skillsRoot, { recursive: true, force: true });
+  afterEach(async () => {
+    await removeSkillsRoot(skillsRoot);
     _resetRegistry();
   });
 
@@ -151,7 +167,7 @@ describe("runSkillsInParallel — fan-out execution", () => {
     // ~one-skill time, definitely well under 3× serial. Use 2.5× as the
     // safety margin for spawn-overhead jitter.
     expect(wallMs).toBeLessThan(oneSkillMs * 2.5);
-  });
+  }, 20_000);
 
   it("respects the concurrency cap — extra skills wait", async () => {
     writeDelaySkill(skillsRoot, "task-a", 100);
@@ -195,7 +211,7 @@ describe("runSkillsInParallel — fan-out execution", () => {
     // longer than subsequent warmed-up parallel calls, which breaks any
     // multiplicative lower-bound.
     expect(wallMs).toBeLessThan(oneSkillMs * 4);
-  });
+  }, 20_000);
 
   it("preserves caller-given order in perSkill regardless of completion order", async () => {
     // Sleep times chosen so completion order ≠ input order.

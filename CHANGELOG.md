@@ -4,12 +4,18 @@ All notable changes to Parix are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [Unreleased] — v0.2 in progress
+## [Unreleased]
+
+No changes yet.
+
+## [0.2.0-alpha] — 2026-05-21
 
 ### Added — vision OCR via the LLM router (replaces the removed Gemini hardcode)
 
-The deferred work from v0.1.7 is landing in pieces. Atrium-side router and
-adapter plumbing is in; protocol + hands wiring is still in flight (Codex).
+The deferred OCR router work is now complete for the alpha release. Atrium
+routes screenshot OCR through the configured multimodal provider, and Hands
+falls back to local tesseract when the router is unavailable or returns an
+error.
 
 - **`LLMRequest.images`** (`atrium/src/llm/types.ts`): optional
   `LLMImage[]` of `{mimeType, base64}` pairs. Adapters that handle images
@@ -93,11 +99,8 @@ adapter plumbing is in; protocol + hands wiring is still in flight (Codex).
   true` without a `consentedAt` timestamp. The privacy doc is the
   contract — if the code disagrees with it, that's a bug.
 
-### Still to land in v0.2
+### Known verification gaps after v0.2.0-alpha
 
-- macOS + Linux backend polish on real hardware (B2/C2 —
-  `AXValueGetValue` unwrap and `get_child_at_index` swap, both audited
-  and scoped in `docs/accessibility-plan.md`).
 - `[HUMAN]` Real-Mac + real-Linux verification (B3 / C3).
 
 ## [0.1.7-alpha] — 2026-05-18
@@ -126,8 +129,8 @@ the in-flight implementation.
 
 This release flips the accessibility layer from "code exists" to "producing
 signal end-to-end." The bridge, four backends, and fusion already shipped in
-v0.1.x; what landed today is the plumbing that makes them affect agent
-behavior.
+earlier alpha releases; what landed today is the plumbing that makes them
+affect agent behavior.
 
 - **Hands**: new `hands/sensors/a11y_poller.py`. A debounced async loop that
   calls `AccessibilityBridge.snapshot()`, computes a stable

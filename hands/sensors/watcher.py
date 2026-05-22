@@ -17,6 +17,14 @@ import sys
 import time
 from typing import Any
 
+try:
+    from hands._win_flags import CREATION_FLAGS
+except ImportError:
+    try:
+        from _win_flags import CREATION_FLAGS
+    except ImportError:
+        CREATION_FLAGS = 0
+
 import websockets
 
 from hands.protocol import SensorEvent
@@ -137,6 +145,7 @@ def _get_window_title_macos() -> str:
             ["osascript", "-e",
              'tell application "System Events" to get name of first application process whose frontmost is true'],
             capture_output=True, text=True, timeout=2,
+            creationflags=CREATION_FLAGS,
         )
         return result.stdout.strip()
     except Exception:
@@ -148,6 +157,7 @@ def _get_window_title_linux() -> str:
         result = subprocess.run(
             ["xdotool", "getactivewindow", "getwindowname"],
             capture_output=True, text=True, timeout=2,
+            creationflags=CREATION_FLAGS,
         )
         return result.stdout.strip()
     except Exception:
@@ -170,6 +180,7 @@ def _read_terminal_windows(max_lines: int) -> str:
             ["powershell", "-NoProfile", "-Command",
              f"Get-Content -Path $env:TEMP\\parix_terminal_buffer.log -Tail {max_lines} -ErrorAction SilentlyContinue"],
             capture_output=True, text=True, timeout=3, shell=False,
+            creationflags=CREATION_FLAGS,
         )
         if result.stdout.strip():
             return result.stdout.strip()
@@ -181,6 +192,7 @@ def _read_terminal_windows(max_lines: int) -> str:
         result = subprocess.run(
             ["cmd", "/c", "doskey", "/history"],
             capture_output=True, text=True, timeout=3, shell=False,
+            creationflags=CREATION_FLAGS,
         )
         lines = result.stdout.strip().splitlines()
         return "\n".join(lines[-max_lines:])
@@ -194,6 +206,7 @@ def _read_terminal_unix(max_lines: int) -> str:
         result = subprocess.run(
             ["tail", "-n", str(max_lines), "/tmp/parix_terminal_buffer.log"],
             capture_output=True, text=True, timeout=2,
+            creationflags=CREATION_FLAGS,
         )
         if result.stdout.strip():
             return result.stdout.strip()
@@ -205,6 +218,7 @@ def _read_terminal_unix(max_lines: int) -> str:
         result = subprocess.run(
             ["bash", "-c", f"history | tail -n {max_lines}"],
             capture_output=True, text=True, timeout=2,
+            creationflags=CREATION_FLAGS,
         )
         return result.stdout.strip()
     except Exception:

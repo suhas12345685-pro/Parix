@@ -21,6 +21,7 @@ import {
 } from "./attention.js";
 import { assess as metacogAssess } from "./metacognition.js";
 import { getAllActiveTrees, getProgress } from "./planner/index.js";
+import { runPulsePrecompute } from "./pulse/precompute.js";
 import { lookupSkill } from "../intelligence/skillcache.js";
 import { matchSkills } from "../intelligence/skill-registry.js";
 import { getDb } from "../memory/db.js";
@@ -28,6 +29,8 @@ import { getDb } from "../memory/db.js";
 let lastSnapshot: CognitiveSnapshot | null = null;
 
 export function runCognition(event: CognitiveEvent): CognitiveSnapshot | null {
+  runPulsePrecompute(event);
+
   const precheckMemory = getWorkingMemory();
   const verdict = gate(event, precheckMemory);
   logAttentionVerdict(event, verdict.admit, verdict.reason);

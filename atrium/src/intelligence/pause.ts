@@ -12,6 +12,7 @@
  */
 
 import { audit } from "./audit.js";
+import { dispatch } from "./notify.js";
 
 let paused = false;
 let pausedAt: number | null = null;
@@ -33,6 +34,12 @@ export function pause(reason = "user_request"): void {
   });
 
   console.log(`[ATRIUM] ⏸  Paused (reason=${reason})`);
+
+  void dispatch({
+    title: "⏸ Parix Paused",
+    body: `Parix has entered LISTENING-ONLY mode (reason: ${reason}).`,
+    urgency: "high",
+  });
 }
 
 /**
@@ -56,6 +63,12 @@ export function resume(): void {
   console.log(
     `[ATRIUM] ▶  Resumed (was paused for ${Math.round(duration / 1000)}s)`,
   );
+
+  void dispatch({
+    title: "▶ Parix Resumed",
+    body: `Parix has returned to normal operations (was paused for ${Math.round(duration / 1000)}s).`,
+    urgency: "high",
+  });
 }
 
 /**

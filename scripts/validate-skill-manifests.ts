@@ -14,6 +14,7 @@ const taskSkillDirs = readdirSync(skillsDir, { withFileTypes: true })
 
 const runtimes = new Set<SkillRuntime>(["py", "node", "sh"]);
 const permissions = new Set<SkillPermission>([
+  "accessibility:read",
   "browser:headless",
   "clipboard:read",
   "docker:write",

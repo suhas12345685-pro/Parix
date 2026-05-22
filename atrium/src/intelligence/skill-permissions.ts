@@ -4,6 +4,9 @@ import type {
 } from "../../../shared/types/skill.js";
 
 const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
+  "task-azure-cli": ["process:read", "process:execute"],
+  "task-build-watch": ["process:execute", "filesystem:read"],
+  "task-create-mcp": ["filesystem:read", "filesystem:write"],
   "task-computer-use-headless": [
     "browser:headless",
     "filesystem:write",
@@ -13,6 +16,8 @@ const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
   "task-dev-env": ["filesystem:read", "process:execute"],
   "task-disk-cleanup": ["filesystem:read", "filesystem:write"],
   "task-docker-mgmt": ["docker:write", "process:execute"],
+  "task-focus-context": ["accessibility:read"],
+  "task-gcloud": ["process:read", "process:execute"],
   "task-git-recovery": ["filesystem:read", "process:execute"],
   "task-log-analysis": ["filesystem:read"],
   "task-network-fix": ["network:read", "process:execute"],
@@ -22,14 +27,59 @@ const FIRST_PARTY_SKILL_PERMISSIONS: Record<string, SkillPermission[]> = {
   "task-virtual-desktop": ["process:execute", "virtual-desktop:write"],
 };
 
+const VALID_SKILL_PERMISSIONS = new Set<string>([
+  "accessibility:read",
+  "browser:headless",
+  "clipboard:read",
+  "docker:write",
+  "filesystem:read",
+  "filesystem:write",
+  "network:read",
+  "network:write",
+  "notification:send",
+  "process:execute",
+  "process:read",
+  "virtual-desktop:write",
+]);
+
+const userCreatedSkillPermissions = new Map<string, SkillPermission[]>();
+
 export function permittedPermissionsForSkill(
   skillId: string,
 ): Set<SkillPermission> {
-  return new Set(FIRST_PARTY_SKILL_PERMISSIONS[skillId] ?? []);
+  if (isFirstPartySkill(skillId)) {
+    return new Set(FIRST_PARTY_SKILL_PERMISSIONS[skillId]);
+  }
+  return new Set(userCreatedSkillPermissions.get(skillId) ?? []);
 }
 
 export function isFirstPartySkill(skillId: string): boolean {
   return skillId in FIRST_PARTY_SKILL_PERMISSIONS;
+}
+
+export function isUserCreatedSkill(skillId: string): boolean {
+  return (
+    !isFirstPartySkill(skillId) && userCreatedSkillPermissions.has(skillId)
+  );
+}
+
+export function registerUserCreatedSkillPermissions(
+  skillId: string,
+  permissions: readonly string[],
+): void {
+  if (isFirstPartySkill(skillId)) return;
+  userCreatedSkillPermissions.set(
+    skillId,
+    permissions.filter(isSkillPermission),
+  );
+}
+
+export function clearUserCreatedSkillPermissions(): void {
+  userCreatedSkillPermissions.clear();
+}
+
+function isSkillPermission(value: string): value is SkillPermission {
+  return VALID_SKILL_PERMISSIONS.has(value);
 }
 
 export interface ResolveOptions {

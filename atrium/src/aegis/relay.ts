@@ -182,6 +182,10 @@ function handleCommand(ws: WebSocket, msg: Record<string, unknown>): void {
       broadcast({ type: "QUEUE_UPDATE", depth: engine.getQueueDepth() });
       break;
 
+    case "chat":
+      handleChatCommand(ws, msg);
+      break;
+
     case "save_channels":
       saveChannelSelection(msg);
       broadcastHealthSnapshot();
@@ -225,6 +229,91 @@ function handleCommand(ws: WebSocket, msg: Record<string, unknown>): void {
     default:
       sendTo(ws, { type: "ERROR", message: `Unknown command: ${cmd}` });
   }
+}
+
+function handleChatCommand(
+  ws: WebSocket,
+  msg: Record<string, unknown>,
+): void {
+  const message = String(msg.message ?? msg.text ?? "").trim();
+  const response = runChatCommand(message);
+  sendTo(ws, {
+    type: "CHAT_RESULT",
+    id: `chat-${Date.now()}`,
+    text: response,
+  });
+}
+
+function runChatCommand(message: string): string {
+  const text = message.toLowerCase();
+  const tokens = new Set(text.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter(Boolean));
+  const mentionsAgent =
+    tokens.has("parix") || tokens.has("atrium") || tokens.has("agent") || tokens.has("bot");
+
+  if (!message) {
+    return "Send a command like 'status', 'pause parix', 'resume parix', 'flush queue', or 'help'.";
+  }
+
+  if (
+    tokens.has("help") ||
+    tokens.has("commands") ||
+    text.includes("what can i say")
+  ) {
+    return [
+      "Commands I understand:",
+      "pause parix / stop parix - pause autonomous actions",
+      "resume parix / start parix atrium - bring the agent back online",
+      "status - show Atrium, Hands, queue, and pause state",
+      "flush queue - clear queued work",
+      "why did you do that - explain the last action",
+    ].join("\n");
+  }
+
+  if (
+    (tokens.has("pause") || tokens.has("stop") || tokens.has("halt") || tokens.has("sleep")) &&
+    mentionsAgent
+  ) {
+    pauseAgent("aegis_chat");
+    broadcast({ type: "PAUSE_STATUS", ...getPauseStatus() });
+    broadcastHealthSnapshot();
+    return "Parix is paused. I will keep listening and logging, but autonomous actions are stopped until you say 'resume parix' or 'start parix atrium'.";
+  }
+
+  if (
+    (tokens.has("resume") || tokens.has("start") || tokens.has("wake") || tokens.has("online")) &&
+    mentionsAgent
+  ) {
+    resumeAgent();
+    engine.onResume();
+    broadcast({ type: "PAUSE_STATUS", ...getPauseStatus() });
+    broadcastHealthSnapshot();
+    return "Parix Atrium is online. Background runtime stays hidden, and queued events can continue.";
+  }
+
+  if (tokens.has("status") || text.includes("how are you")) {
+    const pauseStatus = getPauseStatus();
+    return [
+      `Atrium: ${engine.getState()}`,
+      `Hands: ${synapse.getStatus()}`,
+      `Queue: ${engine.getQueueDepth()}`,
+      `Mode: ${pauseStatus.paused ? "paused" : "active"}`,
+    ].join(" | ");
+  }
+
+  if (text.includes("flush queue") || text.includes("clear queue")) {
+    engine.flush();
+    broadcast({ type: "QUEUE_UPDATE", depth: engine.getQueueDepth() });
+    return "Queue flushed.";
+  }
+
+  if (text.includes("why did you do that") || tokens.has("explain")) {
+    const explanation = explainAction();
+    return explanation
+      ? formatExplanation(explanation)
+      : "I do not have a recent action to explain yet.";
+  }
+
+  return "I can handle status, pause/stop, resume/start, flush queue, and explanation commands. Try 'help' for the exact phrases.";
 }
 
 function buildHealthSnapshot(): Record<string, unknown> {

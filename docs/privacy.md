@@ -23,7 +23,7 @@ network calls Parix makes by default are:
 2. **The update endpoint** (`https://updates.parix.dev/v1/check` by
    default). One GET request at startup and every six hours after,
    carrying only:
-   - the current Parix version (e.g. `0.2.0`),
+   - the current Parix version (e.g. `0.2.0-alpha`),
    - the OS family (`windows` / `macos` / `linux`),
    - the release channel (`stable` / `beta`).
    It carries no identifier, no IP-tied account, no profile data. You

@@ -1,33 +1,38 @@
 {
   "stable": {
     "windows": {
-      "version": "0.1.7",
-      "url": "https://github.com/openclaw-ai/openclaw/releases/download/v0.1.7/parix-v0.1.7-windows-x64.zip",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "publishedAt": "2026-05-18T00:00:00Z",
-      "mandatory": false,
-      "releaseNotes": "Initial Phase 0 release."
+      "version": "0.0.0",
+      "url": "",
+      "sha256": "",
+      "publishedAt": ""
     },
-    "macos": {
-      "version": "0.1.7",
-      "url": "https://github.com/openclaw-ai/openclaw/releases/download/v0.1.7/parix-v0.1.7-macos.tar.gz",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "publishedAt": "2026-05-18T00:00:00Z",
-      "mandatory": false,
-      "releaseNotes": "Initial Phase 0 release."
-    },
-    "linux": {
-      "version": "0.1.7",
-      "url": "https://github.com/openclaw-ai/openclaw/releases/download/v0.1.7/parix-v0.1.7-linux-x64.AppImage",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "publishedAt": "2026-05-18T00:00:00Z",
-      "mandatory": false,
-      "releaseNotes": "Initial Phase 0 release."
-    }
+    "macos": { "version": "0.0.0", "url": "", "sha256": "", "publishedAt": "" },
+    "linux": { "version": "0.0.0", "url": "", "sha256": "", "publishedAt": "" }
   },
   "beta": {
-    "windows": { "version": "0.0.0", "url": "", "sha256": "", "publishedAt": "" },
-    "macos":   { "version": "0.0.0", "url": "", "sha256": "", "publishedAt": "" },
-    "linux":   { "version": "0.0.0", "url": "", "sha256": "", "publishedAt": "" }
+    "windows": {
+      "version": "0.2.0-alpha",
+      "url": "https://github.com/suhas12345685-pro/Parix/releases/download/v0.2.0-alpha/parix-v0.2.0-alpha-windows-x64.zip",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-05-20T00:00:00Z",
+      "mandatory": false,
+      "releaseNotes": "Parix v0.2.0-alpha release."
+    },
+    "macos": {
+      "version": "0.2.0-alpha",
+      "url": "https://github.com/suhas12345685-pro/Parix/releases/download/v0.2.0-alpha/parix-v0.2.0-alpha-macos.tar.gz",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-05-20T00:00:00Z",
+      "mandatory": false,
+      "releaseNotes": "Parix v0.2.0-alpha release."
+    },
+    "linux": {
+      "version": "0.2.0-alpha",
+      "url": "https://github.com/suhas12345685-pro/Parix/releases/download/v0.2.0-alpha/parix-v0.2.0-alpha-linux-x64.AppImage",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-05-20T00:00:00Z",
+      "mandatory": false,
+      "releaseNotes": "Parix v0.2.0-alpha release."
+    }
   }
 }

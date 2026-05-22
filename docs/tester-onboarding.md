@@ -15,9 +15,9 @@ agent state, accessibility data, and memory stay local.
 
 ## What to expect
 
-- **It will crash.** Probably more than once in the first week. We're at
-  v0.1.x. Filing a clean bug report (see below) is the most valuable thing
-  you can do.
+- **It will crash.** Probably more than once in the first week.
+  `v0.2.0-alpha` is still an alpha prerelease. Filing a clean bug report
+  (see below) is the most valuable thing you can do.
 - **It will be slow on cold starts.** First boot pulls Node deps, builds
   three workspaces, and walks the onboarding wizard. Allow 10–15 minutes on
   a fresh machine.
@@ -71,8 +71,11 @@ In rough priority order:
 
 If a release breaks something you depended on:
 
-- **Linux/macOS:** `cd ~/.parix && git checkout v0.1.6 && parix stop && parix start`
-- **Windows:** Same idea but from `$env:LOCALAPPDATA\Parix`.
+- **Linux/macOS:** download the previous known-good GitHub Release asset,
+  replace `~/.parix`, then run `parix stop && parix start`.
+- **Windows:** use the previous `parix-<tag>-windows-x64.zip` release asset
+  and replace `$env:LOCALAPPDATA\Parix`, then run `parix stop` and
+  `parix start`.
 
 If you want to start completely fresh:
 

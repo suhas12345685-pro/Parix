@@ -7,17 +7,17 @@ import sys
 
 
 LOCKFILE_MAP = {
-    "pnpm-lock.yaml": "pnpm install",
-    "yarn.lock": "yarn install",
-    "bun.lockb": "bun install",
-    "package-lock.json": "npm install",
-    "package.json": "npm install",  # fallback
+    "pnpm-lock.yaml": ["pnpm", "install"],
+    "yarn.lock": ["yarn", "install"],
+    "bun.lockb": ["bun", "install"],
+    "package-lock.json": ["npm", "install"],
+    "package.json": ["npm", "install"],  # fallback
 }
 
 PYTHON_FILES = {
-    "requirements.txt": "pip install -r requirements.txt",
-    "Pipfile": "pipenv install",
-    "pyproject.toml": "pip install -e .",
+    "requirements.txt": [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+    "Pipfile": ["pipenv", "install"],
+    "pyproject.toml": [sys.executable, "-m", "pip", "install", "-e", "."],
 }
 
 
@@ -38,14 +38,14 @@ def detect_python_env(project_dir):
 
 
 def run_fix(cmd, project_dir, dry_run=True):
-    print(f"  Command: {cmd}")
+    print(f"  Command: {' '.join(cmd)}")
     print(f"  Dir:     {project_dir}")
     if dry_run:
         print("  [DRY RUN - not executed]")
         return True
     try:
         r = subprocess.run(
-            cmd, shell=True, cwd=project_dir,
+            cmd, shell=False, cwd=project_dir,
             capture_output=True, text=True, timeout=120
         )
         if r.returncode == 0:

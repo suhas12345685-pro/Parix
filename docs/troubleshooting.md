@@ -79,9 +79,15 @@ Atrium isn't reachable on `127.0.0.1:8766`. Check:
 
 ## Onboarding fails
 
-### TUI exits immediately with "TUI wizard not yet implemented"
+### Default onboarding opens the web flow
 
-The TUI requires `tui.js` to be built. Re-run the installer or:
+`parix onboarding` and `npm run onboarding` try the terminal wizard first. If
+the terminal cannot accept interactive prompts, or the TUI bundle is missing,
+Hatchery opens the web onboarding flow automatically. That is expected during
+piped installers and some CI-style shells.
+
+If you expected the terminal wizard, rebuild Hatchery and run from an
+interactive terminal:
 
 ```bash
 cd ~/.parix && npm run build --workspace=hatchery

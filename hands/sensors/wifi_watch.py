@@ -18,6 +18,14 @@ import sys
 import time
 from typing import Any
 
+try:
+    from hands._win_flags import CREATION_FLAGS
+except ImportError:
+    try:
+        from _win_flags import CREATION_FLAGS
+    except ImportError:
+        CREATION_FLAGS = 0
+
 import websockets
 
 try:
@@ -159,7 +167,8 @@ def _ping_test() -> bool:
     cmd = ["ping", "-n" if sys.platform == "win32" else "-c", "1",
            "-w" if sys.platform == "win32" else "-W", "2", target]
     try:
-        proc = subprocess.run(cmd, capture_output=True, timeout=5)
+        proc = subprocess.run(cmd, capture_output=True, timeout=5,
+                              creationflags=CREATION_FLAGS)
         return proc.returncode == 0
     except Exception:
         return False
@@ -167,7 +176,8 @@ def _ping_test() -> bool:
 
 def _run(cmd: list[str]) -> str:
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5,
+                                creationflags=CREATION_FLAGS)
         return result.stdout
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return ""

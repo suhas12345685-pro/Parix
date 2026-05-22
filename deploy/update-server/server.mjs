@@ -1,31 +1,21 @@
 #!/usr/bin/env node
 /**
- * Parix update feed — minimal reference server.
+ * Parix update feed reference server.
  *
  * Serves the contract documented at the top of
  * atrium/src/updates/checker.ts:
  *
  *   GET /v1/check?platform=<windows|macos|linux>&channel=<stable|beta>&version=<semver>
- *     200 → newest release manifest if newer
- *     204 → caller is already on the latest for this channel
- *     500 → internal error (manifest missing, malformed, etc.)
+ *     200 -> newest release manifest if newer
+ *     204 -> caller is already on the latest for this channel
+ *     500 -> internal error (manifest missing, malformed, etc.)
  *
- * The manifest lives at $UPDATE_MANIFEST_PATH (default
- * ./manifest.json). Shape:
+ * The manifest lives at $UPDATE_MANIFEST_PATH (default ./manifest.json).
+ * Keep prereleases such as 0.2.0-alpha on the beta channel and reserve
+ * stable for production-ready releases.
  *
- *   {
- *     "stable": {
- *       "windows": { "version": "0.2.0", "url": "https://…/parix-v0.2.0-windows-x64.zip",
- *                    "sha256": "…", "publishedAt": "2026-05-20T…",
- *                    "mandatory": false, "releaseNotes": "Markdown…" },
- *       "macos":   { … },
- *       "linux":   { … }
- *     },
- *     "beta": { … }
- *   }
- *
- * Rollback = edit the manifest, drop the version field back. There's no
- * database; the file is the source of truth. Cache via Cloudflare with
+ * Rollback = edit the manifest and drop the version field back. There is
+ * no database; the file is the source of truth. Cache via Cloudflare with
  * a short TTL (60s) so rollbacks propagate fast.
  *
  * Bind to localhost by default; put Cloudflare in front for TLS + cache.
@@ -39,6 +29,8 @@ const HOST = process.env.HOST || "127.0.0.1";
 const MANIFEST_PATH = resolve(
   process.env.UPDATE_MANIFEST_PATH || "./manifest.json",
 );
+const PLATFORMS = new Set(["windows", "macos", "linux"]);
+const CHANNELS = new Set(["stable", "beta"]);
 
 let manifestCache = { mtime: 0, data: null };
 
@@ -54,7 +46,9 @@ function loadManifest() {
 }
 
 function parseSemver(v) {
-  const m = /^(\d+)\.(\d+)\.(\d+)(?:[-+](.+))?$/.exec(String(v).trim());
+  const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.+)?$/.exec(
+    String(v).trim(),
+  );
   if (!m) return null;
   return {
     major: Number(m[1]),
@@ -108,11 +102,11 @@ const server = createServer((req, res) => {
   const channel = String(url.searchParams.get("channel") || "stable");
   const version = String(url.searchParams.get("version") || "0.0.0");
 
-  if (!["windows", "macos", "linux"].includes(platform)) {
+  if (!PLATFORMS.has(platform)) {
     reply(res, 400, { error: "platform must be windows|macos|linux" });
     return;
   }
-  if (!["stable", "beta"].includes(channel)) {
+  if (!CHANNELS.has(channel)) {
     reply(res, 400, { error: "channel must be stable|beta" });
     return;
   }

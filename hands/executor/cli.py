@@ -14,6 +14,12 @@ from typing import Any
 
 DEFAULT_TIMEOUT = 30
 
+# On Windows, pass CREATE_NO_WINDOW so any spawned subprocess stays
+# invisible — no black terminal flashes on the user's screen.
+_CREATION_FLAGS: int = 0
+if sys.platform == "win32":
+    _CREATION_FLAGS = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+
 
 def parse_command(command: str | list[str]) -> list[str]:
     if isinstance(command, list):
@@ -38,6 +44,7 @@ def run_sync(
             timeout=timeout,
             shell=False,
             cwd=cwd,
+            creationflags=_CREATION_FLAGS,
         )
         return {
             "success": completed.returncode == 0,

@@ -15,6 +15,11 @@ import initSqlJs from "sql.js";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { mkdirSync, existsSync, writeFileSync, readFileSync } from "fs";
+import {
+  createDefaultProfile,
+  isPersonalProfile,
+  validateProfile,
+} from "../shared/hatchery-schema.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -224,8 +229,8 @@ async function testSensorPipeline(): Promise<void> {
               );
             const skillSuccess =
               atriumLines.some((line) => line.includes("Skill dispatch:")) &&
-              atriumLines.some((line) =>
-                line.includes("Succeeded: Skill match:"),
+              atriumLines.some(
+                (line) => line.includes("Succeeded:") && line.includes("Skill"),
               );
 
             return (
@@ -419,51 +424,64 @@ async function main() {
   // Set up a mock profile for E2E testing
   const parixHome = resolve(__dirname, "../.parix-e2e");
   if (!existsSync(parixHome)) mkdirSync(parixHome, { recursive: true });
-  writeFileSync(
-    resolve(parixHome, "profile.json"),
-    JSON.stringify({
-      version: "1.0",
-      mode: "personal",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      identity: { name: "E2E User", computerUse: "Testing", mainWorkflows: [] },
-      llm: {
-        provider: "mock",
-        model: "mock",
-        authMethod: "local",
-        authProfileId: null,
-        connectionVerified: true,
-        verifiedAt: new Date().toISOString(),
+  const profile = createDefaultProfile("personal");
+  profile.identity = {
+    name: "E2E User",
+    computerUse: "Testing",
+    mainWorkflows: [],
+  };
+  profile.llm = {
+    provider: "mock",
+    model: "mock",
+    authMethod: "local",
+    authProfileId: null,
+    connectionVerified: true,
+    verifiedAt: new Date().toISOString(),
+  };
+  profile.channels = {
+    primary: "aegis",
+    enabled: ["aegis", "console"],
+    settings: {
+      ...profile.channels.settings,
+      aegis: {
+        kind: "voice",
+        enabled: "true",
+        autoStart: "true",
+        wakeWord: "aegis",
       },
-      channels: {
-        primary: "aegis",
-        enabled: ["aegis", "console"],
-        settings: {
-          aegis: {
-            kind: "voice",
-            enabled: "true",
-            autoStart: "true",
-            wakeWord: "aegis",
-          },
-        },
-      },
-      permissions: {
-        terminalErrors: true,
-        activeWindow: true,
-        gitState: true,
-        clipboardDetection: false,
-        browserTabs: false,
-        systemHealth: true,
-      },
-      personality: {
-        agentName: "E2E Parix",
-        style: "friendly",
-        vibe: "balanced",
-        interruptionLevel: "moderate",
-        autonomyLevel: "safe-auto-fix",
-      },
-    }),
-  );
+    },
+  };
+  profile.permissions = {
+    terminalErrors: true,
+    activeWindow: true,
+    gitState: true,
+    clipboardDetection: false,
+    browserTabs: false,
+    systemHealth: true,
+  };
+  profile.personality = {
+    agentName: "E2E Parix",
+    style: "friendly",
+    vibe: "balanced",
+    interruptionLevel: "moderate",
+    autonomyLevel: "safe-auto-fix",
+  };
+  if (isPersonalProfile(profile)) {
+    profile.agentProfile = {
+      ...profile.agentProfile,
+      userName: "E2E User",
+      userDescription: "Testing",
+      agentName: "E2E Parix",
+      allowedChannels: ["aegis", "console"],
+    };
+  }
+
+  const validation = validateProfile(profile);
+  if (!validation.valid) {
+    throw new Error(`Generated invalid E2E profile: ${validation.errors.join(", ")}`);
+  }
+
+  writeFileSync(resolve(parixHome, "profile.json"), JSON.stringify(profile));
   process.env.PARIX_HOME = parixHome;
 
   const tscCli = resolve(ROOT, "node_modules/typescript/bin/tsc");

@@ -29,7 +29,6 @@ export function FirstRunBoot(props: FirstRunBootProps) {
     reconnectAttempt,
     lastError,
     lastMessageAt,
-    health,
     eventsSeen,
   } = props;
 

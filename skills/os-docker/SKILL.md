@@ -78,8 +78,8 @@ docker-compose.yml
 
 ### Image Management
 - **Build local**: `docker build -f deploy/docker/Dockerfile.atrium -t parix-atrium:latest .`
-- **Tag**: `docker tag parix-atrium:latest ghcr.io/ahmedkhaledp-0/parix-atrium:v0.1`.
-- **Push**: `docker push ghcr.io/ahmedkhaledp-0/parix-atrium:v0.1`.
+- **Tag**: `docker tag parix-atrium:latest ghcr.io/<owner>/<repo>-atrium:0.2.0-alpha`.
+- **Push**: `docker push ghcr.io/<owner>/<repo>-atrium:0.2.0-alpha`.
 - **Multi-arch**: Build with `docker buildx build --platform linux/amd64,linux/arm64`.
 
 ## Docker-Specific Task Execution

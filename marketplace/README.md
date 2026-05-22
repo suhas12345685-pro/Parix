@@ -27,7 +27,7 @@ MARKETPLACE_ADMIN_TOKEN=dev curl -X POST http://localhost:8787/v1/admin/skills \
     "id":"my-skill","name":"My skill","description":"…",
     "authorId":"alice","repoUrl":"https://github.com/alice/my-skill",
     "license":"MIT","reversibility":0.9,"permissions":["filesystem:read"],
-    "initialVersion":"0.1.0","tagRef":"v0.1.0",
+    "initialVersion":"1.0.0","tagRef":"v1.0.0",
     "sha256":"0000000000000000000000000000000000000000000000000000000000000000"
   }'
 ```

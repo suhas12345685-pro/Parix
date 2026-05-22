@@ -44,6 +44,11 @@ import { saveNarrative } from "../cognition/horizon-store.js";
 import { matchSkills } from "./skill-registry.js";
 import { runSkillsInParallel } from "./skill-fanout.js";
 import { isAutonomousMode } from "../config/profile.js";
+import {
+  createDefaultNeuroSymbolicBridge,
+  type ActionIR,
+  type NeuroSymbolicDecision,
+} from "../neurosymbolic/index.js";
 
 export type AtriumState =
   | "IDLE"
@@ -106,6 +111,7 @@ export class AtriumEngine extends EventEmitter {
   private processing = false;
   private errorCooldownTimer: ReturnType<typeof setTimeout> | null = null;
   private thinkingTimer: ReturnType<typeof setTimeout> | null = null;
+  private neuroSymbolic = createDefaultNeuroSymbolicBridge();
 
   constructor(synapse: SynapseClient) {
     super();
@@ -587,7 +593,16 @@ export class AtriumEngine extends EventEmitter {
       return plan;
     }
 
-    const plan = await this.buildPlan(trigger, triggerData, context);
+    const neuroSymbolicPlan = await this.planFromNeuroSymbolic(
+      trigger,
+      triggerData,
+      event,
+      intent,
+      context,
+    );
+
+    const plan = (await this.buildPlan(trigger, triggerData, context)) ??
+      neuroSymbolicPlan;
     if (!plan) return null;
 
     plan.reversibilityScore = scoreReversibility(plan.taskType, plan.payload);
@@ -601,12 +616,66 @@ export class AtriumEngine extends EventEmitter {
     return plan;
   }
 
+  private async planFromNeuroSymbolic(
+    trigger: string,
+    data: Record<string, unknown>,
+    event: SensorEvent | undefined,
+    intent: SilentIntentEvent | undefined,
+    context: Record<string, unknown>,
+  ): Promise<ActionPlan | null> {
+    const confidence = event?.confidence ?? intent?.confidence ?? 0;
+    const timestamp = event?.timestamp ?? intent?.timestamp ?? Date.now() / 1000;
+
+    const decision = await this.neuroSymbolic.decide(
+      {
+        type: trigger,
+        data,
+        confidence,
+        timestamp,
+      },
+      {
+        handsStatus: this.synapse.getStatus(),
+        confidence,
+        context,
+      },
+    );
+
+    context.neuroSymbolic = decision.trace;
+
+    if (decision.trace.candidates.length > 0) {
+      console.log(
+        `[ATRIUM] Neuro-symbolic ${decision.verdict}: ${decision.reason} (${decision.trace.latencyMs}ms)`,
+      );
+    }
+
+    if (!decision.action || decision.action.kind === "none") {
+      return null;
+    }
+
+    return this.actionIrToPlan(decision.action, decision);
+  }
+
+  private actionIrToPlan(
+    action: ActionIR,
+    decision: NeuroSymbolicDecision,
+  ): ActionPlan {
+    const taskType = action.kind === "notify" ? "notification" : action.kind;
+    return {
+      id: action.id,
+      taskType,
+      payload: action.payload,
+      reversibilityScore: action.reversibility,
+      constitutionVerdict: { allowed: true, reason: "" },
+      reasoning: `Neuro-symbolic ${decision.verdict}: ${action.explanation}`,
+    };
+  }
+
   private async buildPlan(
     trigger: string,
     data: Record<string, unknown>,
     _context: Record<string, unknown>,
   ): Promise<ActionPlan | null> {
-    // Rule-based planning for v0.1 — LLM planning in v0.2
+    // Local fallback path when no LLM route is available.
     switch (trigger) {
       case "terminal_error":
         return {

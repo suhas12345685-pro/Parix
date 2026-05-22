@@ -179,6 +179,7 @@ export function App() {
                   connected={socket.connected}
                   state={socket.health.dashboard.atriumState}
                   paused={socket.health.dashboard.paused}
+                  responses={socket.chatResponses}
                   onSend={(message) => socket.sendCommand("chat", { message })}
                 />
               )}

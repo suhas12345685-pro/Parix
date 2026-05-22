@@ -4,8 +4,8 @@
 
 | Platform       | Command                                                      |
 |----------------|--------------------------------------------------------------|
-| Windows        | `powershell -c "irm https://openclaw.ai/install.ps1 \| iex"`|
-| macOS / Linux  | `curl -fsSL https://openclaw.ai/install.sh \| bash`         |
+| Windows        | `powershell -c "irm https://install.parix.ai/win.ps1 \| iex"`|
+| macOS / Linux  | `curl -fsSL https://install.parix.ai/install.sh \| bash`     |
 
 ## Deploy Scripts
 
@@ -20,8 +20,8 @@
 | Platform | Mechanism            | Config Location                          |
 |----------|----------------------|------------------------------------------|
 | Windows  | Task Scheduler       | `schtasks` registered task               |
-| macOS    | launchd              | `~/Library/LaunchAgents/ai.openclaw.parix.plist` |
-| Linux    | systemd user service | `~/.config/systemd/user/parix.service`   |
+| macOS    | launchd              | `~/Library/LaunchAgents/com.parix.agent.plist` |
+| Linux    | systemd user service | `~/.config/systemd/user/parix-agent.service` |
 
 ## Override Env Vars (for testing)
 

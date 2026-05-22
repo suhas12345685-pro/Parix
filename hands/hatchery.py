@@ -130,8 +130,8 @@ def main() -> None:
 
     # ── Step 3: LLM provider ─────────────────────────────────
     print("═══ Step 3: LLM provider (for v0.2 planning) ═══\n")
-    print("  Parix uses rule-based planning in v0.1.")
-    print("  For v0.2, you can pre-configure an LLM provider.\n")
+    print("  Parix v0.2.0-alpha can route planning through your chosen LLM provider.")
+    print("  You can skip this now and configure a provider later.\n")
 
     providers = [
         ("ANTHROPIC_API_KEY", "Anthropic (Claude)"),
@@ -162,7 +162,7 @@ def main() -> None:
     config["os"] = detect_os()
     config["arch"] = detect_arch()
     config["distro"] = detect_distro()
-    config["version"] = "0.1.0"
+    config["version"] = "0.2.0-alpha"
 
     with open(CONFIG_PATH, "w") as f:
         json.dump(config, f, indent=2)

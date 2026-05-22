@@ -3,7 +3,8 @@
   "ports": {
     "synapse": 8765,
     "aegis_relay": 8766,
-    "aegis_ui": 3000
+    "aegis_ui": 3000,
+    "neurosymbolic_ipc": 8771
   },
   "message_types": {
     "TASK_REQUEST": {
@@ -120,6 +121,10 @@
     "FOCUS_SHIFTED": {
       "from": "atrium",
       "fields": ["from", "to", "reason", "timestamp"]
+    },
+    "PAUSE_TOGGLE": {
+      "from": "hands",
+      "fields": ["timestamp"]
     }
   },
   "ack_timeout_ms": 200,

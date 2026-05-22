@@ -5,7 +5,7 @@ have right now — make them count.
 
 ## Where to file
 
-- **GitHub Issues** (preferred): https://github.com/openclaw-ai/openclaw/issues
+- **GitHub Issues** (preferred): https://github.com/suhas12345685-pro/Parix/issues
 - **Private alpha Matrix/Discord:** invite link is in your tester onboarding
   email. Best for quick "is anyone else seeing this?" questions.
 - **Direct to Suhas:** only for security issues you don't want public — email

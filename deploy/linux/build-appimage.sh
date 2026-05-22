@@ -5,14 +5,19 @@
 # `dist-staging/parix/` contains the runtime files.
 #
 # Usage:
-#   bash deploy/linux/build-appimage.sh v0.2.0
+#   bash deploy/linux/build-appimage.sh v0.2.0-alpha
 #
-# Output: parix-v0.2.0-linux-x64.AppImage in $PWD.
+# Output: parix-v0.2.0-alpha-linux-x64.AppImage in $PWD.
 # ─────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 TAG="${1:-dev}"
-ARCH="$(uname -m)"
+RAW_ARCH="$(uname -m)"
+case "$RAW_ARCH" in
+    x86_64|amd64) ASSET_ARCH="x64" ;;
+    aarch64|arm64) ASSET_ARCH="arm64" ;;
+    *) ASSET_ARCH="$RAW_ARCH" ;;
+esac
 APPDIR="parix.AppDir"
 SRC_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 STAGE="$SRC_ROOT/dist-staging/parix"
@@ -27,7 +32,7 @@ fail() { printf '[appimage] ERROR: %s\n' "$1" >&2; exit 1; }
 if ! command -v appimagetool >/dev/null 2>&1; then
     log "Downloading appimagetool..."
     curl -fsSL -o /tmp/appimagetool \
-        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${ARCH}.AppImage"
+        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${RAW_ARCH}.AppImage"
     chmod +x /tmp/appimagetool
     APPIMAGETOOL=/tmp/appimagetool
 else
@@ -94,7 +99,7 @@ else
 fi
 
 # ─── Bake ────────────────────────────────────────────────────────────
-OUT="parix-${TAG}-linux-${ARCH}.AppImage"
+OUT="parix-${TAG}-linux-${ASSET_ARCH}.AppImage"
 log "Building $OUT..."
-ARCH="$ARCH" "$APPIMAGETOOL" "$APPDIR" "$OUT"
+ARCH="$RAW_ARCH" "$APPIMAGETOOL" "$APPDIR" "$OUT"
 log "Done: $(realpath "$OUT")"

@@ -366,7 +366,7 @@ export async function writeProfile(
     };
   }
 
-  writeWorkspaceMarkdown(profile, process.env.PARIX_WORKSPACE || process.cwd());
+  writeWorkspaceMarkdown(profile, process.env.PARIX_WORKSPACE || parixHome);
 
   return { success: true, profilePath, errors: [] };
 }

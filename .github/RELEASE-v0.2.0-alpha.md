@@ -1,13 +1,21 @@
 # Parix v0.2.0-alpha
 
-**First public release.** Atrium + hands code-complete for v0.2; macOS
-and Linux accessibility backends pending hardware verification on real
-machines.
+**First tagged alpha prerelease.** Atrium + Hands are code-complete for v0.2;
+macOS and Linux accessibility backends pending hardware verification on
+real machines.
 
-To create the GitHub release: go to
-https://github.com/suhas12345685-pro/Parix/releases/new — pick the
-`v0.2.0-alpha` tag from the dropdown, paste the body below, check
-"Set as a pre-release" (this is alpha), and publish.
+This release is published by `.github/workflows/release.yml` when the
+`v0.2.0-alpha` tag is pushed. The workflow marks the GitHub Release as a
+pre-release, publishes Docker images, attaches the zip/tarball/AppImage
+artifacts, and uploads `SHA256SUMS.txt` for the update feed.
+
+Release assets:
+
+- `parix-v0.2.0-alpha-windows-x64.zip`
+- `parix-v0.2.0-alpha-macos.tar.gz`
+- `parix-v0.2.0-alpha-linux-x64.tar.gz`
+- `parix-v0.2.0-alpha-linux-x64.AppImage`
+- `SHA256SUMS.txt`
 
 ---
 
@@ -114,14 +122,15 @@ that B3 / C3 can close.
 
 ## What's next on the path to v1.0
 
-The full plan is in [SHIP-PLAN.md](../SHIP-PLAN.md). Headline rows:
+The full plan is in [ROADMAP.md](../ROADMAP.md), with the historical v0.2
+push preserved in [SHIP-PLAN.md](../SHIP-PLAN.md). Headline rows:
 
-- **E3a** — real skill permission gate (prerequisite for opening
+- **E3a** - real skill permission gate (prerequisite for opening
   third-party skills)
-- **E3b** — synapse shared-secret handshake
-- **D1–D4** — installers + signing pipelines (needs code-signing certs)
-- **F1–F2** — per-provider auth flow smoke tests (needs accounts)
-- **G1–G4** — README rewrite, docs site, comparison page, demo video
+- **D2-D4** - signing/notarization certs and production hardening for the
+  existing zip/tarball/AppImage release pipeline
+- **F1-F2** - per-provider auth flow smoke tests (needs accounts)
+- **G1-G4** - README rewrite, docs site, comparison page, demo video
 
 Hard human blockers for v1.0: real Mac, real Linux, Apple Developer
 cert, Windows code-signing cert, telemetry backend decision, real

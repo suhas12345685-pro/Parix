@@ -6,6 +6,11 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    portaudio19-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY hands/requirements.txt ./
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
@@ -17,6 +22,7 @@ LABEL org.opencontainers.image.description="Parix Hands — AI Agent Executor"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tini \
+    libportaudio2 \
     tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,7 +50,7 @@ ENV PARIX_ALLOW_REMOTE_SYNAPSE=1
 EXPOSE 8765
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')" || exit 1
+  CMD python -c "import socket; s=socket.create_connection(('127.0.0.1', 8765), 2); s.close()" || exit 1
 
 ENTRYPOINT ["tini", "--"]
 CMD ["python", "-m", "hands.main"]

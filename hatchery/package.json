@@ -1,6 +1,6 @@
 {
   "name": "parix-hatchery",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "baileys": "^7.0.0-rc11",
     "inquirer": "^9.2.0",
     "keytar": "^7.9.0"
   },

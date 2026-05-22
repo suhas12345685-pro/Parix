@@ -11,19 +11,19 @@ description: Parix Skill — One-Line Installation & Release
 
 Windows:
 ```powershell
-powershell -c "irm https://openclaw.ai/install.ps1 | iex"
+powershell -c "irm https://install.parix.ai/win.ps1 | iex"
 ```
 
 macOS / Linux:
 ```bash
-curl -fsSL https://openclaw.ai/install.sh | bash
+curl -fsSL https://install.parix.ai/install.sh | bash
 ```
 
 ## Bootstrap Contract
 
-- `install.ps1` and `install.sh` are public entrypoints hosted at `openclaw.ai`.
+- `win.ps1` and `install.sh` are public entrypoints hosted at `install.parix.ai`.
 - They clone the Parix repo into a temporary directory, run the platform installer, then clean up.
-- Default repo: `https://github.com/openclaw-ai/parix.git`
+- Default repo: `https://github.com/suhas12345685-pro/Parix.git`
 - Override source during testing:
   - Windows: `$env:PARIX_REPO_URL="https://github.com/<owner>/<repo>.git"; $env:PARIX_BRANCH="feature"`
   - macOS/Linux: `PARIX_REPO_URL=https://github.com/<owner>/<repo>.git PARIX_BRANCH=feature curl -fsSL ... | bash`
@@ -69,8 +69,8 @@ curl -fsSL https://openclaw.ai/install.sh | bash
 
 ## Hosting Setup
 
-The `openclaw.ai` domain serves static files:
-- `https://openclaw.ai/install.ps1` → serves `install.ps1` from repo root
-- `https://openclaw.ai/install.sh` → serves `install.sh` from repo root
+The `install.parix.ai` domain serves static files:
+- `https://install.parix.ai/win.ps1` → serves `install.ps1` from repo root
+- `https://install.parix.ai/install.sh` → serves `install.sh` from repo root
 
 These can be hosted via GitHub Pages, Cloudflare Pages, or any static CDN pointing at the repo's root `install.ps1` and `install.sh` files.

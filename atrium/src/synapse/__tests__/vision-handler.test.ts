@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  computeAccessibilityEntropy,
   handleVisionOcrRequest,
+  maybeRequestVisualFallback,
   type VisionOcrResponseMessage,
 } from "../vision-handler.js";
 import { LLMRouter } from "../../llm/router.js";
@@ -95,5 +97,41 @@ describe("handleVisionOcrRequest", () => {
     const response = send.mock.calls[0][0];
     expect(response.text).toBe("");
     expect(response.error).toMatch(/No LLM provider succeeded/);
+  });
+
+  it("requests visual fallback for low-entropy native accessibility trees", () => {
+    const request = maybeRequestVisualFallback({
+      snapshotId: "snap-empty",
+      focusedApp: "Enterprise Terminal",
+      backendUsed: "uia",
+      confidence: 0.12,
+      treeSummary: {
+        focused_element: null,
+        had_raw_text: false,
+      },
+    });
+
+    expect(request?.reason).toContain("low_accessibility_entropy");
+    expect(request?.focusedApp).toBe("Enterprise Terminal");
+  });
+
+  it("keeps native accessibility when structural entropy is sufficient", () => {
+    const entropy = computeAccessibilityEntropy({
+      snapshotId: "snap-rich",
+      focusedApp: "Editor",
+      backendUsed: "uia",
+      confidence: 0.8,
+      treeSummary: {
+        had_raw_text: true,
+        focused_element: {
+          role: "textbox",
+          name: "main editor",
+          value: "const answer = 42;",
+          childCount: 12,
+        },
+      },
+    });
+
+    expect(entropy).toBeGreaterThan(0.35);
   });
 });

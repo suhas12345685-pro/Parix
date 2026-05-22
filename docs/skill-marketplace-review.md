@@ -32,7 +32,7 @@ front-matter must match the `SkillManifest` schema in
 ```yaml
 ---
 id: my-cool-skill                  # globally unique, kebab-case
-version: 0.1.0                      # semver
+version: 1.0.0                      # skill semver
 description: One-line pitch.        # <= 200 chars
 runtime: py                         # py | node | sh
 entry: scripts/entry.py
@@ -65,9 +65,9 @@ even in `safe-auto-fix` mode.
 
 ### Submission process
 
-1. **Open an issue** in the marketplace repo
-   (`https://github.com/openclaw-ai/marketplace`) using the "New skill"
-   template.
+1. **Open an issue** in the Parix repo
+   (`https://github.com/suhas12345685-pro/Parix/issues`) using the feature
+   request template and title it `[skill] <skill-name>`.
 2. **Link your skill repo** at a specific tag (we don't accept
    `main`-tracking submissions — pin a version).
 3. **Self-disclose risk**: fill in the issue template's
@@ -158,7 +158,7 @@ actually does.
 
 ## Reviewer board
 
-For v0.2-alpha: Suhas is the only reviewer. Beyond Phase 2, the
+For v0.2.0-alpha: Suhas is the only reviewer. Beyond Phase 2, the
 reviewer pool expands to community contributors with at least 3 merged
 PRs in the main repo.
 

@@ -1,6 +1,6 @@
 {
   "name": "parix-marketplace",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha",
   "private": true,
   "description": "Parix skill marketplace API — registry of third-party skills, reviews, download metadata. Postgres in prod; sqlite for dev.",
   "type": "module",

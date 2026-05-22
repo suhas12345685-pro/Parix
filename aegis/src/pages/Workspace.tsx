@@ -32,7 +32,7 @@ export function Workspace({ files, onInit }: Props) {
             </h2>
             <p className="mt-1 text-sm leading-6 text-[#a99bb9]">
               Hatchery asks identity during setup, then initializes the Parix
-              workspace files adapted from the OpenClaw structure.
+              workspace files for identity, memory, tools, and operating rules.
             </p>
           </div>
           <button

@@ -12,6 +12,11 @@ const RECONNECT_BASE_DELAY = 3000;
 const RECONNECT_MAX_DELAY = 30000;
 const EVENT_BUFFER_LIMIT = 100;
 
+interface ChatResponse {
+  id: string;
+  text: string;
+}
+
 const emptyHealth: SystemHealth = {
   dashboard: {
     atriumState: "IDLE",
@@ -61,6 +66,7 @@ export function useParixSocket() {
   const [health, setHealth] = useState<SystemHealth>(emptyHealth);
   const [events, setEvents] = useState<SensorEvent[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [chatResponses, setChatResponses] = useState<ChatResponse[]>([]);
 
   const handleMessage = useCallback((msg: WsMessage) => {
     setLastMessageAt(Date.now());
@@ -129,6 +135,16 @@ export function useParixSocket() {
             lastUpdate: Date.now(),
           },
         }));
+        break;
+
+      case "CHAT_RESULT":
+        setChatResponses((prev) => [
+          ...prev,
+          {
+            id: String(msg.id ?? `${Date.now()}`),
+            text: String(msg.text ?? ""),
+          },
+        ].slice(-EVENT_BUFFER_LIMIT));
         break;
 
       case "CHANNELS_SAVED":
@@ -239,6 +255,7 @@ export function useParixSocket() {
     health,
     events,
     audit,
+    chatResponses,
     sendCommand,
   };
 }

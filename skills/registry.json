@@ -31,7 +31,15 @@
     "task-docker-mgmt",
     "task-log-analysis",
     "task-computer-use-headless",
-    "task-virtual-desktop"
+    "task-virtual-desktop",
+    "parix-autonomous-discovery",
+    "task-azure-cli",
+    "task-build-watch",
+    "task-clipboard-secret-redactor",
+    "task-create-mcp",
+    "task-focus-context",
+    "task-gcloud",
+    "task-terminal-error-resolver"
   ],
   "skills": [
     {
@@ -209,6 +217,46 @@
     {
       "id": "task-virtual-desktop",
       "path": "skills/task-virtual-desktop/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "parix-autonomous-discovery",
+      "path": "skills/parix-autonomous-discovery/SKILL.md",
+      "scope": "core"
+    },
+    {
+      "id": "task-azure-cli",
+      "path": "skills/task-azure-cli/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-build-watch",
+      "path": "skills/task-build-watch/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-clipboard-secret-redactor",
+      "path": "skills/task-clipboard-secret-redactor/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-create-mcp",
+      "path": "skills/task-create-mcp/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-focus-context",
+      "path": "skills/task-focus-context/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-gcloud",
+      "path": "skills/task-gcloud/SKILL.md",
+      "scope": "task"
+    },
+    {
+      "id": "task-terminal-error-resolver",
+      "path": "skills/task-terminal-error-resolver/SKILL.md",
       "scope": "task"
     }
   ]

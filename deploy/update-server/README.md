@@ -1,10 +1,9 @@
-# Parix update feed — reference server
+# Parix Update Feed Reference Server
 
 Minimal Node server that serves the contract Atrium's `UpdateChecker`
-expects. ~120 lines, no framework, no DB. The manifest file is the
-source of truth.
+expects. The manifest file is the source of truth; there is no database.
 
-## Run locally
+## Run Locally
 
 ```bash
 cd deploy/update-server
@@ -15,67 +14,70 @@ node server.mjs
 Default bind: `127.0.0.1:8788`. Try it:
 
 ```bash
-curl 'http://127.0.0.1:8788/v1/check?platform=linux&channel=stable&version=0.1.0'
-# → 200 with the manifest entry
+curl 'http://127.0.0.1:8788/v1/check?platform=linux&channel=beta&version=0.0.0'
+# -> 200 with the v0.2.0-alpha beta manifest entry
 
-curl 'http://127.0.0.1:8788/v1/check?platform=linux&channel=stable&version=0.1.7'
-# → 204 (same version)
+curl 'http://127.0.0.1:8788/v1/check?platform=linux&channel=beta&version=0.2.0-alpha'
+# -> 204 because the caller is already on the latest beta
 ```
 
-## Deploy behind Cloudflare
+## Release Feed Update
+
+The canonical release workflow is `.github/workflows/release.yml`.
+For tag `v0.2.0-alpha` it publishes these update-feed asset names:
+
+- `parix-v0.2.0-alpha-windows-x64.zip`
+- `parix-v0.2.0-alpha-macos.tar.gz`
+- `parix-v0.2.0-alpha-linux-x64.AppImage`
+
+After the GitHub Release is published, copy the real SHA-256 values from
+the release's `SHA256SUMS.txt` asset into `manifest.json` before promoting
+the feed. Keep alpha and prerelease builds on the `beta` channel; reserve
+`stable` for production-ready releases.
+
+## Deploy Behind Cloudflare
 
 Recommended topology:
 
-```
-parix.dev DNS                           ┌─────────────┐
-   ──updates.parix.dev──→ Cloudflare ──→│ This server │
-                          (cache, TLS,  │ on a VM     │
-                           rate-limit,  │ behind a   │
-                           WAF)         │ private IP │
-                                        └─────────────┘
+```text
+updates.parix.dev -> Cloudflare cache/TLS/WAF -> this server on a VM
 ```
 
 Cloudflare rules:
 
-- Cache `/v1/check` with **60s TTL**. The server already sets
+- Cache `/v1/check` with a 60 second TTL. The server already sets
   `Cache-Control: public, max-age=60`.
-- Bypass cache for query strings? **No** — cache including query string,
-  so each `(platform, channel, version)` is a distinct cache key. Newer
-  versions hit the cache on the next 60s tick.
-- Rate-limit: 60 req / IP / minute. Real clients poll every 6h.
-- WAF: block any request whose `platform` isn't in
-  `{windows, macos, linux}` or whose `version` doesn't match
-  `^[\d.+-]{1,32}$`.
+- Keep query strings in the cache key so each
+  `(platform, channel, version)` tuple is cached independently.
+- Rate-limit to 60 requests per IP per minute. Real clients poll every
+  six hours.
+- Block requests whose `platform` is not one of
+  `{windows, macos, linux}` or whose `version` does not match
+  `^[0-9A-Za-z.+-]{1,32}$`.
 
 ## Rollback
 
-To pull a bad release, edit `manifest.json` and drop the version field
-back to the previous good one. Cloudflare picks it up within 60s. No DB
-migration, no redeploy.
+To pull a bad release, edit `manifest.json` and drop the affected
+platform entry back to the previous good version. Cloudflare picks it up
+within 60 seconds. No database migration or redeploy is required.
 
-If you need to make a rollback **immediate** (don't wait 60s), purge
-the Cloudflare cache for `updates.parix.dev` via the dashboard or the
-API.
+For an immediate rollback, purge the Cloudflare cache for
+`updates.parix.dev` through the dashboard or API.
 
 ## Channels
 
-- **stable** — what `irm install.parix.ai/win.ps1` picks up.
-- **beta** — opt-in via `profile.updates.channel = "beta"`.
+- `stable`: production-ready releases.
+- `beta`: alpha, beta, and release-candidate builds.
 
-We don't currently run a `nightly`. Add it by duplicating the schema:
-the server reads any key in the manifest's root.
+The server currently allows only `stable` and `beta`. Add another channel
+by extending the allow-list in `server.mjs` and adding a matching manifest
+root key.
 
-## Multi-region
+## What's Not Here
 
-Cloudflare's edge caches give you ~global coverage already. For real
-HA, deploy two of these behind a load balancer; the manifest file goes
-on shared storage (S3 with `aws s3 sync`, or a tiny git pull cron).
-
-## What's not here
-
-- **Signed manifests.** Until the code-signing certs land (Phase 2.1/2.2),
-  we rely on Cloudflare's TLS + the SHA-256 check in the installer.
-  When certs exist, add an Ed25519 signature over the manifest body.
-- **Per-user staged rollouts.** Phase 4 work — add a `rollout` field
-  (`{percent: 25, cohortHash: …}`) and have the server gate by hash of
-  the requesting IP / installation UUID.
+- Signed manifests. Until code-signing certs land, we rely on Cloudflare
+  TLS plus the SHA-256 check in the installer. When certs exist, add an
+  Ed25519 signature over the manifest body.
+- Per-user staged rollouts. Add a `rollout` field such as
+  `{ "percent": 25, "cohortHash": "..." }` and have the server gate by a
+  hash of the requesting installation UUID.

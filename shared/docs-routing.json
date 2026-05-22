@@ -1,0 +1,398 @@
+{
+  "version": "1.0",
+  "description": "Master routing manifest for all documentation files in Parix. Maps every .md file to its purpose, scope, and consumption path so the agent can find and use them at runtime.",
+  "excludedFromRouting": {
+    "reason": "Agent writing code / development specs — used by humans and CI agents to build Parix, not by the running agent itself.",
+    "files": [
+      "plan.md",
+      "ROADMAP.md",
+      "SHIP-PLAN.md",
+      "MASTER_GOALS.md",
+      "claude.md",
+      "codex.md",
+      "agents.md",
+      "PROMPTS.md"
+    ]
+  },
+
+  "routes": {
+    "identity": {
+      "description": "Core personality, soul, and identity files that define who Parix is and how it behaves.",
+      "files": [
+        {
+          "path": "SOUL.md",
+          "purpose": "Agent voice, values, and behavioral principles",
+          "consumedBy": ["atrium.council", "atrium.cognition"],
+          "loadAt": "boot",
+          "scope": "identity"
+        },
+        {
+          "path": "IDENTITY.md",
+          "purpose": "Agent name, routing ID, mode, avatar, wake word, default channel",
+          "consumedBy": ["atrium.council", "atrium.channels"],
+          "loadAt": "boot",
+          "scope": "identity"
+        },
+        {
+          "path": "USER.md",
+          "purpose": "User profile — name, workflows, preferences, autonomy level",
+          "consumedBy": ["atrium.cognition", "atrium.council"],
+          "loadAt": "boot",
+          "scope": "identity"
+        }
+      ]
+    },
+
+    "runtime": {
+      "description": "Files the running agent reads at boot or on demand during operation.",
+      "files": [
+        {
+          "path": "MEMORY.md",
+          "purpose": "Standing facts, ongoing projects, critical constraints — persistent agent memory",
+          "consumedBy": ["atrium.cognition.working-memory"],
+          "loadAt": "boot",
+          "mutable": true,
+          "scope": "memory"
+        },
+        {
+          "path": "memory/2026-05-16.md",
+          "purpose": "Daily episodic memory journal entries",
+          "consumedBy": ["atrium.cognition.episodic-memory"],
+          "loadAt": "on-demand",
+          "mutable": true,
+          "scope": "memory",
+          "pattern": "memory/YYYY-MM-DD.md"
+        },
+        {
+          "path": "HEARTBEAT.md",
+          "purpose": "Background routine definitions, idle behavior policy",
+          "consumedBy": ["atrium.scheduler", "atrium.cognition.pulse"],
+          "loadAt": "boot",
+          "scope": "operations"
+        },
+        {
+          "path": "TOOLS.md",
+          "purpose": "Tools registry — authorized workspace paths, environment config",
+          "consumedBy": ["atrium.council", "atrium.intelligence"],
+          "loadAt": "boot",
+          "scope": "operations"
+        },
+        {
+          "path": "checklists/critical-action.md",
+          "purpose": "Pre-action safety checklist for destructive or irreversible operations",
+          "consumedBy": ["atrium.intelligence.constitution", "atrium.intelligence.reversibility"],
+          "loadAt": "on-demand",
+          "scope": "safety"
+        }
+      ]
+    },
+
+    "architecture": {
+      "description": "Technical architecture and design documents that inform agent self-understanding.",
+      "files": [
+        {
+          "path": "accessibility-layer.md",
+          "purpose": "Hybrid accessibility + vision layer architecture — the technical moat",
+          "consumedBy": ["atrium.cognition", "hands.accessibility"],
+          "loadAt": "on-demand",
+          "scope": "architecture"
+        },
+        {
+          "path": "COGNITION-UPGRADE.md",
+          "purpose": "Cognition v1.3 architecture: planner, attention, metacognition, horizon, senses, pulse",
+          "consumedBy": ["atrium.cognition"],
+          "loadAt": "on-demand",
+          "scope": "architecture"
+        },
+        {
+          "path": "CODEX-TASKS.md",
+          "purpose": "Cognition v1.3 wiring tasks — schema, stores, attention gate, metacognition, planner, horizon integration",
+          "consumedBy": ["atrium.cognition"],
+          "loadAt": "on-demand",
+          "scope": "architecture"
+        },
+        {
+          "path": "docs/architecture.md",
+          "purpose": "High-level system architecture overview — monorepo structure, data flow, deployment",
+          "consumedBy": ["atrium.cognition", "skills"],
+          "loadAt": "on-demand",
+          "scope": "architecture"
+        },
+        {
+          "path": "docs/boot-order.md",
+          "purpose": "Startup sequence documentation — which modules initialize in what order",
+          "consumedBy": ["atrium.index"],
+          "loadAt": "on-demand",
+          "scope": "architecture"
+        },
+        {
+          "path": "docs/cognition.md",
+          "purpose": "Cognitive loop documentation — thresholds, tuning guide, module interactions",
+          "consumedBy": ["atrium.cognition"],
+          "loadAt": "on-demand",
+          "scope": "architecture"
+        }
+      ]
+    },
+
+    "github": {
+      "description": "GitHub templates and release notes consumed by the GitHub platform, not the agent.",
+      "files": [
+        {
+          "path": ".github/ISSUE_TEMPLATE/bug_report.md",
+          "purpose": "Bug report issue template for GitHub",
+          "consumedBy": ["github"],
+          "loadAt": "never",
+          "scope": "github"
+        },
+        {
+          "path": ".github/ISSUE_TEMPLATE/feature_request.md",
+          "purpose": "Feature request issue template for GitHub",
+          "consumedBy": ["github"],
+          "loadAt": "never",
+          "scope": "github"
+        },
+        {
+          "path": ".github/PULL_REQUEST_TEMPLATE.md",
+          "purpose": "Pull request template for GitHub",
+          "consumedBy": ["github"],
+          "loadAt": "never",
+          "scope": "github"
+        },
+        {
+          "path": ".github/RELEASE-v0.2.0-alpha.md",
+          "purpose": "Release notes for v0.2.0-alpha",
+          "consumedBy": ["github"],
+          "loadAt": "never",
+          "scope": "github"
+        }
+      ]
+    },
+
+    "project": {
+      "description": "Project-level documentation — README, changelog, contributing guides.",
+      "files": [
+        {
+          "path": "README.md",
+          "purpose": "Project overview, installation, architecture summary, quick start",
+          "consumedBy": ["github", "users", "atrium.cognition"],
+          "loadAt": "on-demand",
+          "scope": "project"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "purpose": "Version history — all notable changes per release following Keep a Changelog",
+          "consumedBy": ["users", "atrium.updates"],
+          "loadAt": "on-demand",
+          "scope": "project"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "purpose": "Contributor guide — workflow, local checks, code guidelines, PR checklist",
+          "consumedBy": ["users", "github"],
+          "loadAt": "never",
+          "scope": "project"
+        }
+      ]
+    },
+
+    "security": {
+      "description": "Security, privacy, and threat modeling documentation.",
+      "files": [
+        {
+          "path": "docs/privacy.md",
+          "purpose": "Privacy policy — telemetry, data collection, what is and isn't sent",
+          "consumedBy": ["atrium.config", "hatchery"],
+          "loadAt": "on-demand",
+          "scope": "security"
+        },
+        {
+          "path": "docs/security-audit-v0.2.md",
+          "purpose": "Security audit — executor, autonomy gates, approval policy, synapse socket findings",
+          "consumedBy": ["atrium.intelligence.constitution"],
+          "loadAt": "on-demand",
+          "scope": "security"
+        },
+        {
+          "path": "docs/threat-model.md",
+          "purpose": "Threat model — attack vectors, trust boundaries, mitigation strategies",
+          "consumedBy": ["atrium.intelligence.constitution"],
+          "loadAt": "on-demand",
+          "scope": "security"
+        }
+      ]
+    },
+
+    "user-facing-docs": {
+      "description": "End-user documentation — quickstart, troubleshooting, onboarding.",
+      "files": [
+        {
+          "path": "docs/quickstart.md",
+          "purpose": "Quick start guide for new users — install, configure, first run",
+          "consumedBy": ["users", "hatchery"],
+          "loadAt": "on-demand",
+          "scope": "docs"
+        },
+        {
+          "path": "docs/troubleshooting.md",
+          "purpose": "Common problems and solutions for users",
+          "consumedBy": ["users", "atrium.troubleshooting"],
+          "loadAt": "on-demand",
+          "scope": "docs"
+        },
+        {
+          "path": "docs/filing-bugs.md",
+          "purpose": "How to file effective bug reports",
+          "consumedBy": ["users"],
+          "loadAt": "never",
+          "scope": "docs"
+        },
+        {
+          "path": "docs/tester-onboarding.md",
+          "purpose": "Onboarding guide for alpha testers",
+          "consumedBy": ["users"],
+          "loadAt": "never",
+          "scope": "docs"
+        },
+        {
+          "path": "docs/vs-openclaw.md",
+          "purpose": "Comparison with OpenClaw — Parix's competitive advantages",
+          "consumedBy": ["users", "marketing"],
+          "loadAt": "never",
+          "scope": "docs"
+        }
+      ]
+    },
+
+    "deployment": {
+      "description": "Deployment, release, and installation documentation.",
+      "files": [
+        {
+          "path": "docs/release-installers.md",
+          "purpose": "Release installer build process and signing documentation",
+          "consumedBy": ["ci", "deploy"],
+          "loadAt": "never",
+          "scope": "deploy"
+        },
+        {
+          "path": "docs/accessibility-plan.md",
+          "purpose": "Accessibility moat activation plan — phased tasks, owners, acceptance criteria",
+          "consumedBy": ["atrium.cognition", "hands.accessibility"],
+          "loadAt": "on-demand",
+          "scope": "deploy"
+        },
+        {
+          "path": "deploy/update-server/README.md",
+          "purpose": "Update server documentation — how the auto-update manifest works",
+          "consumedBy": ["deploy"],
+          "loadAt": "never",
+          "scope": "deploy"
+        },
+        {
+          "path": "docs/press-kit.md",
+          "purpose": "Press kit — branding, screenshots, messaging for media",
+          "consumedBy": ["marketing"],
+          "loadAt": "never",
+          "scope": "deploy"
+        }
+      ]
+    },
+
+    "marketplace": {
+      "description": "Skill marketplace and skill landscape documentation.",
+      "files": [
+        {
+          "path": "marketplace/README.md",
+          "purpose": "Skill marketplace overview — discovery, installation, publishing",
+          "consumedBy": ["hatchery", "atrium.skills"],
+          "loadAt": "on-demand",
+          "scope": "marketplace"
+        },
+        {
+          "path": "docs/skills-landscape.md",
+          "purpose": "Landscape of all available skills — categories, capabilities, status",
+          "consumedBy": ["atrium.skills", "hatchery"],
+          "loadAt": "on-demand",
+          "scope": "marketplace"
+        },
+        {
+          "path": "docs/skill-marketplace-review.md",
+          "purpose": "Skill review process — approval criteria, security checks",
+          "consumedBy": ["marketplace"],
+          "loadAt": "never",
+          "scope": "marketplace"
+        }
+      ]
+    },
+
+    "shadow-drafts": {
+      "description": "Runtime-generated proactive drafts — error shadows, dependency foresight, evolution patches.",
+      "pattern": "shadow_drafts/**/*.md",
+      "consumedBy": ["atrium.cognition.pulse", "atrium.nexus.optimizer"],
+      "loadAt": "on-demand",
+      "mutable": true,
+      "scope": "shadow",
+      "subdirectories": {
+        "shadow_drafts/technical/error-shadow/": "Pre-computed fix drafts for terminal errors",
+        "shadow_drafts/technical/dependency-foresight/": "Pre-error drafts for missing imports",
+        "shadow_drafts/evolution/": "Cognition evolution patches from the Recursive Optimizer",
+        "shadow_drafts/business/": "Business intelligence drafts",
+        "shadow_drafts/academic/": "Academic research drafts"
+      }
+    },
+
+    "skills": {
+      "description": "All skill SKILL.md and reference files — already routed via skills/registry.json",
+      "registryPath": "skills/registry.json",
+      "pattern": "skills/*/SKILL.md",
+      "referencesPattern": "skills/*/references/*.md",
+      "consumedBy": ["atrium.skills", "atrium.cognition"],
+      "loadAt": "boot",
+      "scope": "skills",
+      "note": "Individual skill routing is managed by skills/registry.json. This entry provides discovery."
+    }
+  },
+
+  "loadOrder": [
+    "identity",
+    "runtime",
+    "security",
+    "skills",
+    "architecture",
+    "project",
+    "user-facing-docs",
+    "deployment",
+    "marketplace",
+    "github",
+    "shadow-drafts"
+  ],
+
+  "bootFiles": [
+    "SOUL.md",
+    "IDENTITY.md",
+    "USER.md",
+    "MEMORY.md",
+    "HEARTBEAT.md",
+    "TOOLS.md"
+  ],
+
+  "onDemandFiles": [
+    "accessibility-layer.md",
+    "COGNITION-UPGRADE.md",
+    "CODEX-TASKS.md",
+    "CHANGELOG.md",
+    "README.md",
+    "checklists/critical-action.md",
+    "docs/architecture.md",
+    "docs/boot-order.md",
+    "docs/cognition.md",
+    "docs/privacy.md",
+    "docs/quickstart.md",
+    "docs/security-audit-v0.2.md",
+    "docs/threat-model.md",
+    "docs/troubleshooting.md",
+    "docs/accessibility-plan.md",
+    "docs/skills-landscape.md",
+    "marketplace/README.md"
+  ]
+}
