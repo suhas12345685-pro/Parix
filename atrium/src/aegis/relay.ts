@@ -231,12 +231,12 @@ function handleCommand(ws: WebSocket, msg: Record<string, unknown>): void {
   }
 }
 
-function handleChatCommand(
+async function handleChatCommand(
   ws: WebSocket,
   msg: Record<string, unknown>,
-): void {
+): Promise<void> {
   const message = String(msg.message ?? msg.text ?? "").trim();
-  const response = runChatCommand(message);
+  const response = await runChatCommand(message);
   sendTo(ws, {
     type: "CHAT_RESULT",
     id: `chat-${Date.now()}`,
@@ -244,7 +244,7 @@ function handleChatCommand(
   });
 }
 
-function runChatCommand(message: string): string {
+async function runChatCommand(message: string): Promise<string> {
   const text = message.toLowerCase();
   const tokens = new Set(text.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter(Boolean));
   const mentionsAgent =
@@ -311,6 +311,28 @@ function runChatCommand(message: string): string {
     return explanation
       ? formatExplanation(explanation)
       : "I do not have a recent action to explain yet.";
+  }
+
+  console.log(`[DEBUG CHAT] runChatCommand message: "${message}"`);
+  console.log(`[DEBUG CHAT] engine defined: ${!!engine}`);
+  const llmRouter = engine?.getLLMRouter();
+  console.log(`[DEBUG CHAT] llmRouter defined: ${!!llmRouter}`);
+  if (llmRouter) {
+    try {
+      const response = await llmRouter.complete({
+        prompt: `You are Parix, a premium AI assistant. The user is chatting with you via their Aegis dashboard chat.
+Respond to the user directly, helpfully, and concisely (1-4 sentences).
+
+User message: ${message}`,
+        systemPrompt: "You are Parix, a helpful AI assistant. Provide concise, clear, and direct answers.",
+        temperature: 0.7,
+        maxTokens: 500,
+      }, "reasoning");
+      return response.text.trim();
+    } catch (err) {
+      console.error(`[AEGIS] Chat LLM response generation failed:`, err);
+      return `I encountered an error trying to process that with the LLM router: ${err instanceof Error ? err.message : String(err)}`;
+    }
   }
 
   return "I can handle status, pause/stop, resume/start, flush queue, and explanation commands. Try 'help' for the exact phrases.";

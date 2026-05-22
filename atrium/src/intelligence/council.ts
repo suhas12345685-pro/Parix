@@ -127,6 +127,10 @@ export class AtriumEngine extends EventEmitter {
     console.log("[ATRIUM] LLM router attached — intelligent planning enabled");
   }
 
+  getLLMRouter(): LLMRouter | null {
+    return this.llmRouter;
+  }
+
   getState(): AtriumState {
     return this.state;
   }

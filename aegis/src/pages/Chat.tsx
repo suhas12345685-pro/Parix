@@ -106,13 +106,13 @@ export function Chat({ connected, state, paused, responses, onSend }: Props) {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   submit();
                 }
               }}
               rows={1}
-              placeholder="Message Atrium (Ctrl+Enter to send)"
+              placeholder="Message Atrium (Enter to send, Shift+Enter for new line)"
               className="min-h-6 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-[#7d708d]"
             />
           </label>
