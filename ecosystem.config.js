@@ -45,6 +45,7 @@ module.exports = {
       env: {
         PYTHONUNBUFFERED: '1',
         PARIX_HOME,
+        PYTHONPATH: PARIX_HOME,
       },
       wait_ready: false,
     },
@@ -67,13 +68,13 @@ module.exports = {
 
     {
       name: 'parix-aegis',
-      cwd: path.join(PARIX_HOME, 'aegis'),
-      script: npmCommand,
-      args: `run preview -- --host 127.0.0.1 --port ${AEGIS_UI_PORT}`,
-      interpreter: 'none',
+      cwd: PARIX_HOME,
+      script: 'hatchery/dist/index.js',
+      args: '--serve-aegis',
+      interpreter: 'node',
       watch: false,
       autorestart: true,
-      max_restarts: 5,
+      max_restarts: 10,
       restart_delay: 3000,
       env: {
         NODE_ENV: 'production',
