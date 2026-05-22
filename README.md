@@ -1,163 +1,183 @@
-# Parix
+# 🧠 Parix
 
-![Coverage](docs/assets/coverage.svg)
+> **The Proactive, Local-First Self-Healing Workstation Agent**
 
-Parix is a local-first self-healing AI agent. Atrium is the Node.js brain, Hands is the Python sensor and executor bridge, Aegis is the React dashboard, and Hatchery is the onboarding wizard.
+Parix is a state-of-the-art, polyglot AI assistant that runs in the background of your operating system to monitor terminal output and workspace activity. It proactively diagnoses terminal errors, repeated failures, and system issues, offering or executing immediate one-click fixes before you even have to ask. 
 
-## Quickstart
+Parix is built with a **Node.js Brain** (Atrium), **Python Hands** (sensors and command execution bridge), and a gorgeous **Vite + React Dashboard** (Aegis) to visualize health, agent status, and active tasks.
 
-One-line installers download a small bootstrapper, clone the Parix repo, install all Node and Python packages, build the workspaces, start Hatchery immediately, and bring the agent online after onboarding. Hatchery uses the terminal wizard when it can; if prompts are unavailable, it automatically opens the web onboarding flow in your browser.
+---
 
-Windows PowerShell:
+## ⚡ Quickstart & One-Line Installers
 
+The frictionless one-line installers verify your machine's preflight requirements (Node.js 20+, Python 3.12+, Git), clone the official Parix repository, install all dependencies, build the project workspaces, and instantly launch the **Hatchery interactive onboarding flow** to configure your API keys, channels, and privacy choices.
+
+### 🪟 Windows (PowerShell)
+Execute the following in PowerShell:
 ```powershell
-powershell -c "irm https://openclaw.ai/install.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/suhas12345685-pro/Parix/main/install.ps1 | iex"
 ```
 
-macOS:
+### 🍎 macOS (Bash/Zsh)
+Execute the following in Terminal:
+```bash
+curl -fsSL https://raw.githubusercontent.com/suhas12345685-pro/Parix/main/install.sh | bash
+```
+
+### 🐧 Linux (Bash)
+Execute the following in Terminal:
+```bash
+curl -fsSL https://raw.githubusercontent.com/suhas12345685-pro/Parix/main/install.sh | bash
+```
+
+---
+
+## 🚀 Runtime Operations
+
+Once Hatchery completes the onboarding sequence, Parix runs seamlessly as a background process.
+
+### Desktop Command Line Utility
+Reopen your terminal or shell to reload your system path and utilize the standard `parix` CLI tools:
 
 ```bash
-curl -fsSL https://openclaw.ai/install.sh | bash
+parix start         # Starts Atrium, Hands, and Aegis background services
+parix status        # Checks current status of all background components
+parix stop          # Stops the background services cleanly
+parix restart       # Restarts all active agent processes
+parix onboarding    # Runs Hatchery again to modify credentials or configurations
 ```
 
-Linux:
+### 💬 Interactive Console Actions
+Inside the **Aegis Voice & Chat interface**, you can run commands directly:
+*   `stop parix` / `resume parix`
+*   `status`
+*   `flush queue` (clears pending self-healing task runs)
+*   `start parix atrium` (fires up the Brain independently)
 
+---
+
+## 🏗️ System Architecture
+
+Parix separates reasoning (Brain) and action (Sensors & Execution) into dedicated processes connected via the typed **Synapse WebSocket Bridge**:
+
+```text
+       ┌────────────────────────┐
+       │   User / Workstation   │
+       └───────────┬────────────┘
+                   │
+                   ▼
+       ┌────────────────────────┐
+       │ Hatchery Onboarding    │ ───► profile.json + secrets + scope
+       └───────────┬────────────┘
+                   │
+                   ▼
+   ┌────────────────────────────────┐       ┌────────────────────────┐
+   │ Aegis Dashboard (React UI)     │ ◄───► │ Atrium Brain (Node.js) │
+   │ Local Port 3000                │  WS   │ Local Port 8766        │
+   └────────────────────────────────┘       └───────────┬────────────┘
+                                                        │
+                                                     Synapse
+                                                    WS (8765)
+                                                        │
+                                                        ▼
+   ┌────────────────────────────────┐       ┌────────────────────────┐
+   │ SQLite / memory.db database    │ ◄──── │ Hands Sensors (Python) │
+   └────────────────────────────────┘       │ CLI, Accessibility, OS │
+                                            └────────────────────────┘
+```
+
+### Main Directories
+*   [`atrium/`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/atrium) — TypeScript core engine containing the Council state machine, LLM routing, scheduling, priority dead-letter queues, and fallback channels.
+*   [`hands/`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/hands) — Python platform executor and sensor loop, utilizing OS sensors, Accessibility API integrations, and safe command runners.
+*   [`aegis/`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/aegis) — Responsive Vite + React frontend dashboard to monitor agent status, logs, cron jobs, settings, and skills.
+*   [`hatchery/`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/hatchery) — Interactive wizard to guide fresh installations step-by-step.
+*   [`shared/`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/shared) — Single source of truth schemas, WebSocket protocol contracts, and database DDL.
+
+---
+
+## 👁️ Hybrid Accessibility + Vision Layer
+
+Parix’s technical moat lies in its ability to read the workstation screen across multiple platforms:
+
+| Target Platform | Native API | Backup Driver | Spatial Understanding |
+| :--- | :--- | :--- | :--- |
+| **Windows** | UIAutomation (`pywinauto`) | Screenshots + Local OCR | Yes |
+| **macOS** | AXUIElement API (`pyobjc`) | Screenshots + Local OCR | Yes |
+| **Linux** | AT-SPI2 / D-Bus (`pyatspi`) | Screenshots + Local OCR | Yes |
+
+*When native UI entropy is too low, the system automatically uses visual OCR (`mss` screenshot fallback) and merges them into a single, unified `AccessibilitySnapshot` for rich, layout-aware AI reasoning.*
+
+---
+
+## 🧠 Cognitive Framework & Autonomy
+
+Parix processes environmental inputs through a robust stateful cognition loop to filter noise and safely resolve errors:
+
+```text
+Event Source ──► Debouncer/Attention ──► Desire State ──► Planner (DAG) ──► Validation ──► Execution
+```
+
+1.  **State Machine (The Council)**: Steps securely between `IDLE ──► OBSERVING ──► THINKING ──► ACTING ──► WAITING`.
+2.  **Safety First**:
+    *   Any terminal action requires explicit user permission via **Telegram/Desktop alerts** or a click in **Aegis**.
+    *   Supports a **Pause Switch hotkey** (`Ctrl + Shift + P`) to immediately suspend all background sensory collection.
+3.  **Local Memory (SQLite)**: Stores episodic history, profile facts, active workflows, and system health status. If a background component crashes, it performs a zero-loss `REBOOT_SYNC` push to restore the state.
+
+---
+
+## 🛠️ Developer Setup & Verification
+
+If you are setting up a development workspace to customize or extend Parix:
+
+### 1. Manual Setup
 ```bash
-curl -fsSL https://openclaw.ai/install.sh | bash
-```
+# Clone the repository
+git clone https://github.com/suhas12345685-pro/Parix.git
+cd Parix
 
-From a repo clone:
-
-```powershell
-.\install.ps1
-```
-
-After Hatchery finishes, Parix starts Hands, Atrium, and Aegis automatically in the background. Aegis opens at `http://localhost:3000`, or the next free local port if 3000 is busy.
-
-Runtime commands:
-
-```powershell
-parix status
-parix stop
-parix restart
-parix start
-start parix atrium
-```
-
-Inside Aegis chat, you can say `stop parix`, `resume parix`, `start parix atrium`, `status`, or `flush queue`.
-
-Development setup:
-
-```powershell
+# Install Workspace Node packages
 npm install
-python -m pip install -r hands\requirements.txt
-python -m pip install -r hands\requirements-dev.txt
+
+# Setup Python environment and requirements
+python -m pip install -r hands/requirements.txt
+python -m pip install -r hands/requirements-dev.txt
+
+# Run Onboarding and build
 npm run onboarding
 ```
 
-`npm run onboarding` builds all workspaces first, then starts Hatchery. Use `npm run onboarding:web` only when you specifically want to skip the terminal wizard and go straight to the browser flow.
-
-Development run:
-
-```powershell
+### 2. Running in Development Mode
+Launch components in separate shells to watch local log files and test edits:
+```bash
+# Start Hands WebSocket server
 python -m hands.main
+
+# Run Atrium brain compilation and watch
 npm run dev --workspace=atrium
+
+# Start Aegis local server
 cd aegis
 npx vite dev --host 127.0.0.1
 ```
 
-Production-style Docker run:
-
-```powershell
-docker compose up --build
-```
-
-Aegis opens at `http://localhost:3000`, Atrium health is at `http://localhost:8766/healthz`, and Hands listens on `ws://localhost:8765`.
-
-## Architecture
-
-```text
-User
-  |
-  v
-Hatchery onboarding --> profile.json + secrets + starter skills
-  |
-  v
-Aegis dashboard --ws://8766--> Atrium brain --ws://8765--> Hands executor/sensors
-                                  |
-                                  v
-                           SQLite/sql.js memory
-```
-
-Main packages:
-
-- `atrium/` - TypeScript brain, Aegis relay, Synapse client, scheduler, LLM adapters, channels, memory.
-- `hands/` - Python WebSocket server, OS sensors, CLI executor, screenshots, accessibility and voice hooks.
-- `aegis/` - Vite React dashboard for chat, health, cron jobs, skills, settings, and diagnostics.
-- `hatchery/` - CLI and web onboarding wizard.
-- `shared/` - protocol ports, message contract, profile schema, and SQLite DDL.
-
-## Cognition
-
-Parix v0.2.0-alpha includes a cognitive loop that filters noisy OS events
-before they reach the Council, chooses the right thinking strategy,
-decomposes work into plan trees, and remembers long-running narratives
-across sessions.
-
-```text
-event -> attention -> working memory -> desire -> hypotheses
-      -> metacognition -> planner -> horizon -> simulate
-      -> execute -> learn
-```
-
-The key modules are `atrium/src/cognition/attention.ts`,
-`atrium/src/cognition/metacognition.ts`, `atrium/src/cognition/planner/`,
-and `atrium/src/cognition/horizon.ts`. See
-[docs/cognition.md](docs/cognition.md) for thresholds and tuning, and
-[docs/architecture.md](docs/architecture.md) for the layer map.
-
-## Environment
-
-Copy `.env.example` to `.env` and fill only what you use.
-
-Common variables:
-
-- `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY`, `PERPLEXITY_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY` - cloud LLM providers.
-- `OLLAMA_BASE_URL`, `LMSTUDIO_BASE_URL` - local model endpoints.
-- `HANDS_WS_URL` - Atrium to Hands URL, defaults to `ws://localhost:8765`.
-- `PARIX_WS_HOST`, `PARIX_WS_PORT` - Hands bind host and port. Hands refuses to bind to a non-loopback host unless `PARIX_ALLOW_REMOTE_SYNAPSE=1` is also set.
-- `PARIX_SYNAPSE_TOKEN` - Shared secret for the synapse WS handshake. Required when hands binds non-loopback (Docker, k8s). On desktop, hands auto-generates one at `~/.parix/synapse-token`. Both hands and atrium must see the same value.
-- `PARIX_HOME` - profile and auth storage root.
-- `PARIX_DB_PATH` - memory database path for container or deployment overrides.
-- Channel secrets such as Telegram, Slack, Discord, Teams, and webhook URLs are documented in `.env.example`.
-
-## Channels
-
-Channel adapters live in `atrium/src/channels/adapters/`. To add one:
-
-1. Follow the existing adapter shape and keep external API calls isolated in that file.
-2. Add any runtime config keys to `.env.example`.
-3. Register the adapter through the channel registry if it should appear in Aegis or Hatchery.
-4. Add a focused unit test or a mockable transport path for the send operation.
-
-## Skills
-
-Skills live in `.agents/skills/<skill-id>/` and must include `SKILL.md`. Hatchery can create the first starter skill during web onboarding, and Aegis can create additional skills from the Skills page.
-
-Recommended structure:
-
-```text
-.agents/skills/my-skill/
-  SKILL.md
-  scripts/
-  references/
-  templates/
-```
-
-## Verification
-
-```powershell
+### 3. Quick Shipping Gate Verification
+Verify local builds, types, test suites, and skill schemas prior to push:
+```bash
 npm run verify:ship
 ```
 
-`npm run verify:ship` runs the same local push-readiness gate used for the alpha ship check: workspace build, lint, Atrium tests and coverage, Hands tests and compile, skill manifest validation, the e2e pipeline, and the high-severity npm audit.
+---
+
+## 🔑 Environment Configuration
+
+Copy `.env.example` to `.env` and fill the variables for your preferred integrations:
+*   `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY` (Cloud reasoning engines)
+*   `OLLAMA_BASE_URL`, `LMSTUDIO_BASE_URL` (Local privacy fallback engines)
+*   `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (Mobile self-healing controls)
+*   `HANDS_WS_URL` (Synapse WebSocket bridge destination; defaults to `ws://localhost:8765`)
+
+---
+
+## 📄 License & Terms
+
+Parix is open-source software licensed under the MIT License. It operates locally and values user data privacy by executing code directly on your local workstation without external telemetry streaming. Check [`SOUL.md`](file:///C:/Users/DELL/.gemini/antigravity/worktrees/parix/add-greeting-feature/SOUL.md) for core principles.
