@@ -29,6 +29,13 @@ import {
 } from './config-writer.js';
 import { formatInstalledSkillLines, listInstalledSkills } from './skills.js';
 
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve, join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(__dirname, '../..');
+
 export interface TuiResult {
   completed: boolean;
   profile?: ParixProfile;
@@ -48,6 +55,117 @@ const ACCOUNT_AUTH_URLS: Record<string, string> = {
   deepseek: 'https://platform.deepseek.com/',
 };
 
+export function getQuickProfile(mode: ProfileMode = 'personal'): ParixProfile {
+  const profile = createDefaultProfile(mode);
+  
+  profile.llm.provider = 'mock';
+  profile.llm.model = 'mock';
+  profile.llm.authMethod = 'local';
+  profile.llm.connectionVerified = true;
+  profile.llm.verifiedAt = new Date().toISOString();
+  
+  profile.channels.enabled = ['aegis', 'console'];
+  profile.channels.primary = 'aegis';
+  profile.channels.settings.aegis = createDefaultAegisSettings('aegis');
+
+  if (isPersonalProfile(profile)) {
+    profile.agentProfile = {
+      mode: 'personal',
+      userName: 'Suhas',
+      userDescription: 'Systems engineer & developer',
+      agentName: 'Parix',
+      relationshipLabel: 'personal agent',
+      vibe: 'warm, direct, proactive',
+      personality: 'friendly, capable, and candid',
+      primaryGoals: ['monitor compilation errors', 'suggest fixes', 'draft changelogs'],
+      recurringTasks: ['check system health', 'verify build logs hourly'],
+      allowedChannels: ['aegis', 'console'],
+      blockedActions: [
+        'impersonate the user',
+        'spend money',
+        'delete personal data without approval',
+      ],
+      approvalRequiredActions: [
+        'send external messages',
+        'delete data',
+        'change credentials',
+        'spend money',
+        'run destructive commands',
+      ],
+      memoryPreferences: {
+        rememberUserPreferences: true,
+        rememberProjectContext: true,
+        rememberPersonalContext: false,
+      },
+    };
+    profile.identity.name = 'Suhas';
+    profile.identity.computerUse = 'Systems engineer & developer';
+    profile.identity.mainWorkflows = ['monitor compilation errors', 'suggest fixes', 'draft changelogs'];
+    profile.personality.agentName = 'Parix';
+    profile.personality.autonomyLevel = 'ask-before-fix';
+  } else if (isEnterpriseProfile(profile)) {
+    profile.agentProfile = {
+      mode: 'enterprise',
+      companyName: 'Parix Corp',
+      teamName: 'IT Operations',
+      agentName: 'Parix',
+      roleTitle: 'IT Support Agent',
+      roleDescription: 'Automated team member operating inside corporate bounds and code repos.',
+      responsibilities: ['verify PR sanity', 'scan dependencies', 'monitor staging health'],
+      recurringTasks: ['hourly build checks', 'daily security scanning'],
+      reportingTo: 'Ops Lead',
+      allowedChannels: ['aegis', 'console'],
+      allowedTools: ['Slack', 'Teams', 'GitHub', 'Jira', 'AWS'],
+      automaticActions: ['local diagnostics', 'logs'],
+      blockedActions: [
+        'impersonate a human employee',
+        'use unofficial channel access',
+      ],
+      approvalRequiredActions: [
+        'send external messages',
+        'delete data',
+        'spend money',
+        'change production systems',
+      ],
+      auditLoggingEnabled: true,
+      memoryBoundaries: {
+        companyMemory: true,
+        teamMemory: true,
+        customerDataMemory: false,
+      },
+    };
+    profile.identity.companyName = 'Parix Corp';
+    profile.identity.department = 'IT Operations';
+    profile.identity.userRole = 'Ops Lead';
+    profile.identity.allowedScope = ['local diagnostics', 'logs'];
+    profile.identity.forbiddenScope = ['impersonate a human employee', 'use unofficial channel access'];
+    profile.personality.roleName = 'IT Support Agent';
+    profile.personality.approvalPolicy = 'policy-based';
+    profile.personality.auditExpectation = 'full';
+  }
+  
+  return profile;
+}
+
+function createDefaultInitialSkill(): void {
+  const id = 'daily-operator-brief';
+  const skillDir = resolve(PROJECT_ROOT, '.agents/skills', id);
+  mkdirSync(join(skillDir, 'templates'), { recursive: true });
+  mkdirSync(join(skillDir, 'references'), { recursive: true });
+  mkdirSync(join(skillDir, 'scripts'), { recursive: true });
+  
+  writeFileSync(
+    join(skillDir, 'SKILL.md'),
+    `---\nname: ${id}\ndescription: Summarize Parix health, recent errors, and next recommended actions.\n---\n\n# Daily Operator Brief\n\nSummarize Parix health, recent errors, and next recommended actions.\n\n## Source\n\nhatchery\n\n## Usage\n\nUse this skill when Parix needs a first-pass operational brief after onboarding.\n`,
+    'utf-8'
+  );
+  writeFileSync(
+    join(skillDir, 'templates', 'brief.json'),
+    JSON.stringify({ sections: ['health', 'recent_errors', 'next_actions'], source: 'hatchery' }, null, 2) + '\n',
+    'utf-8'
+  );
+}
+
 export async function runTuiWizard(): Promise<TuiResult> {
   console.log('');
   console.log('Parix Onboarding');
@@ -58,6 +176,34 @@ export async function runTuiWizard(): Promise<TuiResult> {
     console.log(line);
   }
   console.log('');
+
+  const { onboardingStyle } = await inquirer.prompt<{ onboardingStyle: 'full' | 'quick' | 'leave' }>([
+    {
+      name: 'onboardingStyle',
+      type: 'list',
+      message: 'Choose onboarding style',
+      choices: [
+        { name: '1. Full Interactive Onboarding', value: 'full' },
+        { name: '(Recommended) 2. Quick Setup (Give Everything & Ready)', value: 'quick' },
+        { name: '3. Leave for Now (Skip onboarding, launch default mock agent)', value: 'leave' },
+      ],
+      default: 'quick',
+    },
+  ]);
+
+  if (onboardingStyle === 'quick' || onboardingStyle === 'leave') {
+    const profile = getQuickProfile('personal');
+    const secrets: Record<string, string> = {};
+    const result = await writeProfile(profile, secrets);
+    if (!result.success) {
+      console.error('[hatchery] Profile validation failed:');
+      for (const error of result.errors) console.error(`  - ${error}`);
+      return { completed: false };
+    }
+    createDefaultInitialSkill();
+    console.log(`[hatchery] Profile saved automatically: ${result.profilePath}`);
+    return { completed: true, profile };
+  }
 
   const { mode } = await inquirer.prompt<{ mode: ProfileMode }>([
     {

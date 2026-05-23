@@ -913,6 +913,15 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
             <p class="hint" style="margin-bottom: 16px;">Select the cognitive core that drives Parix's reasoning engine.</p>
             
             <div class="cards-grid" id="providers-grid">
+              <!-- Mock Card (Instant Ready) -->
+              <div class="card-item" data-provider-val="mock">
+                <div class="card-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4H11v-4H7v-2h4V7h2v4h4v2z"/>
+                  </svg>
+                </div>
+                <span class="card-title">Mock (Instant Ready)</span>
+              </div>
               <!-- Ollama Card -->
               <div class="card-item" data-provider-val="ollama">
                 <div class="card-icon">
@@ -1074,14 +1083,24 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
       </form>
 
       <div class="actions">
-        <button type="button" class="secondary" id="back" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-          Back
-        </button>
-        <button type="button" id="next">
-          Next
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-        </button>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="secondary" id="back" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back
+          </button>
+          <button type="button" class="secondary" id="leave-for-now" title="Skip onboarding and launch the agent with default ready state.">
+            Leave for Now
+          </button>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="secondary" id="quick-setup" style="border-color: rgba(6, 182, 212, 0.4); color: var(--neon-cyan);" title="Instantly fill all fields with working mock/local defaults and hatch the agent.">
+            Quick Setup (Give Everything)
+          </button>
+          <button type="button" id="next">
+            Next
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </div>
       </div>
     </section>
   </main>
@@ -1089,6 +1108,7 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
   <script>
     const providerDefaults = ${JSON.stringify(DEFAULT_MODELS)};
     // Add custom defaults if needed
+    providerDefaults.mock = "mock";
     providerDefaults.ollama = "gpt-oss:120b-cloud"; // set user's model as default for Ollama in this session
     
     const channels = ${JSON.stringify(CHANNEL_IDS.filter((id) => id !== 'aegis'))};
@@ -1142,13 +1162,13 @@ Parix will configure safety boundary policies, audit expectations, and join team
       });
     });
 
-    // Preset Ollama as selected card initially, or whatever open-ai is set
-    const defaultInitProvider = "ollama"; // Set Ollama as recommended initial
+    // Preset Mock as selected card initially
+    const defaultInitProvider = "mock";
     const initialCard = document.querySelector(\`#providers-grid .card-item[data-provider-val="\${defaultInitProvider}"]\`);
     if (initialCard) {
       initialCard.classList.add('selected');
       provider.value = defaultInitProvider;
-      model.value = "gpt-oss:120b-cloud"; // set user's model directly
+      model.value = "mock";
     }
 
     function render() {
@@ -1370,6 +1390,63 @@ Parix will configure safety boundary policies, audit expectations, and join team
         "'": '&#39;'
       })[char]);
     }
+
+    function applyQuickDefaults() {
+      const defaults = {
+        userName: "Suhas",
+        agentName: "Parix",
+        userDescription: "Systems engineer & developer",
+        relationshipLabel: "personal agent",
+        vibe: "warm, direct, proactive",
+        personality: "friendly, capable, and candid",
+        primaryGoals: "monitor compilation errors, suggest fixes, draft changelogs",
+        recurringTasks: "check system health, verify build logs hourly",
+        provider: "mock",
+        model: "mock",
+        apiKey: "",
+        wakeWord: "aegis",
+        companyName: "Parix Corp",
+        teamName: "IT Operations",
+        roleTitle: "IT Support Agent",
+        reportingTo: "Ops Lead",
+        roleDescription: "Automated team member operating inside corporate bounds and code repos.",
+        responsibilities: "verify PR sanity, scan dependencies, monitor staging health",
+        enterpriseRecurringTasks: "hourly build checks, daily security scanning",
+        allowedTools: "Slack, Teams, GitHub, Jira, AWS",
+        automaticActions: "local diagnostics, logs",
+        approvalRequiredActions: "push code changes, delete data, spend money",
+        blockedActions: "alter credentials, download untrusted libraries, impersonate human users"
+      };
+
+      for (const [key, val] of Object.entries(defaults)) {
+        const input = document.querySelector('[name="' + key + '"]');
+        if (input) {
+          input.value = val;
+        }
+      }
+      
+      // Select mock card in provider grid
+      document.querySelectorAll('#providers-grid .card-item').forEach(c => c.classList.remove('selected'));
+      const mockCard = document.querySelector('#providers-grid .card-item[data-provider-val="mock"]');
+      if (mockCard) {
+        mockCard.classList.add('selected');
+      }
+      provider.value = 'mock';
+      model.value = 'mock';
+    }
+
+    document.querySelector('#leave-for-now').addEventListener('click', () => {
+      applyQuickDefaults();
+      step = steps.length - 1;
+      render();
+      submit();
+    });
+
+    document.querySelector('#quick-setup').addEventListener('click', () => {
+      applyQuickDefaults();
+      step = steps.length - 1;
+      render();
+    });
 
     back.addEventListener('click', () => { 
       step = Math.max(0, step - 1); 
