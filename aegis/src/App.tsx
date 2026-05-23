@@ -3,6 +3,7 @@ import { useParixSocket } from "./hooks/useParixSocket";
 import { Sidebar } from "./components/Sidebar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Chat } from "./pages/Chat";
+import { Canvas } from "./pages/Canvas";
 import { Channels } from "./pages/Channels";
 import { CronJobs } from "./pages/CronJobs";
 import { Dashboard } from "./pages/Dashboard";
@@ -19,6 +20,7 @@ import { NowPanel } from "./components/NowPanel";
 
 export type Page =
   | "chat"
+  | "canvas"
   | "overview"
   | "channels"
   | "instances"
@@ -183,6 +185,7 @@ export function App() {
                   onSend={(message) => socket.sendCommand("chat", { message })}
                 />
               )}
+              {page === "canvas" && <Canvas canvas={socket.health.canvas} />}
               {page === "overview" && (
                 <Dashboard
                   health={socket.health}
@@ -293,6 +296,7 @@ export function App() {
 function pageTitle(page: Page): string {
   const titles: Record<Page, string> = {
     chat: "Chat",
+    canvas: "Canvas",
     overview: "Overview",
     channels: "Channels",
     instances: "Instances",
@@ -311,6 +315,7 @@ function pageTitle(page: Page): string {
 function pageSubtitle(page: Page): string {
   const subtitles: Record<Page, string> = {
     chat: "Direct Atrium session for quick interventions.",
+    canvas: "Live document the agent writes and updates.",
     overview: "Live health, state, and event telemetry.",
     channels: "Outbound user notification routes.",
     instances: "Running Parix processes and bridges.",

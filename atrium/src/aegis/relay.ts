@@ -21,6 +21,7 @@ import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { type AtriumEngine } from "../intelligence/council.js";
 import { AGENT_ACK, runAgentTurn } from "../intelligence/agent-chat.js";
+import { getCanvas, registerCanvasBroadcaster } from "./canvas.js";
 import { type SynapseClient } from "../synapse/client.js";
 import { getRecentAudit } from "../intelligence/audit.js";
 import { getSkillStats } from "../intelligence/skillcache.js";
@@ -86,6 +87,9 @@ export function startAegisRelay(
   engine = atriumEngine;
   synapse = synapseClient;
   startTime = Date.now();
+
+  // Stream agent-driven Canvas updates to all connected dashboards.
+  registerCanvasBroadcaster((msg) => broadcast(msg));
 
   const healthServer = createServer((req, res) => {
     if (req.url === "/healthz" || req.url === "/health") {
@@ -475,6 +479,7 @@ function buildHealthSnapshot(): Record<string, unknown> {
     cronTasks: getCronTasks(),
     installedSkills: getInstalledSkills(),
     workspaceFiles: getWorkspaceFiles(),
+    canvas: getCanvas(),
 
     recentAudit: getRecentAudit(20).map((a: Record<string, unknown>) => ({
       id: a.id,

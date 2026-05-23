@@ -1125,13 +1125,14 @@ export class AtriumEngine extends EventEmitter {
           : []),
         "",
         "Respond with a JSON object containing:",
-        '  - taskType: "cli" | "operate" | "mcp" | "notification" | "none"',
-        '  - payload: { command: "..." } for cli, { goal: "..." } for operate, { server: "...", tool: "...", args: {...} } for mcp, or { title: "...", body: "...", urgency: "low"|"medium"|"high" } for notification',
+        '  - taskType: "cli" | "operate" | "mcp" | "canvas" | "notification" | "none"',
+        '  - payload: { command: "..." } for cli, { goal: "..." } for operate, { server: "...", tool: "...", args: {...} } for mcp, { title: "...", content: "...(markdown)" } for canvas, or { title: "...", body: "...", urgency: "low"|"medium"|"high" } for notification',
         "  - reasoning: one sentence explaining what you are doing",
         "",
         'Use "cli" when the request is something you can carry out with a shell command on the user\'s machine.',
         'Use "operate" when the request requires interacting with on-screen GUI apps (clicking buttons, typing into fields, navigating an app the user can see). The goal should describe the on-screen task in plain language; a vision agent will see the screen and act.',
         'Use "mcp" when one of the listed MCP tools above directly accomplishes the request; set server, tool, and args to match the tool.',
+        'Use "canvas" when the user wants you to draft, write, or display a document/report/plan/table — put the rendered markdown in content; it appears live in the Aegis Canvas view.',
         'Use "notification" when the right response is to surface information to the user.',
         'Set taskType to "none" ONLY when the request is a pure question or chitchat with no action to take.',
         "Never run destructive commands (rm -rf, format, shutdown, sudo, disk wipes).",
@@ -1270,6 +1271,15 @@ export class AtriumEngine extends EventEmitter {
         result = await this.executeSkillPlan(plan);
       } else if (plan.taskType === "mcp") {
         result = await this.executeMcpPlan(plan);
+      } else if (plan.taskType === "canvas") {
+        const payload = plan.payload as Record<string, unknown>;
+        const { setCanvas } = await import("../aegis/canvas.js");
+        const state = setCanvas({
+          title: payload.title ? String(payload.title) : undefined,
+          content: String(payload.content ?? ""),
+          format: payload.format === "text" ? "text" : "markdown",
+        });
+        result = { success: true, output: `canvas updated: ${state.title}` };
       } else {
         const taskResult = await this.synapse.sendTask(
           plan.taskType,

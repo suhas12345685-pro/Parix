@@ -141,6 +141,13 @@ export function useParixSocket() {
         }));
         break;
 
+      case "CANVAS_UPDATE":
+        setHealth((prev) => ({
+          ...prev,
+          canvas: (msg.canvas as SystemHealth["canvas"]) ?? null,
+        }));
+        break;
+
       case "CHAT_RESULT":
         setChatResponses((prev) => [
           ...prev,

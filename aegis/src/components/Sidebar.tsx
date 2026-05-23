@@ -33,6 +33,7 @@ export function Sidebar({
         <nav className="flex flex-1 flex-col items-center gap-1 overflow-y-auto">
           {[
             { page: "chat" as Page, icon: "▱" },
+            { page: "canvas" as Page, icon: "▦" },
             { page: "overview" as Page, icon: "⌁" },
             { page: "channels" as Page, icon: "↗" },
             { page: "instances" as Page, icon: "◇" },
@@ -105,6 +106,13 @@ export function Sidebar({
             onNavigate={onNavigate}
             icon="▱"
             label="Chat"
+          />
+          <NavButton
+            page="canvas"
+            current={page}
+            onNavigate={onNavigate}
+            icon="▦"
+            label="Canvas"
           />
         </NavGroup>
 
@@ -206,6 +214,7 @@ export function Sidebar({
 function pageTitle(page: Page): string {
   const titles: Record<Page, string> = {
     chat: "Chat",
+    canvas: "Canvas",
     overview: "Overview",
     channels: "Channels",
     instances: "Instances",

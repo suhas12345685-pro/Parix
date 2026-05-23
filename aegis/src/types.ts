@@ -54,6 +54,13 @@ export interface GovernorStats {
   dailyLimit: number;
 }
 
+export interface CanvasState {
+  title: string;
+  content: string;
+  format: "markdown" | "text";
+  updatedAt: number;
+}
+
 export interface SystemHealth {
   dashboard: DashboardState;
   skills: SkillStats;
@@ -66,6 +73,7 @@ export interface SystemHealth {
   workspaceFiles: WorkspaceFile[];
   recentEvents: SensorEvent[];
   recentAudit: AuditEntry[];
+  canvas?: CanvasState | null;
 }
 
 export interface CognitionSnapshot {
