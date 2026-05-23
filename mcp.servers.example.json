@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy to mcp.servers.json (or set PARIX_MCP_CONFIG) to give Parix MCP tools. Each server is connected at boot; its tools become callable via the engine's `mcp` task type. Unconfigured = no MCP tools (no crash).",
+  "servers": {
+    "filesystem": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/you/allow"],
+      "enabled": false
+    },
+    "example-http": {
+      "transport": "http",
+      "url": "http://localhost:3333/mcp",
+      "enabled": false
+    }
+  }
+}

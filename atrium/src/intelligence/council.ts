@@ -43,6 +43,7 @@ import {
 import { saveNarrative } from "../cognition/horizon-store.js";
 import { matchSkills } from "./skill-registry.js";
 import { runSkillsInParallel } from "./skill-fanout.js";
+import { type McpManager } from "../mcp/manager.js";
 import { isAutonomousMode } from "../config/profile.js";
 import {
   createDefaultNeuroSymbolicBridge,
@@ -124,10 +125,20 @@ export class AtriumEngine extends EventEmitter {
   private errorCooldownTimer: ReturnType<typeof setTimeout> | null = null;
   private thinkingTimer: ReturnType<typeof setTimeout> | null = null;
   private neuroSymbolic = createDefaultNeuroSymbolicBridge();
+  private mcpManager: McpManager | null = null;
 
   constructor(synapse: SynapseClient) {
     super();
     this.synapse = synapse;
+  }
+
+  /** Attach the MCP manager so the engine can dispatch `mcp` tasks. */
+  setMcpManager(manager: McpManager): void {
+    this.mcpManager = manager;
+  }
+
+  getMcpManager(): McpManager | null {
+    return this.mcpManager;
   }
 
   /**
@@ -1102,20 +1113,25 @@ export class AtriumEngine extends EventEmitter {
   ): Promise<ActionPlan | null> {
     if (!this.llmRouter) return null;
 
+    const mcpCatalog = this.mcpManager?.catalog() ?? "";
     try {
       const prompt = [
         "You are Parix, an autonomous OS agent. The user has directly asked you to do something via their chat box. Decide what action carries it out.",
         "",
         `User request: ${text}`,
         `Context: ${JSON.stringify(context)}`,
+        ...(mcpCatalog
+          ? ["", "Available MCP tools (server.tool):", mcpCatalog]
+          : []),
         "",
         "Respond with a JSON object containing:",
-        '  - taskType: "cli" | "operate" | "notification" | "none"',
-        '  - payload: { command: "..." } for cli, { goal: "..." } for operate, or { title: "...", body: "...", urgency: "low"|"medium"|"high" } for notification',
+        '  - taskType: "cli" | "operate" | "mcp" | "notification" | "none"',
+        '  - payload: { command: "..." } for cli, { goal: "..." } for operate, { server: "...", tool: "...", args: {...} } for mcp, or { title: "...", body: "...", urgency: "low"|"medium"|"high" } for notification',
         "  - reasoning: one sentence explaining what you are doing",
         "",
         'Use "cli" when the request is something you can carry out with a shell command on the user\'s machine.',
         'Use "operate" when the request requires interacting with on-screen GUI apps (clicking buttons, typing into fields, navigating an app the user can see). The goal should describe the on-screen task in plain language; a vision agent will see the screen and act.',
+        'Use "mcp" when one of the listed MCP tools above directly accomplishes the request; set server, tool, and args to match the tool.',
         'Use "notification" when the right response is to surface information to the user.',
         'Set taskType to "none" ONLY when the request is a pure question or chitchat with no action to take.',
         "Never run destructive commands (rm -rf, format, shutdown, sudo, disk wipes).",
@@ -1252,6 +1268,8 @@ export class AtriumEngine extends EventEmitter {
         result = { success: true, output: "notification_dispatched" };
       } else if (plan.taskType === "skill") {
         result = await this.executeSkillPlan(plan);
+      } else if (plan.taskType === "mcp") {
+        result = await this.executeMcpPlan(plan);
       } else {
         const taskResult = await this.synapse.sendTask(
           plan.taskType,
@@ -1311,6 +1329,30 @@ export class AtriumEngine extends EventEmitter {
 
       return { success: false, error: message };
     }
+  }
+
+  private async executeMcpPlan(
+    plan: ActionPlan,
+  ): Promise<{ success: boolean; output?: string; error?: string }> {
+    if (!this.mcpManager) {
+      return { success: false, error: "no MCP servers configured" };
+    }
+    const payload = plan.payload as Record<string, unknown>;
+    const server = String(payload.server ?? "");
+    const tool = String(payload.tool ?? payload.name ?? "");
+    const args =
+      (payload.args as Record<string, unknown> | undefined) ??
+      (payload.arguments as Record<string, unknown> | undefined) ??
+      {};
+    if (!server || !tool) {
+      return { success: false, error: "mcp plan needs { server, tool, args }" };
+    }
+    const result = await this.mcpManager.callTool(server, tool, args);
+    return {
+      success: result.success,
+      output: result.output,
+      error: result.error,
+    };
   }
 
   private async executeSkillPlan(

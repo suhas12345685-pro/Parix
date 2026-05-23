@@ -11,6 +11,7 @@ import "./channels/index.js";
 import { registerTelegramEngine } from "./channels/telegram.js";
 import { startInboundAgent } from "./channels/agent-inbound.js";
 import { bootstrapScheduler } from "./scheduler/bootstrap.js";
+import { McpManager, loadMcpConfig } from "./mcp/manager.js";
 import {
   registerStateGetter,
   resumeFromCheckpoint,
@@ -110,6 +111,19 @@ async function main() {
   startInboundAgent(engine);
   // Start the scheduler so heartbeat, maintenance jobs, and user cron tasks run.
   bootstrapScheduler(engine);
+
+  // Connect configured MCP servers so the engine can dispatch `mcp` tool calls.
+  const mcpManager = new McpManager();
+  engine.setMcpManager(mcpManager);
+  const mcpConfig = loadMcpConfig(PROJECT_ROOT);
+  if (Object.keys(mcpConfig).length > 0) {
+    await mcpManager.connect(mcpConfig);
+    console.log(
+      `[BOOT] MCP: ${mcpManager.listTools().length} tool(s) from ${Object.keys(mcpConfig).length} server(s)`,
+    );
+  } else {
+    console.log("[BOOT] MCP: no servers configured (mcp.servers.json absent)");
+  }
 
   // ─── LLM Router (v0.2 planning) ───────────────────────────────
   try {
