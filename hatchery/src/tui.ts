@@ -32,9 +32,43 @@ import { formatInstalledSkillLines, listInstalledSkills } from './skills.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { request } from 'node:http';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '../..');
+
+// Premium ANSI escape colors
+const cyan = (text: string) => `\x1b[36m${text}\x1b[0m`;
+const green = (text: string) => `\x1b[32m${text}\x1b[0m`;
+const yellow = (text: string) => `\x1b[33m${text}\x1b[0m`;
+const magenta = (text: string) => `\x1b[35m${text}\x1b[0m`;
+const bold = (text: string) => `\x1b[1m${text}\x1b[22m`;
+const dim = (text: string) => `\x1b[2m${text}\x1b[22m`;
+
+function checkLocalEndpoint(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    try {
+      const parsedUrl = new URL(url);
+      const req = request({
+        hostname: parsedUrl.hostname || 'localhost',
+        port: parsedUrl.port || 80,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'GET',
+        timeout: 1000
+      }, (res) => {
+        resolve(res.statusCode === 200 || res.statusCode === 204 || res.statusCode === 404 || res.statusCode === 401);
+      });
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(false);
+      });
+      req.end();
+    } catch {
+      resolve(false);
+    }
+  });
+}
 
 export interface TuiResult {
   completed: boolean;
@@ -168,12 +202,18 @@ function createDefaultInitialSkill(): void {
 
 export async function runTuiWizard(): Promise<TuiResult> {
   console.log('');
-  console.log('Parix Onboarding');
-  console.log('Connect your LLM provider with account auth where possible, or use an API key.');
+  console.log(bold(cyan(`
+  █▀▀█ █▀▀█ █▀▀█ ░▀░ █  █ 
+  █▄▄█ █▄▄▀ █▄▄█ ▀█▀ ▀▄▄█ 
+  █    ▀ ▀▀ ▀  ▀ ▀▀▀ ▄▄▄█   ${magenta('O N B O A R D I N G')}
+  `)));
+  console.log(cyan('  ┌────────────────────────────────────────────────────────┐'));
+  console.log(cyan('  │  Welcome to Parix! Connect your local or cloud LLM.    │'));
+  console.log(cyan('  └────────────────────────────────────────────────────────┘'));
   console.log('');
-  console.log('Installed skills');
+  console.log(bold(dim('  Installed skills:')));
   for (const line of formatInstalledSkillLines(listInstalledSkills())) {
-    console.log(line);
+    console.log(dim(`   ${line}`));
   }
   console.log('');
 
@@ -255,27 +295,22 @@ export async function runTuiWizard(): Promise<TuiResult> {
 
 function printModeIntro(mode: ProfileMode): void {
   console.log('');
+  console.log(bold(cyan('  ┌─── PARIX INITIALIZING ────────────────────────────────┐')));
   if (mode === 'personal') {
-    console.log(`Hey, I came online.
-
-Set my vibe.
-
-Tell me:
-- Who are you?
-- Who am I to you?
-- What should I call you?
-- What personality/vibe should I have?
-- What should I help you with?
-- What should I never do?
-- Which channels can I use?
-- What should I remember?`);
-    console.log('');
-    return;
+    console.log(cyan('  │  ✦ Mode: Personal Active                              │'));
+    console.log(dim('  │  Let\'s establish my virtual presence:                 │'));
+    console.log(dim('  │    - Who are you & what should I call you?            │'));
+    console.log(dim('  │    - What personality/vibe should I have?             │'));
+    console.log(dim('  │    - What daily tasks should I automate?              │'));
+    console.log(dim('  │    - What safety limits/blocked actions are set?      │'));
+  } else {
+    console.log(cyan('  │  ✦ Mode: Enterprise Active                            │'));
+    console.log(dim('  │  Configuring co-worker context:                       │'));
+    console.log(dim('  │    - Company, department, and team structure          │'));
+    console.log(dim('  │    - Key responsibilities & recurring checks          │'));
+    console.log(dim('  │    - Safety boundaries & required approvals           │'));
   }
-
-  console.log(`Hey, I came online.
-
-Tell me my role, my tasks, my channels, company name, team, and approval rules so I can work like a co-worker with your team.`);
+  console.log(bold(cyan('  └───────────────────────────────────────────────────────┘')));
   console.log('');
 }
 
@@ -493,12 +528,22 @@ async function collectLlm(profile: ParixProfile, secrets: Record<string, string>
   if (authMethod === 'local') {
     const envKey = PROVIDER_ENV_KEYS[provider];
     if (envKey) {
+      const defaultEndpoint = provider === 'ollama' ? 'http://localhost:11434' : 'http://localhost:1234/v1';
+      const checkUrl = provider === 'ollama' ? 'http://localhost:11434' : 'http://localhost:1234';
+      console.log(dim(`  Probing local server at ${checkUrl}...`));
+      const active = await checkLocalEndpoint(checkUrl);
+      if (active) {
+        console.log(green(`  ✔ ${capability.name} is running and reachable on loopback!`));
+      } else {
+        console.log(yellow(`  ⚠ ${capability.name} appears offline. Make sure the application is launched.`));
+      }
+      console.log('');
       const { baseUrl } = await inquirer.prompt<{ baseUrl: string }>([
         {
           name: 'baseUrl',
           type: 'input',
           message: `${capability.name} local endpoint`,
-          default: provider === 'ollama' ? 'http://localhost:11434' : 'http://localhost:1234/v1',
+          default: defaultEndpoint,
         },
       ]);
       if (baseUrl) secrets[envKey] = baseUrl;

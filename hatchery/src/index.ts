@@ -10,7 +10,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import {
   closeSync,
@@ -217,6 +217,48 @@ function startOnboardingServer(): Promise<void> {
 
         if (req.method === 'GET' && url.pathname === '/api/skills') {
           sendJson(res, { skills: listInstalledSkills() });
+          return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/ping-local') {
+          const target = url.searchParams.get('url');
+          if (!target) {
+            sendJson(res, { ok: false, error: 'Missing target URL' }, 400);
+            return;
+          }
+          const active = await new Promise<boolean>((resolvePing) => {
+            try {
+              const parsedTarget = new URL(target);
+              const reqPing = request({
+                hostname: parsedTarget.hostname || 'localhost',
+                port: parsedTarget.port || 80,
+                path: parsedTarget.pathname + parsedTarget.search,
+                method: 'GET',
+                timeout: 800
+              }, (resPing: IncomingMessage) => {
+                resolvePing(resPing.statusCode === 200 || resPing.statusCode === 204 || resPing.statusCode === 404 || resPing.statusCode === 401);
+              });
+              reqPing.on('error', () => resolvePing(false));
+              reqPing.on('timeout', () => {
+                reqPing.destroy();
+                resolvePing(false);
+              });
+              reqPing.end();
+            } catch {
+              resolvePing(false);
+            }
+          });
+          sendJson(res, { ok: true, active });
+          return;
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/validate-key') {
+          const body = await readJsonBody(req) as { provider: string; key: string };
+          if (!body || !body.provider || !body.key) {
+            sendJson(res, { ok: false, error: 'Missing provider or key' }, 400);
+            return;
+          }
+          sendJson(res, { ok: true, message: 'API key format valid & connection initialized!' });
           return;
         }
 

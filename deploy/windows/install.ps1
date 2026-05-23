@@ -1,4 +1,4 @@
-﻿# â”€â”€â”€ Parix â€” Windows Installer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â”€â”€â”€ Parix â€” Windows Installer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Installs Parix as a background service on Windows 10/11.
 # Usage: powershell -ExecutionPolicy Bypass -File deploy\windows\install.ps1
 # Requires: Node.js 20+, Python 3.12+
@@ -14,10 +14,10 @@ $PARIX_LOG  = "$PARIX_HOME\logs"
 $SRC_ROOT   = (Resolve-Path "$PSScriptRoot\..\..").Path
 $SERVICE_NAME = "ParixAgent"
 
-function Write-Step($msg)  { Write-Host "[parix] $msg" -ForegroundColor Cyan }
-function Write-Ok($msg)    { Write-Host "  + $msg" -ForegroundColor Green }
-function Write-Warn($msg)  { Write-Host "  ! $msg" -ForegroundColor Yellow }
-function Write-Fail($msg)  { Write-Host "  x $msg" -ForegroundColor Red; exit 1 }
+function Write-Step($msg)  { Write-Host "`n✦ [parix] $msg" -ForegroundColor Cyan }
+function Write-Ok($msg)    { Write-Host "  ✔ $msg" -ForegroundColor Green }
+function Write-Warn($msg)  { Write-Host "  ⚠ $msg" -ForegroundColor Yellow }
+function Write-Fail($msg)  { Write-Host "  ✘ $msg" -ForegroundColor Red; exit 1 }
 
 function Get-PythonCandidate {
     $candidates = @(
@@ -300,20 +300,23 @@ try {
     Write-Warn "Onboarding skipped - run parix onboarding later to configure."
 }
 
-# â”€â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Summary ──────────────────────────────────────────────────────────
 Write-Host ""
-Write-Step "Installation complete!"
-Write-Step "  Home:    $PARIX_HOME"
-Write-Step "  Data:    $PARIX_DATA"
-Write-Step "  Logs:    $PARIX_LOG"
-Write-Step "  Command: parix  (after reopening terminal)"
-Write-Step ""
-Write-Step "  Commands:"
-Write-Step "    parix start          - start the agent"
-Write-Step "    parix stop           - stop the agent"
-Write-Step "    parix restart        - restart the agent"
-Write-Step "    parix status         - check status"
-Write-Step "    parix start atrium   - start only Atrium"
-Write-Step "    start parix atrium   - PowerShell quick start"
-Write-Step "    parix onboarding     - reconfigure"
+Write-Host "=========================================================" -ForegroundColor Green
+Write-Host "    P A R I X   I N S T A L L A T I O N   C O M P L E T E    " -ForegroundColor Green
+Write-Host "=========================================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "  ✦ Home Directory : $PARIX_HOME" -ForegroundColor Cyan
+Write-Host "  ✦ Data Directory : $PARIX_DATA" -ForegroundColor Cyan
+Write-Host "  ✦ Logs Directory : $PARIX_LOG" -ForegroundColor Cyan
+Write-Host "  ✦ Global Binary  : parix (reopen terminal to refresh)" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Command Controls:" -ForegroundColor Green
+Write-Host "    parix start          - start background agent services" -ForegroundColor Yellow
+Write-Host "    parix stop           - stop all running services" -ForegroundColor Yellow
+Write-Host "    parix restart        - restart agent" -ForegroundColor Yellow
+Write-Host "    parix status         - check live processes & PIDs" -ForegroundColor Yellow
+Write-Host "    parix onboarding     - reconfigure preferences" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "=========================================================" -ForegroundColor Green
 

@@ -963,13 +963,56 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
             <select name="provider" id="provider" style="display: none;">${providerOptions()}</select>
           </div>
 
-          <label>Inference Model
-            <input name="model" id="model" value="${DEFAULT_MODELS.openai}" autocomplete="off" placeholder="e.g. gpt-4o-mini, gpt-oss:120b-cloud">
-          </label>
+          <div id="model-container">
+            <label>Inference Model
+              <input name="model" id="model" value="${DEFAULT_MODELS.openai}" autocomplete="off" placeholder="e.g. gpt-4o-mini, gpt-oss:120b-cloud">
+            </label>
+          </div>
 
-          <label>API Key / Endpoint Reference
-            <input name="apiKey" id="apiKey" type="password" autocomplete="off" placeholder="Optional for local / Override config key">
-          </label>
+          <!-- Dynamic Auth Panel -->
+          <div id="dynamic-auth-panel" class="full" style="margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px;">
+            <!-- Ollama/LM Studio local discovery status -->
+            <div id="local-discovery-status" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <span id="discovery-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #94a3b8; box-shadow: 0 0 8px #94a3b8;"></span>
+                <strong id="discovery-text" style="font-size: 14px; color: #e2e8f0;">Probing local connection...</strong>
+              </div>
+              <p class="hint" style="margin-bottom: 8px;">Make sure your local server is running on the appropriate port.</p>
+            </div>
+
+            <!-- OpenAI/Anthropic/DeepSeek Auth Options -->
+            <div id="cloud-auth-options" style="display: none;">
+              <!-- Dual-Tab Auth Selector -->
+              <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px;">
+                <button type="button" id="tab-web-login" class="tab-btn active" style="background: transparent; border: none; color: var(--neon-cyan); cursor: pointer; padding: 4px 8px; font-weight: bold;">Web Account Login</button>
+                <button type="button" id="tab-api-key" class="tab-btn" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px 8px;">API Key (BYOK)</button>
+              </div>
+
+              <!-- Web Account Login Panel -->
+              <div id="panel-web-login" style="display: block;">
+                <p class="hint" style="margin-bottom: 12px;">Low friction setup: Sign in through your cloud provider's web browser session.</p>
+                <button type="button" id="btn-web-login" class="secondary" style="border-color: rgba(6, 182, 212, 0.4); color: var(--neon-cyan); padding: 8px 16px; border: 1px solid; border-radius: 4px; background: transparent; cursor: pointer; font-size: 13px;">
+                  Log in via Browser
+                </button>
+              </div>
+
+              <!-- API Key Panel -->
+              <div id="panel-api-key" style="display: none;">
+                <label style="margin-bottom: 8px;">API Key / Authentication Secret
+                  <input name="apiKey" id="apiKey" type="password" autocomplete="off" placeholder="sk-...">
+                </label>
+                <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                  <button type="button" id="btn-validate-key" class="secondary" style="padding: 6px 12px; font-size: 13px; cursor: pointer;">Validate Connection</button>
+                  <span id="validation-result" style="font-size: 13px; color: #94a3b8;"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mock Options -->
+            <div id="mock-auth-options" style="display: block;">
+              <p class="hint" style="color: var(--neon-cyan);">✔ Mock provider is active! No API key or local servers are required to launch.</p>
+            </div>
+          </div>
 
           <label>Aegis Wake Activation Phrase
             <input name="wakeWord" value="aegis" autocomplete="off" placeholder="aegis">
@@ -1147,6 +1190,143 @@ Parix will configure safety boundary policies, audit expectations, and join team
       });
     });
 
+    const tabWebLogin = document.querySelector('#tab-web-login');
+    const tabApiKey = document.querySelector('#tab-api-key');
+    const panelWebLogin = document.querySelector('#panel-web-login');
+    const panelApiKey = document.querySelector('#panel-api-key');
+    const btnWebLogin = document.querySelector('#btn-web-login');
+    const btnValidateKey = document.querySelector('#btn-validate-key');
+    const validationResult = document.querySelector('#validation-result');
+    const apiKeyInput = document.querySelector('#apiKey');
+
+    const providerAuthUrls = {
+      openai: 'https://chatgpt.com/auth/login',
+      anthropic: 'https://claude.ai/login',
+      groq: 'https://console.groq.com/login',
+      grok: 'https://console.x.ai/',
+      perplexity: 'https://www.perplexity.ai/settings/api',
+      mistral: 'https://console.mistral.ai/',
+      kimi: 'https://platform.moonshot.ai/console',
+      openrouter: 'https://openrouter.ai/settings/keys',
+      bytez: 'https://platform.bytez.com/',
+      copilot: 'https://github.com/login',
+      deepseek: 'https://platform.deepseek.com/'
+    };
+
+    tabWebLogin.addEventListener('click', () => {
+      tabWebLogin.classList.add('active');
+      tabWebLogin.style.color = 'var(--neon-cyan)';
+      tabWebLogin.style.fontWeight = 'bold';
+      tabApiKey.classList.remove('active');
+      tabApiKey.style.color = '#94a3b8';
+      tabApiKey.style.fontWeight = 'normal';
+      panelWebLogin.style.display = 'block';
+      panelApiKey.style.display = 'none';
+    });
+
+    tabApiKey.addEventListener('click', () => {
+      tabApiKey.classList.add('active');
+      tabApiKey.style.color = 'var(--neon-cyan)';
+      tabApiKey.style.fontWeight = 'bold';
+      tabWebLogin.classList.remove('active');
+      tabWebLogin.style.color = '#94a3b8';
+      tabWebLogin.style.fontWeight = 'normal';
+      panelApiKey.style.display = 'block';
+      panelWebLogin.style.display = 'none';
+    });
+
+    btnWebLogin.addEventListener('click', () => {
+      const val = provider.value;
+      const url = providerAuthUrls[val];
+      if (url) {
+        window.open(url, '_blank');
+      }
+    });
+
+    btnValidateKey.addEventListener('click', async () => {
+      const val = provider.value;
+      const key = apiKeyInput.value;
+      if (!key) {
+        validationResult.textContent = '❌ Key cannot be empty';
+        validationResult.style.color = '#ef4444';
+        return;
+      }
+      validationResult.textContent = 'Probing API...';
+      validationResult.style.color = 'var(--neon-cyan)';
+      try {
+        const res = await fetch('/api/validate-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: val, key })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          validationResult.textContent = '✔ Connected successfully!';
+          validationResult.style.color = '#10b981';
+        } else {
+          validationResult.textContent = '❌ Validation failed';
+          validationResult.style.color = '#ef4444';
+        }
+      } catch (e) {
+        validationResult.textContent = '❌ Error validating key';
+        validationResult.style.color = '#ef4444';
+      }
+    });
+
+    let localProbeInterval = null;
+
+    async function syncLlmAuthPanel() {
+      const val = provider.value;
+      const localDiscovery = document.querySelector('#local-discovery-status');
+      const cloudAuth = document.querySelector('#cloud-auth-options');
+      const mockAuth = document.querySelector('#mock-auth-options');
+      const indicator = document.querySelector('#discovery-indicator');
+      const discoveryText = document.querySelector('#discovery-text');
+
+      if (localProbeInterval) {
+        clearInterval(localProbeInterval);
+        localProbeInterval = null;
+      }
+
+      localDiscovery.style.display = 'none';
+      cloudAuth.style.display = 'none';
+      mockAuth.style.display = 'none';
+
+      if (val === 'mock') {
+        mockAuth.style.display = 'block';
+      } else if (val === 'ollama' || val === 'lmstudio') {
+        localDiscovery.style.display = 'block';
+        const port = val === 'ollama' ? 11434 : 1234;
+        const checkUrl = 'http://localhost:' + port;
+        
+        const runProbe = async () => {
+          try {
+            const res = await fetch('/api/ping-local?url=' + encodeURIComponent(checkUrl));
+            const data = await res.json();
+            if (data.active) {
+              indicator.style.background = '#10b981';
+              indicator.style.boxShadow = '0 0 8px #10b981';
+              discoveryText.textContent = '✔ ' + (val === 'ollama' ? 'Ollama' : 'LM Studio') + ' is active and online!';
+            } else {
+              indicator.style.background = '#eab308';
+              indicator.style.boxShadow = '0 0 8px #eab308';
+              discoveryText.textContent = '⚠ Offline. Launch ' + (val === 'ollama' ? 'Ollama' : 'LM Studio') + ' on port ' + port;
+            }
+          } catch (e) {
+            indicator.style.background = '#ef4444';
+            indicator.style.boxShadow = '0 0 8px #ef4444';
+            discoveryText.textContent = '❌ Offline. Discovery check error.';
+          }
+        };
+
+        runProbe();
+        localProbeInterval = setInterval(runProbe, 4000);
+      } else {
+        cloudAuth.style.display = 'block';
+        validationResult.textContent = '';
+      }
+    }
+
     // Custom Provider Selection
     document.querySelectorAll('#providers-grid .card-item').forEach(card => {
       card.addEventListener('click', () => {
@@ -1159,16 +1339,18 @@ Parix will configure safety boundary policies, audit expectations, and join team
         if (providerDefaults[val]) {
           model.value = providerDefaults[val];
         }
+        syncLlmAuthPanel();
       });
     });
 
     // Preset Mock as selected card initially
-    const defaultInitProvider = "mock";
-    const initialCard = document.querySelector(\`#providers-grid .card-item[data-provider-val="\${defaultInitProvider}"]\`);
+    const defaultInitProvider = 'mock';
+    const initialCard = document.querySelector('#providers-grid .card-item[data-provider-val="' + defaultInitProvider + '"]');
     if (initialCard) {
       initialCard.classList.add('selected');
       provider.value = defaultInitProvider;
-      model.value = "mock";
+      model.value = 'mock';
+      syncLlmAuthPanel();
     }
 
     function render() {
