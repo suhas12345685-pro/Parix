@@ -13,12 +13,29 @@ log "Bootstrapping installer..."
 
 OS_NAME="$(uname -s)"
 ARCH="$(uname -m)"
+IS_WSL=0
 case "$OS_NAME" in
   Darwin) DETECTED_OS="macos" ;;
-  Linux) DETECTED_OS="linux" ;;
+  Linux)
+    if grep -qiE "(microsoft|wsl)" /proc/sys/kernel/osrelease 2>/dev/null \
+       || grep -qiE "(microsoft|wsl)" /proc/version 2>/dev/null; then
+      DETECTED_OS="wsl2"
+      IS_WSL=1
+    else
+      DETECTED_OS="linux"
+    fi
+    ;;
   *) DETECTED_OS="unsupported" ;;
 esac
 log "Detected OS: $DETECTED_OS ($ARCH)"
+if [ "$IS_WSL" -eq 1 ]; then
+  log "WSL2 detected — installing the Linux build inside WSL."
+  log "NOTE: screen-control (the operator / Windows UIAutomation) and native"
+  log "      desktop notifications are Windows-native and do NOT work inside"
+  log "      WSL2. The headless agent — sensors, messaging channels, CLI tasks,"
+  log "      cron, and proactiveness — works here. For full on-screen operation,"
+  log "      install natively on Windows with install.ps1 instead."
+fi
 log "This will clone Parix, install packages, build workspaces, and start Hatchery onboarding."
 
 if ! command -v git >/dev/null 2>&1; then

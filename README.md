@@ -10,7 +10,7 @@ Parix is built with a **Node.js Brain** (Atrium), **Python Hands** (sensors and 
 
 ## ⚡ Quickstart & One-Line Installers
 
-The frictionless one-line installers verify your machine's preflight requirements (Node.js 20+, Python 3.12+, Git), clone the official Parix repository, install all dependencies, build the project workspaces, and instantly launch the **Hatchery interactive onboarding flow** to configure your API keys, channels, and privacy choices.
+Parix runs on **Windows, macOS, Linux, and WSL2** — install on whichever you prefer. The frictionless one-line installers verify your machine's preflight requirements (Node.js 20+, Python 3.12+, Git), clone the official Parix repository, install all dependencies, build the project workspaces, and instantly launch the **Hatchery interactive onboarding flow** to configure your API keys, channels, and privacy choices.
 
 ### 🪟 Windows (PowerShell)
 Execute the following in PowerShell:
@@ -29,6 +29,13 @@ Execute the following in Terminal:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/suhas12345685-pro/Parix/main/install.sh | bash
 ```
+
+### 🐧🪟 WSL2 (Windows Subsystem for Linux)
+The same Linux installer works inside WSL2 — it auto-detects WSL and installs the Linux build:
+```bash
+curl -fsSL https://raw.githubusercontent.com/suhas12345685-pro/Parix/main/install.sh | bash
+```
+> **Note:** Inside WSL2, the **headless agent works fully** — sensors, messaging channels, CLI tasks, cron, and proactiveness. But **on-screen control (the operator / Windows UIAutomation) and native desktop notifications do not work inside WSL2**, because they are Windows-native. For full screen-operation, install natively on Windows with the PowerShell command above.
 
 ---
 
