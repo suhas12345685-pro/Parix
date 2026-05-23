@@ -9,6 +9,8 @@ import { getSkillStats } from "./intelligence/skillcache.js";
 import { getStats as getDlqStats } from "./intelligence/deadletter.js";
 import "./channels/index.js";
 import { registerTelegramEngine } from "./channels/telegram.js";
+import { startInboundAgent } from "./channels/agent-inbound.js";
+import { bootstrapScheduler } from "./scheduler/bootstrap.js";
 import {
   registerStateGetter,
   resumeFromCheckpoint,
@@ -39,7 +41,9 @@ import { seedDefaultBenchmarks } from "./nexus/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "../..");
-const DATA_DIR = resolve(__dirname, "../../data");
+const DATA_DIR = process.env.PARIX_DATA_DIR
+  ? resolve(process.env.PARIX_DATA_DIR)
+  : resolve(__dirname, "../../data");
 const SKILLS_DIR = resolve(__dirname, "../../skills");
 
 async function main() {
@@ -102,6 +106,10 @@ async function main() {
   const synapse = new SynapseClient();
   const engine = new AtriumEngine(synapse);
   registerTelegramEngine(engine);
+  // Route inbound messages from every channel through the act-first engine.
+  startInboundAgent(engine);
+  // Start the scheduler so heartbeat, maintenance jobs, and user cron tasks run.
+  bootstrapScheduler(engine);
 
   // ─── LLM Router (v0.2 planning) ───────────────────────────────
   try {

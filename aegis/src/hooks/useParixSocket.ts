@@ -7,7 +7,11 @@ import type {
   AuditEntry,
 } from "../types";
 
-const AEGIS_WS_URL = `ws://${window.location.hostname}:8766`;
+// Under the Electron shell the page loads via file://, where
+// window.location.hostname is empty — fall back to localhost so the relay
+// URL stays valid (ws://:8766 is invalid and throws on connect).
+const AEGIS_WS_HOST = window.location.hostname || "localhost";
+const AEGIS_WS_URL = `ws://${AEGIS_WS_HOST}:8766`;
 const RECONNECT_BASE_DELAY = 3000;
 const RECONNECT_MAX_DELAY = 30000;
 const EVENT_BUFFER_LIMIT = 100;

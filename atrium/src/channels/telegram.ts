@@ -2,6 +2,7 @@ import { registerChannel } from "../intelligence/notify.js";
 import type { NotificationPayload } from "./types.js";
 import type { AtriumEngine } from "../intelligence/council.js";
 import { formatExplanation } from "../intelligence/explainability.js";
+import { emitInboundMessage } from "./inbound.js";
 
 type Fetcher = typeof fetch;
 
@@ -17,6 +18,9 @@ registerChannel({
   id: "telegram",
   name: "Telegram",
   tier: "A",
+  async reply(replyChatId: string, text: string): Promise<boolean> {
+    return sendTelegramMessage(text, replyChatId);
+  },
   async send(payload: NotificationPayload): Promise<boolean> {
     if (!botToken || !chatId) return false;
 
@@ -94,7 +98,8 @@ function startPolling() {
 
 async function handleUpdate(update: any) {
   if (update.message && update.message.text) {
-    const text = String(update.message.text).trim().toLowerCase();
+    const rawText = String(update.message.text).trim();
+    const text = rawText.toLowerCase();
     const messageChatId = update.message.chat?.id;
 
     // Security boundary: only reply to the authorized chat ID
@@ -133,12 +138,28 @@ async function handleUpdate(update: any) {
       } else {
         await sendTelegramMessage(`No action found for task ${taskId}`);
       }
+    } else {
+      // Any other message is a real request — hand it to the inbound agent
+      // pipeline, which runs it through the engine (act-first) and replies via
+      // this adapter's reply(). Use the original-case text, not the lowercased
+      // command form.
+      emitInboundMessage({
+        channelId: "telegram",
+        chatId: String(messageChatId),
+        senderId: String(update.message.from?.id ?? messageChatId),
+        text: rawText,
+        timestamp: Date.now(),
+        raw: update,
+      });
     }
   }
 }
 
-async function sendTelegramMessage(text: string): Promise<boolean> {
-  if (!botToken || !chatId) return false;
+async function sendTelegramMessage(
+  text: string,
+  toChatId: string | number | undefined = chatId,
+): Promise<boolean> {
+  if (!botToken || !toChatId) return false;
   try {
     const response = await fetcher(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
@@ -146,7 +167,7 @@ async function sendTelegramMessage(text: string): Promise<boolean> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          chat_id: chatId,
+          chat_id: toChatId,
           text: text,
         }),
       },

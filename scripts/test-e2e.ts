@@ -10,6 +10,7 @@
  */
 
 import { spawn, type ChildProcess } from "child_process";
+import { createServer as createNetServer } from "net";
 import WebSocket from "ws";
 import initSqlJs from "sql.js";
 import { resolve, dirname } from "path";
@@ -24,10 +25,11 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const ATRIUM_DIR = resolve(ROOT, "atrium");
-const DATA_DIR = resolve(ROOT, "data");
+const E2E_HOME = resolve(ROOT, ".parix-e2e");
+const DATA_DIR = resolve(E2E_HOME, "data");
 const MEMORY_DB = resolve(DATA_DIR, "memory.db");
-const SYNAPSE_PORT = 8765;
-const AEGIS_PORT = 8766;
+let SYNAPSE_PORT = 0;
+let AEGIS_PORT = 0;
 const E2E_MARKER = `E2E_MARKER_${Date.now()}`;
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -52,6 +54,23 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createNetServer();
+    server.unref();
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        server.close(() => reject(new Error("Could not allocate test port")));
+        return;
+      }
+      const { port } = address;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 function waitForPort(port: number, timeout = 15000): Promise<void> {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeout;
@@ -62,7 +81,7 @@ function waitForPort(port: number, timeout = 15000): Promise<void> {
         return;
       }
 
-      const ws = new WebSocket(`ws://localhost:${port}`);
+      const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
       ws.on("open", () => {
         ws.close();
@@ -183,7 +202,7 @@ async function testSensorPipeline(): Promise<void> {
   log("TEST", "── Sensor event pipeline ──");
 
   // Connect as a sensor client
-  const ws = new WebSocket(`ws://localhost:${SYNAPSE_PORT}`);
+  const ws = new WebSocket(`ws://127.0.0.1:${SYNAPSE_PORT}`);
 
   return new Promise((resolve) => {
     let sentEvent = false;
@@ -315,7 +334,7 @@ async function testAegisRelay(): Promise<void> {
   log("TEST", "── Aegis relay ──");
 
   try {
-    const ws = new WebSocket(`ws://localhost:${AEGIS_PORT}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${AEGIS_PORT}`);
 
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -396,6 +415,12 @@ async function testHandsStatus(): Promise<void> {
 async function main() {
   console.log("\n\x1b[1m🧪 Parix End-to-End Integration Test\x1b[0m\n");
 
+  SYNAPSE_PORT = await getFreePort();
+  do {
+    AEGIS_PORT = await getFreePort();
+  } while (AEGIS_PORT === SYNAPSE_PORT);
+  log("BOOT", `Using isolated ports: synapse=${SYNAPSE_PORT}, aegis=${AEGIS_PORT}`);
+
   mkdirSync(DATA_DIR, { recursive: true });
 
   // 1. Start Hands
@@ -403,6 +428,11 @@ async function main() {
   startProcess("HANDS", python, ["-m", "hands.main"], ROOT, {
     PYTHONUNBUFFERED: "1",
     PYTHONPATH: ROOT,
+    PARIX_HOME: E2E_HOME,
+    PARIX_WS_HOST: "127.0.0.1",
+    PARIX_WS_PORT: String(SYNAPSE_PORT),
+    PARIX_A11Y_DISABLED: "1",
+    PARIX_NEUROSYMBOLIC_DISABLED: "1",
   });
 
   // Wait for Hands to be ready
@@ -422,7 +452,7 @@ async function main() {
   log("BOOT", "Building Atrium...");
 
   // Set up a mock profile for E2E testing
-  const parixHome = resolve(__dirname, "../.parix-e2e");
+  const parixHome = E2E_HOME;
   if (!existsSync(parixHome)) mkdirSync(parixHome, { recursive: true });
   const profile = createDefaultProfile("personal");
   profile.identity = {
@@ -522,6 +552,9 @@ async function main() {
   startProcess("ATRIUM", "node", [distPath], ATRIUM_DIR, {
     NODE_ENV: "test",
     PARIX_HOME: process.env.PARIX_HOME,
+    PARIX_DATA_DIR: DATA_DIR,
+    HANDS_WS_URL: `ws://127.0.0.1:${SYNAPSE_PORT}`,
+    PARIX_AEGIS_RELAY_PORT: String(AEGIS_PORT),
   });
 
   // Wait for Atrium to connect (it connects to Hands)

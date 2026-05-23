@@ -20,6 +20,7 @@ import {
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { type AtriumEngine } from "../intelligence/council.js";
+import { AGENT_ACK, runAgentTurn } from "../intelligence/agent-chat.js";
 import { type SynapseClient } from "../synapse/client.js";
 import { getRecentAudit } from "../intelligence/audit.js";
 import { getSkillStats } from "../intelligence/skillcache.js";
@@ -55,7 +56,16 @@ import { registerUserCreatedSkillPermissions } from "../intelligence/skill-permi
 
 import protocol from "../../../shared/protocol.json" with { type: "json" };
 
-const AEGIS_PORT = protocol.ports.aegis_relay;
+function getAegisPort(): number {
+  const raw = process.env.PARIX_AEGIS_RELAY_PORT;
+  if (!raw) return protocol.ports.aegis_relay;
+
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error(`Invalid PARIX_AEGIS_RELAY_PORT: ${raw}`);
+  }
+  return port;
+}
 
 const clients = new Set<WebSocket>();
 let engine: AtriumEngine;
@@ -130,8 +140,9 @@ export function startAegisRelay(
     healthServer.close();
   });
 
-  healthServer.listen(AEGIS_PORT);
-  console.log(`[AEGIS] Relay server listening on ws://localhost:${AEGIS_PORT}`);
+  const aegisPort = getAegisPort();
+  healthServer.listen(aegisPort);
+  console.log(`[AEGIS] Relay server listening on ws://localhost:${aegisPort}`);
   return wss;
 }
 
@@ -236,15 +247,47 @@ async function handleChatCommand(
   msg: Record<string, unknown>,
 ): Promise<void> {
   const message = String(msg.message ?? msg.text ?? "").trim();
-  const response = await runChatCommand(message);
+
+  // Control phrases (status/pause/resume/flush/explain/help) return a string
+  // and are answered immediately. A null result means "not a control command"
+  // — fall through to the act-first dispatch path.
+  const controlResponse = await runChatCommand(message);
+  if (controlResponse !== null) {
+    sendTo(ws, {
+      type: "CHAT_RESULT",
+      id: `chat-${Date.now()}`,
+      text: controlResponse,
+    });
+    return;
+  }
+
+  // Act-first: acknowledge immediately, then post the real outcome (or a
+  // conversational answer) when the engine finishes. Shared with every
+  // messaging channel via runAgentTurn.
   sendTo(ws, {
     type: "CHAT_RESULT",
-    id: `chat-${Date.now()}`,
-    text: response,
+    id: `chat-ack-${Date.now()}`,
+    text: AGENT_ACK,
   });
+
+  try {
+    const text = await runAgentTurn(engine, message);
+    sendTo(ws, { type: "CHAT_RESULT", id: `chat-${Date.now()}`, text });
+    broadcastHealthSnapshot();
+  } catch (err) {
+    sendTo(ws, {
+      type: "CHAT_RESULT",
+      id: `chat-${Date.now()}`,
+      text: `I hit an error trying to do that: ${err instanceof Error ? err.message : String(err)}`,
+    });
+  }
 }
 
-async function runChatCommand(message: string): Promise<string> {
+/**
+ * Returns a control-command response, or null when the message is not a
+ * recognized control phrase (so the caller dispatches it as a task).
+ */
+async function runChatCommand(message: string): Promise<string | null> {
   const text = message.toLowerCase();
   const tokens = new Set(text.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter(Boolean));
   const mentionsAgent =
@@ -313,29 +356,8 @@ async function runChatCommand(message: string): Promise<string> {
       : "I do not have a recent action to explain yet.";
   }
 
-  console.log(`[DEBUG CHAT] runChatCommand message: "${message}"`);
-  console.log(`[DEBUG CHAT] engine defined: ${!!engine}`);
-  const llmRouter = engine?.getLLMRouter();
-  console.log(`[DEBUG CHAT] llmRouter defined: ${!!llmRouter}`);
-  if (llmRouter) {
-    try {
-      const response = await llmRouter.complete({
-        prompt: `You are Parix, a premium AI assistant. The user is chatting with you via their Aegis dashboard chat.
-Respond to the user directly, helpfully, and concisely (1-4 sentences).
-
-User message: ${message}`,
-        systemPrompt: "You are Parix, a helpful AI assistant. Provide concise, clear, and direct answers.",
-        temperature: 0.7,
-        maxTokens: 500,
-      }, "reasoning");
-      return response.text.trim();
-    } catch (err) {
-      console.error(`[AEGIS] Chat LLM response generation failed:`, err);
-      return `I encountered an error trying to process that with the LLM router: ${err instanceof Error ? err.message : String(err)}`;
-    }
-  }
-
-  return "I can handle status, pause/stop, resume/start, flush queue, and explanation commands. Try 'help' for the exact phrases.";
+  // Not a control phrase — let the caller dispatch it as a task.
+  return null;
 }
 
 function buildHealthSnapshot(): Record<string, unknown> {

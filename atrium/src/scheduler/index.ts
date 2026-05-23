@@ -1,5 +1,18 @@
 import { getDb } from "../memory/db.js";
 
+/** Minimal engine surface the scheduler needs — kept narrow to avoid a
+ *  circular import with the council module. */
+interface CronEngine {
+  runUserRequest(text: string): Promise<unknown>;
+}
+
+let cronEngine: CronEngine | null = null;
+
+/** Wire the engine the scheduler uses to execute cron task prompts. */
+export function setSchedulerEngine(engine: CronEngine): void {
+  cronEngine = engine;
+}
+
 export interface ScheduledJob {
   id: string;
   name: string;
@@ -113,13 +126,15 @@ function loadCronTasks(): void {
       "SELECT task_id, title, prompt, interval_minutes, enabled FROM cron_tasks WHERE enabled = 1",
     );
     while (stmt.step()) {
-      const [taskId, title, _prompt, intervalMinutes] = stmt.get();
+      const [taskId, title, prompt, intervalMinutes] = stmt.get();
       const id = `cron_${taskId}`;
+      const taskTitle = String(title);
+      const taskPrompt = String(prompt ?? "").trim();
       if (!jobs.has(id)) {
         registerJob(
-          String(title),
+          taskTitle,
           Number(intervalMinutes) * 60_000,
-          () => console.log(`[SCHEDULER:CRON] Running: ${title}`),
+          () => runCronTask(taskTitle, taskPrompt),
           true,
         );
       }
@@ -127,5 +142,27 @@ function loadCronTasks(): void {
     stmt.free();
   } catch {
     // cron_tasks table may not exist yet
+  }
+}
+
+async function runCronTask(title: string, prompt: string): Promise<void> {
+  if (!prompt) {
+    console.log(`[SCHEDULER:CRON] "${title}" has no prompt — skipping`);
+    return;
+  }
+  if (!cronEngine) {
+    console.warn(
+      `[SCHEDULER:CRON] "${title}" fired but no engine is wired — call setSchedulerEngine() at boot`,
+    );
+    return;
+  }
+  console.log(`[SCHEDULER:CRON] Running "${title}": ${prompt.slice(0, 80)}`);
+  try {
+    await cronEngine.runUserRequest(prompt);
+  } catch (err) {
+    console.error(
+      `[SCHEDULER:CRON] "${title}" failed:`,
+      err instanceof Error ? err.message : err,
+    );
   }
 }

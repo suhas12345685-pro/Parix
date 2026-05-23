@@ -90,6 +90,18 @@ interface ActionPlan {
   reasoning: string;
 }
 
+export interface UserRequestOutcome {
+  /** True when Parix actually executed an action for this request. */
+  acted: boolean;
+  success?: boolean;
+  output?: string;
+  error?: string;
+  reasoning?: string;
+  taskType?: string;
+  /** Set when an action was planned but stopped (paused/constitution/rate limit). */
+  blocked?: string;
+}
+
 export interface AtriumEvents {
   state_change: (from: AtriumState, to: AtriumState) => void;
   action_blocked: (plan: ActionPlan, reason: string) => void;
@@ -446,33 +458,7 @@ export class AtriumEngine extends EventEmitter {
         );
       }
 
-      governor.recordSpend(plan.taskType);
-      this.emit("action_executed", plan, result.success);
-
-      const narrative = startNarrative(plan.reasoning, plan.taskType);
-      recordAttempt(narrative.id, {
-        approach: `${plan.taskType}: ${plan.reasoning}`,
-        outcome: result.success ? "success" : "failure",
-        timestamp: Date.now(),
-        lessonLearned: result.error ?? undefined,
-      });
-      saveNarrative(narrative);
-
-      // v0.2: Track episode + surprises + learnings
-      recordActivity(plan.taskType, plan.id, plan.reasoning);
-      observeOutcome(
-        plan.taskType,
-        "success",
-        result.success ? "success" : "failure",
-      );
-      learnFromOutcome(plan.taskType, result.success, plan.reasoning);
-      saveApproach(
-        plan.taskType,
-        plan.reasoning,
-        result.success ? "success" : "failure",
-        `${plan.taskType}: ${plan.reasoning} → ${result.success ? "ok" : (result.error ?? "failed")}`,
-        Object.keys(plan.payload).slice(0, 5),
-      );
+      this.recordExecutionOutcome(plan, result);
 
       // ACTING → WAITING or IDLE
       if (result.success) {
@@ -1013,6 +999,154 @@ export class AtriumEngine extends EventEmitter {
       }
       console.error(
         `[ATRIUM] LLM planning failed: ${err instanceof Error ? err.message : err}`,
+      );
+      return null;
+    }
+  }
+
+  private recordExecutionOutcome(
+    plan: ActionPlan,
+    result: { success: boolean; output?: string; error?: string },
+  ): void {
+    governor.recordSpend(plan.taskType);
+    this.emit("action_executed", plan, result.success);
+
+    const narrative = startNarrative(plan.reasoning, plan.taskType);
+    recordAttempt(narrative.id, {
+      approach: `${plan.taskType}: ${plan.reasoning}`,
+      outcome: result.success ? "success" : "failure",
+      timestamp: Date.now(),
+      lessonLearned: result.error ?? undefined,
+    });
+    saveNarrative(narrative);
+
+    // v0.2: Track episode + surprises + learnings
+    recordActivity(plan.taskType, plan.id, plan.reasoning);
+    observeOutcome(
+      plan.taskType,
+      "success",
+      result.success ? "success" : "failure",
+    );
+    learnFromOutcome(plan.taskType, result.success, plan.reasoning);
+    saveApproach(
+      plan.taskType,
+      plan.reasoning,
+      result.success ? "success" : "failure",
+      `${plan.taskType}: ${plan.reasoning} → ${result.success ? "ok" : (result.error ?? "failed")}`,
+      Object.keys(plan.payload).slice(0, 5),
+    );
+  }
+
+  /**
+   * Execute an explicit, free-text user request (e.g. from the Aegis chat
+   * box). Unlike sensor events, this is a direct instruction to *do* something,
+   * so it goes straight through plan → constitution → execute and returns the
+   * real outcome to the caller. When the request isn't actionable (it's a
+   * question, or the planner declines), `acted` is false so the caller can
+   * fall back to a conversational answer.
+   */
+  async runUserRequest(text: string): Promise<UserRequestOutcome> {
+    const message = text.trim();
+    if (!message) return { acted: false };
+
+    if (isPaused()) {
+      return {
+        acted: false,
+        blocked: "paused",
+        reasoning: "Parix is paused — say 'resume parix' before I act.",
+      };
+    }
+
+    const context = await this.gatherContext();
+    const plan = await this.userRequestPlan(message, context);
+    if (!plan) return { acted: false };
+
+    plan.reversibilityScore = scoreReversibility(plan.taskType, plan.payload);
+    plan.constitutionVerdict = constitution.check(plan.taskType, plan.payload, {
+      reversibilityScore: plan.reversibilityScore,
+      confidence: 1,
+      handsStatus: this.synapse.getStatus(),
+    });
+
+    if (!plan.constitutionVerdict.allowed) {
+      this.emit("action_blocked", plan, plan.constitutionVerdict.reason);
+      return {
+        acted: false,
+        blocked: plan.constitutionVerdict.reason,
+        reasoning: plan.reasoning,
+      };
+    }
+
+    if (!governor.canSpend(plan.taskType)) {
+      this.emit("action_blocked", plan, "rate_limit");
+      return { acted: false, blocked: "rate_limit", reasoning: plan.reasoning };
+    }
+
+    const result = await this.execute(plan);
+    this.recordExecutionOutcome(plan, result);
+
+    return {
+      acted: true,
+      success: result.success,
+      output: result.output,
+      error: result.error,
+      reasoning: plan.reasoning,
+      taskType: plan.taskType,
+    };
+  }
+
+  private async userRequestPlan(
+    text: string,
+    context: Record<string, unknown>,
+  ): Promise<ActionPlan | null> {
+    if (!this.llmRouter) return null;
+
+    try {
+      const prompt = [
+        "You are Parix, an autonomous OS agent. The user has directly asked you to do something via their chat box. Decide what action carries it out.",
+        "",
+        `User request: ${text}`,
+        `Context: ${JSON.stringify(context)}`,
+        "",
+        "Respond with a JSON object containing:",
+        '  - taskType: "cli" | "notification" | "none"',
+        '  - payload: { command: "..." } for cli, or { title: "...", body: "...", urgency: "low"|"medium"|"high" } for notification',
+        "  - reasoning: one sentence explaining what you are doing",
+        "",
+        'Use "cli" when the request is something you can carry out with a shell command on the user\'s machine.',
+        'Use "notification" when the right response is to surface information to the user.',
+        'Set taskType to "none" ONLY when the request is a pure question or chitchat with no action to take.',
+        "Never run destructive commands (rm -rf, format, shutdown, sudo, disk wipes).",
+        "Respond ONLY with valid JSON, no markdown.",
+      ].join("\n");
+
+      const response = await this.llmRouter.complete(
+        {
+          prompt,
+          systemPrompt:
+            "You are a capable but cautious system operator. Prefer safe, reversible actions and only decline when there is genuinely nothing to do.",
+          temperature: 0.2,
+          maxTokens: 400,
+        },
+        "reasoning",
+        uuid(),
+      );
+
+      const parsed = JSON.parse(response.text.trim());
+      if (!parsed.taskType || parsed.taskType === "none") return null;
+
+      return {
+        id: uuid(),
+        taskType: parsed.taskType,
+        payload: parsed.payload ?? {},
+        reversibilityScore: 0,
+        constitutionVerdict: { allowed: true, reason: "" },
+        reasoning: `User request: ${parsed.reasoning ?? text}`,
+      };
+    } catch (err) {
+      if (err instanceof TokenBudgetExceededError) throw err;
+      console.error(
+        `[ATRIUM] User-request planning failed: ${err instanceof Error ? err.message : err}`,
       );
       return null;
     }

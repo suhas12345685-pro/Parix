@@ -15,6 +15,12 @@ interface ChannelAdapter {
   name: string;
   tier: "A" | "B" | "C";
   send(payload: NotificationPayload): Promise<boolean>;
+  /**
+   * Reply to a specific inbound conversation. Implemented by channels that
+   * support two-way messaging (Telegram, Slack, Discord, …). Used by the
+   * inbound agent pipeline to answer the sender on their own thread.
+   */
+  reply?(chatId: string, text: string): Promise<boolean>;
 }
 
 // Channel registry — adapters register themselves here
@@ -40,6 +46,10 @@ export function registerChannel(adapter: ChannelAdapter): void {
 
 export function unregisterChannel(id: string): void {
   channels.delete(id);
+}
+
+export function getChannel(id: string): ChannelAdapter | undefined {
+  return channels.get(id);
 }
 
 function getEnabledChannels(): string[] {
