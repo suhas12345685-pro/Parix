@@ -52,7 +52,7 @@ User message: ${message}`,
       },
       "reasoning",
     );
-    return response.text.trim();
+    return (response.text ?? "").trim();
   } catch (err) {
     console.error(`[AGENT-CHAT] LLM response generation failed:`, err);
     return `I encountered an error trying to process that with the LLM router: ${

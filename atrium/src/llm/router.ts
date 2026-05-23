@@ -48,14 +48,22 @@ export class LLMRouter {
     const chain = this.chainFor(taskType);
     const errors: string[] = [];
     const requiresImages = (request.images?.length ?? 0) > 0;
+    let sawVisionCapable = false;
 
     for (const providerId of chain) {
       const provider = this.providers.get(providerId);
       if (!provider || provider.enabled === false) continue;
       if (requiresImages && provider.supportsImages !== true) continue;
+      if (requiresImages) sawVisionCapable = true;
 
       try {
         const response = await provider.complete(request);
+        if (!response.text || response.text.trim() === "") {
+          // Treat an empty/error-shaped success as a soft failure so the
+          // fallback chain continues to the next provider.
+          errors.push(`${providerId}: empty response text`);
+          continue;
+        }
         governor.recordTokenUsage(
           provider.id,
           response.model,
@@ -70,6 +78,12 @@ export class LLMRouter {
           `${providerId}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+    }
+
+    if (requiresImages && !sawVisionCapable) {
+      throw new Error(
+        `No vision-capable provider configured for ${taskType}`,
+      );
     }
 
     throw new Error(

@@ -64,11 +64,29 @@ class AccessibilityBridge:
         if native_result:
             return native_result
         if vision_result:
+            # A vision-only result with no native tree AND no captured text
+            # means neither path saw the screen (WSL2/headless). Surface that
+            # distinctly instead of reporting a low-confidence "success".
+            if not _has_content(vision_result):
+                return _no_display_snapshot()
             return vision_result
         return _empty_snapshot()
 
     def is_native_available(self) -> bool:
         return self.backend is not None
+
+
+def _has_content(snapshot: AccessibilitySnapshot) -> bool:
+    if snapshot.raw_text and snapshot.raw_text.strip():
+        return True
+    return bool(snapshot.tree.children)
+
+
+def _no_display_snapshot() -> AccessibilitySnapshot:
+    snap = _empty_snapshot()
+    snap.backend_used = "no_display"
+    snap.focused_app = "no display available"
+    return snap
 
 
 def _empty_snapshot() -> AccessibilitySnapshot:

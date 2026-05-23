@@ -1,4 +1,5 @@
 import type { LLMProvider, LLMRequest, LLMResponse } from "../types.js";
+import { fetchWithTimeout } from "./fetch-timeout.js";
 
 type Fetcher = typeof fetch;
 
@@ -28,7 +29,7 @@ export class OllamaAdapter implements LLMProvider {
   async complete(request: LLMRequest): Promise<LLMResponse> {
     const started = Date.now();
     const model = request.model ?? this.model;
-    const response = await this.fetcher(`${this.baseURL}/api/chat`, {
+    const response = await fetchWithTimeout(this.fetcher, `${this.baseURL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

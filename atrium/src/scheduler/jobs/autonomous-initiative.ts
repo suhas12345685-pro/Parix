@@ -24,47 +24,62 @@ interface InitiativeEngine {
 const GOAL_CONFIDENCE_FLOOR = 0.7;
 const DEFAULT_INTERVAL_MS = 900_000; // 15 min
 
+// Guards against overlapping runs dispatching duplicate real actions when a run
+// takes longer than the job interval.
+let running = false;
+
 export function registerAutonomousInitiativeJob(
   engine: InitiativeEngine,
   intervalMs = DEFAULT_INTERVAL_MS,
 ): string {
   return registerJob("autonomous-initiative", intervalMs, async () => {
+    if (running) return;
     if (isPaused()) return;
     if (engine.getState() !== "IDLE") return;
 
     const snapshot = getLastCognitiveSnapshot();
     const desire = snapshot?.decision?.desire;
-    if (!desire?.inferredGoal || desire.confidence < GOAL_CONFIDENCE_FLOOR) {
+    if (
+      !desire?.inferredGoal ||
+      typeof desire.confidence !== "number" ||
+      !Number.isFinite(desire.confidence) ||
+      desire.confidence < GOAL_CONFIDENCE_FLOOR
+    ) {
       // No confident goal — stay quiet rather than invent work.
       return;
     }
 
-    const acting = isAutonomousMode();
-    const run = await runAutonomous(
-      {
-        goal: desire.inferredGoal,
-        context: desire.userNeed,
-        autonomyLevel: acting ? "autonomous" : "assist",
-      },
-      acting ? { executor: makeActingExecutor(engine) } : {},
-    );
-
-    if (acting && run.status === "completed") {
-      console.log(
-        `[INITIATIVE] Acted on "${desire.inferredGoal}": ${run.result.summary}`,
+    running = true;
+    try {
+      const acting = isAutonomousMode();
+      const run = await runAutonomous(
+        {
+          goal: desire.inferredGoal,
+          context: desire.userNeed,
+          autonomyLevel: acting ? "autonomous" : "assist",
+        },
+        acting ? { executor: makeActingExecutor(engine) } : {},
       );
-      return;
-    }
 
-    // Not acting (or escalated) — propose the idea instead of doing it.
-    const idea = run.result.chosenIdea?.description;
-    await notify({
-      title: "Parix has an idea",
-      body: idea
-        ? `For "${desire.inferredGoal}": ${idea}`
-        : `I drafted an approach for "${desire.inferredGoal}". Say the word and I'll run it.`,
-      urgency: "low",
-    });
+      if (acting && run.status === "completed") {
+        console.log(
+          `[INITIATIVE] Acted on "${desire.inferredGoal}": ${run.result.summary}`,
+        );
+        return;
+      }
+
+      // Not acting (or escalated) — propose the idea instead of doing it.
+      const idea = run.result.chosenIdea?.description;
+      await notify({
+        title: "Parix has an idea",
+        body: idea
+          ? `For "${desire.inferredGoal}": ${idea}`
+          : `I drafted an approach for "${desire.inferredGoal}". Say the word and I'll run it.`,
+        urgency: "low",
+      });
+    } finally {
+      running = false;
+    }
   });
 }
 

@@ -97,7 +97,10 @@ def parse_llm_response(raw: str) -> VisionAction:
         start = cleaned.find("{")
         end = cleaned.rfind("}") + 1
         if start >= 0 and end > start:
-            data = json.loads(cleaned[start:end])
+            try:
+                data = json.loads(cleaned[start:end])
+            except json.JSONDecodeError:
+                return VisionAction(action="fail", reason=f"could not parse LLM response: {raw[:200]}")
         else:
             return VisionAction(action="fail", reason=f"could not parse LLM response: {raw[:200]}")
 

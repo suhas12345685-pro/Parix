@@ -52,34 +52,42 @@ export async function runAutonomous(
     refinements: string[];
   } | null = null;
 
-  for (let i = 0; i < maxIterations; i++) {
-    const fresh = await ideator(brief, i, allIdeas);
-    if (fresh.length === 0) break;
-    allIdeas.push(...fresh);
+  try {
+    for (let i = 0; i < maxIterations; i++) {
+      const fresh = await ideator(brief, i, allIdeas);
+      if (fresh.length === 0) break;
+      allIdeas.push(...fresh);
 
-    const critiques = fresh.map((idea) => critique(idea, brief));
-    const best = pickBest(fresh, brief);
-    if (!best) break;
+      const critiques = fresh.map((idea) => critique(idea, brief));
+      const best = pickBest(fresh, brief);
+      if (!best) break;
 
-    const iteration: CreativeIteration = {
-      index: i,
-      ideas: fresh,
-      critiques,
-      chosen: best.idea,
-      chosenScore: best.score,
-      refinements: best.critique.refinements,
-    };
-    run.iterations.push(iteration);
-
-    if (!bestSoFar || best.score > bestSoFar.score) {
-      bestSoFar = {
-        idea: best.idea,
-        score: best.score,
+      const iteration: CreativeIteration = {
+        index: i,
+        ideas: fresh,
+        critiques,
+        chosen: best.idea,
+        chosenScore: best.score,
         refinements: best.critique.refinements,
       };
-    }
+      run.iterations.push(iteration);
 
-    if (best.score >= acceptThreshold) break;
+      if (!bestSoFar || best.score > bestSoFar.score) {
+        bestSoFar = {
+          idea: best.idea,
+          score: best.score,
+          refinements: best.critique.refinements,
+        };
+      }
+
+      if (best.score >= acceptThreshold) break;
+    }
+  } catch (err) {
+    run.status = "failed";
+    run.escalationReason =
+      err instanceof Error ? err.message : "ideation raised a non-Error value";
+    run.finishedAt = now();
+    return run;
   }
 
   if (!bestSoFar) {
@@ -114,7 +122,14 @@ export async function runAutonomous(
       artifacts: execution.artifacts,
       score: bestSoFar.score,
     };
-    run.status = "completed";
+    if (plan.status === "active") {
+      // markPlanComplete couldn't drive the plan to a terminal state (stuck
+      // node / safety cap) — don't report a false "completed".
+      run.status = "failed";
+      run.escalationReason = "plan did not reach a terminal state";
+    } else {
+      run.status = "completed";
+    }
   } catch (err) {
     run.status = "failed";
     run.escalationReason =

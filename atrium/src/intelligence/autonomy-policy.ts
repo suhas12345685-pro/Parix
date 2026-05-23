@@ -86,6 +86,7 @@ export function describeAutonomyLevel(rawLevel: string): string {
 }
 
 function normalizeAutonomyLevel(rawLevel: string): RuntimeAutonomyLevel {
-  if (rawLevel in THRESHOLDS) return rawLevel as RuntimeAutonomyLevel;
+  if (Object.prototype.hasOwnProperty.call(THRESHOLDS, rawLevel))
+    return rawLevel as RuntimeAutonomyLevel;
   return "safe-auto-fix";
 }

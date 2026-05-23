@@ -59,7 +59,19 @@ export interface AccessibilityEntropyInput {
 
 const DEFAULT_PROMPT =
   "Extract all readable text from this image. Return only the text, no commentary.";
+// Decoded image cap (~20 MB) — guards against forwarding huge payloads to a
+// provider. base64 inflates by ~4/3, so the encoded string is larger.
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 const fallbackEmitter = new EventEmitter();
+
+function isValidBase64Image(b64: string): boolean {
+  const cleaned = b64.replace(/\s+/g, "");
+  if (cleaned.length === 0 || cleaned.length % 4 !== 0) return false;
+  if (!BASE64_RE.test(cleaned)) return false;
+  const decodedBytes = Math.floor((cleaned.length * 3) / 4);
+  return decodedBytes <= MAX_IMAGE_BYTES;
+}
 
 export async function handleVisionOcrRequest(
   msg: VisionOcrRequestMessage,
@@ -83,6 +95,10 @@ export async function handleVisionOcrRequest(
   }
   if (!msg.image_b64) {
     respond("", "no-image");
+    return;
+  }
+  if (!isValidBase64Image(msg.image_b64)) {
+    respond("", "bad-image");
     return;
   }
 

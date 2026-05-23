@@ -96,7 +96,7 @@ describe("handleVisionOcrRequest", () => {
 
     const response = send.mock.calls[0][0];
     expect(response.text).toBe("");
-    expect(response.error).toMatch(/No LLM provider succeeded/);
+    expect(response.error).toMatch(/No vision-capable provider configured/);
   });
 
   it("requests visual fallback for low-entropy native accessibility trees", () => {

@@ -1,4 +1,5 @@
 import type { LLMProvider, LLMRequest, LLMResponse } from "../types.js";
+import { fetchWithTimeout } from "./fetch-timeout.js";
 
 type Fetcher = typeof fetch;
 
@@ -48,7 +49,7 @@ export class OpenAIAdapter implements LLMProvider {
           ]
         : request.prompt;
 
-    const response = await this.fetcher(`${this.baseURL}/chat/completions`, {
+    const response = await fetchWithTimeout(this.fetcher, `${this.baseURL}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -70,9 +71,12 @@ export class OpenAIAdapter implements LLMProvider {
     if (!response.ok)
       throw new Error(`${this.id} request failed: ${response.status}`);
     const data = (await response.json()) as OpenAIResponse;
+    const text = data.choices?.[0]?.message?.content ?? "";
+    if (!text)
+      throw new Error(`${this.id} response had no usable content`);
     return {
       model,
-      text: data.choices?.[0]?.message?.content ?? "",
+      text,
       tokensIn: data.usage?.prompt_tokens ?? 0,
       tokensOut: data.usage?.completion_tokens ?? 0,
       latencyMs: Date.now() - started,

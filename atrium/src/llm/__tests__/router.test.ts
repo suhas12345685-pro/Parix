@@ -159,7 +159,7 @@ describe("LLMRouter", () => {
         },
         "vision",
       ),
-    ).rejects.toThrow(/No LLM provider succeeded/);
+    ).rejects.toThrow(/No vision-capable provider configured/);
   });
 });
 

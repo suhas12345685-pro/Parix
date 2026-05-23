@@ -1,4 +1,5 @@
 import type { LLMProvider, LLMRequest, LLMResponse } from "../types.js";
+import { fetchWithTimeout } from "./fetch-timeout.js";
 
 type Fetcher = typeof fetch;
 
@@ -50,7 +51,8 @@ export class AnthropicAdapter implements LLMProvider {
           ]
         : [{ type: "text" as const, text: request.prompt }];
 
-    const response = await this.fetcher(
+    const response = await fetchWithTimeout(
+      this.fetcher,
       "https://api.anthropic.com/v1/messages",
       {
         method: "POST",
@@ -72,9 +74,12 @@ export class AnthropicAdapter implements LLMProvider {
     if (!response.ok)
       throw new Error(`Anthropic request failed: ${response.status}`);
     const data = (await response.json()) as AnthropicResponse;
+    const text = data.content?.map((part) => part.text).join("") ?? "";
+    if (!text)
+      throw new Error("Anthropic response had no usable content");
     return {
       model,
-      text: data.content?.map((part) => part.text).join("") ?? "",
+      text,
       tokensIn: data.usage?.input_tokens ?? 0,
       tokensOut: data.usage?.output_tokens ?? 0,
       latencyMs: Date.now() - started,

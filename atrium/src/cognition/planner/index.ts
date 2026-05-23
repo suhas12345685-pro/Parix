@@ -604,11 +604,25 @@ export class TaskGraphRuntime {
     normalizeGraph(this.tree);
   }
 
+  private inFlight: Promise<GoalTree> | null = null;
+
   get snapshot(): GoalTree {
     return this.tree;
   }
 
   async tick(): Promise<GoalTree> {
+    // Re-entrancy guard: concurrent ticks would double-dispatch the same nodes.
+    // Await the in-flight tick instead.
+    if (this.inFlight) return this.inFlight;
+    this.inFlight = this.runTick();
+    try {
+      return await this.inFlight;
+    } finally {
+      this.inFlight = null;
+    }
+  }
+
+  private async runTick(): Promise<GoalTree> {
     const runnable = nextExecutable(this.tree);
     if (runnable.length === 0) return this.tree;
 

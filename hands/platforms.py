@@ -50,6 +50,18 @@ def detect_os() -> OsName:
     return "linux"
 
 
+def detect_platform_family() -> OsName:
+    """Resolve detect_os() to the underlying OS family the probes branch on.
+
+    detect_os() reports "docker" for containers, but containers run a Linux
+    kernel — resolve to "linux" so capability probes don't under-report.
+    """
+    os_name = detect_os()
+    if os_name == "docker":
+        return "linux"
+    return os_name
+
+
 def detect_distro() -> str | None:
     if not sys.platform.startswith("linux"):
         return None
@@ -96,7 +108,7 @@ def _has_binary(*names: str) -> bool:
 
 
 def _probe_accessibility() -> bool:
-    os_name = detect_os()
+    os_name = detect_platform_family()
     if os_name == "windows":
         return _has_module("pywinauto")
     if os_name == "macos":
@@ -107,7 +119,7 @@ def _probe_accessibility() -> bool:
 
 
 def _probe_screenshot() -> bool:
-    os_name = detect_os()
+    os_name = detect_platform_family()
     if _has_module("mss"):
         return True
     if os_name == "windows":
@@ -120,7 +132,7 @@ def _probe_screenshot() -> bool:
 
 
 def _probe_clipboard() -> bool:
-    os_name = detect_os()
+    os_name = detect_platform_family()
     if _has_module("pyperclip"):
         return True
     if os_name == "windows":
@@ -133,7 +145,7 @@ def _probe_clipboard() -> bool:
 
 
 def _probe_notifications() -> bool:
-    os_name = detect_os()
+    os_name = detect_platform_family()
     if os_name == "windows":
         return _has_binary("powershell", "pwsh")
     if os_name == "macos":
@@ -144,7 +156,7 @@ def _probe_notifications() -> bool:
 
 
 def _probe_package_manager() -> bool:
-    os_name = detect_os()
+    os_name = detect_platform_family()
     if os_name == "windows":
         return _has_binary("winget", "choco", "scoop")
     if os_name == "macos":

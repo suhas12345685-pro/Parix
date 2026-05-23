@@ -18,14 +18,15 @@ logger = logging.getLogger("hands.vision.actions")
 class ActionExecutor:
     """Executes VisionActions against real UI elements via UIA patterns."""
 
-    def __init__(self) -> None:
+    def __init__(self, dry_run: bool = False) -> None:
         self._backend = None
+        self._dry_run = dry_run
         if sys.platform == "win32":
             try:
                 from pywinauto import Desktop
                 self._backend = "uia"
             except ImportError:
-                logger.warning("pywinauto not available — actions will be simulated")
+                logger.warning("pywinauto not available — actions unavailable unless dry_run")
 
     def execute(
         self,
@@ -50,8 +51,10 @@ class ActionExecutor:
 
         if self._backend == "uia":
             return self._execute_uia(action, element)
-        else:
+        elif self._dry_run:
             return self._execute_simulated(action, element)
+        else:
+            return {"success": False, "error": f"no backend for {sys.platform}"}
 
     def _execute_uia(self, action: VisionAction, element: MarkedElement) -> dict[str, Any]:
         try:
@@ -181,6 +184,7 @@ class ActionExecutor:
                 return {"success": True, "result": f"toggled [{element.mark_id}]"}
         except Exception as e:
             return {"success": False, "error": f"toggle failed: {e}"}
+        return {"success": False, "error": "toggle pattern unavailable"}
 
     def _select(self, wrapper: Any, element: MarkedElement) -> dict[str, Any]:
         try:
@@ -190,6 +194,7 @@ class ActionExecutor:
                 return {"success": True, "result": f"selected [{element.mark_id}]"}
         except Exception as e:
             return {"success": False, "error": f"select failed: {e}"}
+        return {"success": False, "error": "select pattern unavailable"}
 
     def _read_value(self, wrapper: Any, element: MarkedElement) -> dict[str, Any]:
         try:
@@ -209,6 +214,7 @@ class ActionExecutor:
                 return {"success": True, "result": f"scrolled {direction} on [{element.mark_id}]"}
         except Exception as e:
             return {"success": False, "error": f"scroll failed: {e}"}
+        return {"success": False, "error": "scroll pattern unavailable"}
 
     def _execute_simulated(self, action: VisionAction, element: MarkedElement) -> dict[str, Any]:
         """Dry-run mode when pywinauto is unavailable."""

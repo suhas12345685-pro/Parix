@@ -18,8 +18,14 @@ class WindowsBackend:
 
     def _get_tree_sync(self) -> AccessibilitySnapshot:
         desktop = Desktop(backend="uia")
-        window = desktop.top_window()
-        root = self._walk(window.wrapper_object())
+        try:
+            window = desktop.top_window()
+            wrapper = window.wrapper_object()
+        except Exception:
+            # Locked/secure desktop (UAC, login screen) — no enumerable window.
+            # Keep platform/app info so fusion still has context.
+            return _empty_native_snapshot()
+        root = self._walk(wrapper)
         return AccessibilitySnapshot(
             timestamp=time.time(),
             platform="windows",
@@ -71,6 +77,20 @@ class WindowsBackend:
             except Exception:
                 pass
         return states
+
+
+def _empty_native_snapshot() -> AccessibilitySnapshot:
+    root = UIElement("root", "", None, set(), None, [], "accessibility")
+    return AccessibilitySnapshot(
+        timestamp=time.time(),
+        platform="windows",
+        backend_used="uiautomation",
+        focused_app="unknown",
+        focused_element=None,
+        tree=root,
+        raw_text=None,
+        confidence=0.0,
+    )
 
 
 def _safe_call(fn: Any) -> str:

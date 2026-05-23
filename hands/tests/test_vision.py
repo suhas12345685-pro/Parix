@@ -237,7 +237,7 @@ def test_parse_garbage_returns_fail():
 # ── ActionExecutor tests (simulated mode) ────────────────────────────
 
 def test_executor_simulated_click():
-    executor = ActionExecutor()
+    executor = ActionExecutor(dry_run=True)
     executor._backend = None  # force simulated mode
     elements = [MarkedElement(1, "button", "OK", None, (100, 100, 80, 30), True, ["invoke"])]
     action = VisionAction(action="click", element_id=1, reason="test")

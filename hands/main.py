@@ -181,6 +181,9 @@ vision_ocr_requesters = {}
 # keyed by request_id. Distinct from vision_ocr_requesters, which relays to a
 # separate sensor websocket.
 operator_vision_pending: dict = {}
+# Only one operator loop may run at a time — overlapping loops fight over the
+# same screen. Holds the in-flight asyncio.Task while an operate request runs.
+active_operator_task = None
 sensor_ingress_bucket = TokenBucket(
     capacity=int(os.getenv("PARIX_SENSOR_TOKEN_BUCKET", "64000")),
     refill_per_second=int(os.getenv("PARIX_SENSOR_REFILL_PER_SEC", "16000")),
@@ -332,11 +335,23 @@ async def handle_message(ws, raw: str):
 
         task_type = msg.get("task_type", msg.get("type", "unknown"))
         if task_type == "operate":
+            global active_operator_task
+            if active_operator_task is not None and not active_operator_task.done():
+                await ws.send(Message("TASK_RESULT", {
+                    "task_id": task_id,
+                    "success": False,
+                    "output": "",
+                    "error": "operator busy — another operate task is already running",
+                    "timestamp": time.time(),
+                }).to_json())
+                logger.warning("Rejected operate task %s — operator busy", task_id)
+                return
             # The operator loop sends VISION_OCR_REQUEST on this same atrium
             # connection and awaits the response. Awaiting it here would block
             # the connection's read loop and deadlock, so run it concurrently
             # and reply when it finishes.
-            asyncio.create_task(_run_task_and_reply(ws, msg, task_id))
+            active_operator_task = asyncio.create_task(_run_task_and_reply(ws, msg, task_id))
+            active_operator_task.add_done_callback(_clear_active_operator_task)
         else:
             result = await execute_task(msg)
             result_msg = Message("TASK_RESULT", {
@@ -402,6 +417,12 @@ async def handle_message(ws, raw: str):
 
     else:
         logger.warning("Unknown message type: %s", msg_type)
+
+
+def _clear_active_operator_task(_task) -> None:
+    global active_operator_task
+    if active_operator_task is _task:
+        active_operator_task = None
 
 
 async def _run_task_and_reply(ws, msg: dict, task_id: str) -> None:
