@@ -177,6 +177,10 @@ class TokenBucket:
 
 sensor_relay_buffer = deque(maxlen=SENSOR_RELAY_BUFFER_SIZE)
 vision_ocr_requesters = {}
+# Internal VISION_OCR futures for in-process consumers (the screen operator),
+# keyed by request_id. Distinct from vision_ocr_requesters, which relays to a
+# separate sensor websocket.
+operator_vision_pending: dict = {}
 sensor_ingress_bucket = TokenBucket(
     capacity=int(os.getenv("PARIX_SENSOR_TOKEN_BUCKET", "64000")),
     refill_per_second=int(os.getenv("PARIX_SENSOR_REFILL_PER_SEC", "16000")),
@@ -248,6 +252,15 @@ async def handle_vision_ocr_response(raw: str, msg: dict) -> None:
         logger.warning("VISION_OCR_RESPONSE missing request_id")
         return
 
+    # In-process consumer (screen operator) waiting on this request?
+    future = operator_vision_pending.get(request_id)
+    if future is not None:
+        if not future.done():
+            future.set_result(
+                {"text": msg.get("text", ""), "error": msg.get("error")}
+            )
+        return
+
     requester = vision_ocr_requesters.pop(request_id, None)
     if requester is None:
         logger.warning("No requester waiting for VISION_OCR_RESPONSE %s", request_id)
@@ -261,6 +274,13 @@ async def handle_vision_ocr_response(raw: str, msg: dict) -> None:
 
 
 async def fail_pending_vision_ocr_requests(error: str) -> None:
+    # Resolve any in-process operator waiters so the loop unblocks instead of
+    # hanging on a dead atrium connection.
+    for request_id, future in list(operator_vision_pending.items()):
+        operator_vision_pending.pop(request_id, None)
+        if not future.done():
+            future.set_result({"text": "", "error": error})
+
     pending = list(vision_ocr_requesters.items())
     vision_ocr_requesters.clear()
     for request_id, requester in pending:
@@ -310,16 +330,24 @@ async def handle_message(ws, raw: str):
         await ws.send(ack.to_json())
         logger.info("Sent ACK for task %s", task_id)
 
-        result = await execute_task(msg)
-        result_msg = Message("TASK_RESULT", {
-            "task_id": task_id,
-            "success": result["success"],
-            "output": result.get("output", ""),
-            "error": result.get("error"),
-            "timestamp": time.time(),
-        })
-        await ws.send(result_msg.to_json())
-        logger.info("Sent RESULT for task %s (success=%s)", task_id, result["success"])
+        task_type = msg.get("task_type", msg.get("type", "unknown"))
+        if task_type == "operate":
+            # The operator loop sends VISION_OCR_REQUEST on this same atrium
+            # connection and awaits the response. Awaiting it here would block
+            # the connection's read loop and deadlock, so run it concurrently
+            # and reply when it finishes.
+            asyncio.create_task(_run_task_and_reply(ws, msg, task_id))
+        else:
+            result = await execute_task(msg)
+            result_msg = Message("TASK_RESULT", {
+                "task_id": task_id,
+                "success": result["success"],
+                "output": result.get("output", ""),
+                "error": result.get("error"),
+                "timestamp": time.time(),
+            })
+            await ws.send(result_msg.to_json())
+            logger.info("Sent RESULT for task %s (success=%s)", task_id, result["success"])
 
     elif msg_type == "HEARTBEAT":
         await ws.send(Message("HEARTBEAT", {"timestamp": time.time()}).to_json())
@@ -376,6 +404,25 @@ async def handle_message(ws, raw: str):
         logger.warning("Unknown message type: %s", msg_type)
 
 
+async def _run_task_and_reply(ws, msg: dict, task_id: str) -> None:
+    """Execute a task concurrently and send its TASK_RESULT when done."""
+    try:
+        result = await execute_task(msg)
+    except Exception as exc:  # noqa: BLE001
+        result = {"success": False, "output": "", "error": str(exc)}
+    try:
+        await ws.send(Message("TASK_RESULT", {
+            "task_id": task_id,
+            "success": result["success"],
+            "output": result.get("output", ""),
+            "error": result.get("error"),
+            "timestamp": time.time(),
+        }).to_json())
+        logger.info("Sent RESULT for task %s (success=%s)", task_id, result["success"])
+    except websockets.ConnectionClosed:
+        logger.warning("Connection closed before RESULT for task %s", task_id)
+
+
 async def execute_task(msg: dict) -> dict:
     task_type = msg.get("task_type", msg.get("type", "unknown"))
     payload = msg.get("payload", {})
@@ -389,6 +436,17 @@ async def execute_task(msg: dict) -> dict:
         }
     elif task_type == "screenshot":
         return await vision_execute(payload)
+    elif task_type == "operate":
+        goal = payload.get("goal") or payload.get("command") or payload.get("task") or ""
+        if not goal:
+            return {"success": False, "output": "", "error": "operate task requires a 'goal'"}
+        if bridge_connection is None:
+            return {"success": False, "output": "", "error": "no atrium connection for vision LLM"}
+        try:
+            from hands.vision.operator import run_operator
+        except ImportError:
+            from vision.operator import run_operator  # type: ignore
+        return await run_operator(goal, bridge_connection.send, operator_vision_pending)
     elif task_type == "voice" and voice_channel:
         result = await voice_channel.handle_control(payload)
         return {"success": result.get("success", True), "output": json.dumps(result)}

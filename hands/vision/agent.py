@@ -153,7 +153,9 @@ async def run_vision_agent(
         annotated = await capture_annotated(a11y)
         element_text = elements_to_text(annotated.elements)
 
-        prompt = f"""Goal: {goal}
+        prompt = f"""{SYSTEM_PROMPT}
+
+Goal: {goal}
 
 Step {i}/{max_steps}. Current app: {annotated.focused_app}
 
