@@ -1,4 +1,4 @@
-# â”€â”€â”€ Parix â€” Windows Installer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+﻿# â”€â”€â”€ Parix â€” Windows Installer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Installs Parix as a background service on Windows 10/11.
 # Usage: powershell -ExecutionPolicy Bypass -File deploy\windows\install.ps1
 # Requires: Node.js 20+, Python 3.12+

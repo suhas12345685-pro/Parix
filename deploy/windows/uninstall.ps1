@@ -1,4 +1,4 @@
-# ─── Parix — Windows Uninstaller ────────────────────────────────
+﻿# ─── Parix — Windows Uninstaller ────────────────────────────────
 # Removes Parix installation, scheduled task, and environment vars.
 # Usage: powershell -ExecutionPolicy Bypass -File deploy\windows\uninstall.ps1
 # ─────────────────────────────────────────────────────────────────
