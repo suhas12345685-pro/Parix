@@ -1,0 +1,31 @@
+{
+  "id": "task-complex-agent",
+  "version": "1.0",
+  "enabled": true,
+  "description": "Delegate a complex, multi-step real-time task to a local CLI coding agent (codex / claude / gemini). The delegated agent can read files, run commands, and edit code autonomously, then returns its final result. The council invokes this when a goal needs full agentic execution beyond a single tool call.",
+  "triggers": [
+    { "eventType": "complex_task_request", "minConfidence": 0.6, "platforms": ["any"] },
+    { "eventType": "delegate_to_agent", "minConfidence": 0.6, "platforms": ["any"] }
+  ],
+  "entry": "scripts/complex_agent.py",
+  "runtime": "py",
+  "inputs": [
+    { "name": "goal", "type": "string", "required": true, "description": "High-level task for the agent CLI to complete, e.g. 'fix the failing tests in ./'." },
+    { "name": "provider", "type": "string", "required": false, "description": "claude | openai | gemini. Auto-detected to the first installed CLI if omitted." },
+    { "name": "cwd", "type": "string", "required": false, "description": "Working directory for the task. Defaults to the current directory." },
+    { "name": "timeoutSeconds", "type": "number", "required": false, "default": 600, "description": "Hard cap on the delegated run." }
+  ],
+  "outputs": [
+    { "name": "success", "type": "boolean", "description": "True iff the agent CLI completed with exit code 0." },
+    { "name": "provider", "type": "string", "description": "Which provider CLI ran the task." },
+    { "name": "binary", "type": "string", "description": "The CLI binary that was executed." },
+    { "name": "output", "type": "string", "description": "The agent's final output (ANSI-stripped)." },
+    { "name": "exitCode", "type": "number", "description": "Process exit code; null on spawn error/timeout." },
+    { "name": "durationMs", "type": "number", "description": "Wall-clock time of the run." },
+    { "name": "error", "type": "string", "description": "Error detail when success is false; null otherwise." }
+  ],
+  "reversibility": 0.4,
+  "permissions": ["process:execute", "filesystem:read", "filesystem:write"],
+  "timeoutMs": 600000,
+  "settings": {}
+}

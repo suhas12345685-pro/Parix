@@ -570,6 +570,7 @@ export async function runTuiWizard(): Promise<TuiResult> {
   await collectAgentProfile(profile);
   const secrets: Record<string, string> = {};
   await collectLlm(profile, secrets);
+  await collectProviderRuntime(profile);
   await collectMemoryStorage(profile);
   await collectChannels(profile, secrets);
   await collectSkills();
@@ -1520,6 +1521,97 @@ async function collectMemoryStorage(
   } else {
     console.log(green('  ✔ Local: memory stays on this machine.'));
   }
+}
+
+// ── Provider runtime mode (api vs official CLI) → ~/.parix/config.json ──────
+// Maps the onboarding provider id to the providers-core id (only openai /
+// claude / gemini support a CLI runtime).
+const PROVIDER_CORE_MAP: Record<string, 'openai' | 'claude' | 'gemini'> = {
+  openai: 'openai',
+  chatgpt: 'openai',
+  anthropic: 'claude',
+  claude: 'claude',
+  google: 'gemini',
+  gemini: 'gemini',
+};
+const CORE_CLI_BIN: Record<'openai' | 'claude' | 'gemini', string> = {
+  openai: 'codex',
+  claude: 'claude',
+  gemini: 'gemini',
+};
+
+function probeCliBinary(bin: string): Promise<boolean> {
+  return new Promise((resolveProbe) => {
+    const child = spawn(bin, ['--version'], { shell: false, windowsHide: true });
+    child.on('error', () => resolveProbe(false));
+    child.on('exit', (code) => resolveProbe(code === 0 || code === 1));
+  });
+}
+
+// Persist the modelProviders block into ~/.parix/config.json (read-merge, no clobber).
+function writeModelProvidersConfig(
+  coreId: 'openai' | 'claude' | 'gemini',
+  mode: 'api' | 'cli',
+  model?: string,
+): void {
+  const parixHome = process.env.PARIX_HOME || resolve(homedir(), '.parix');
+  const cfgPath = resolve(parixHome, 'config.json');
+  mkdirSync(parixHome, { recursive: true });
+  let cfg: Record<string, any> = {};
+  if (existsSync(cfgPath)) {
+    try {
+      cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
+    } catch {
+      cfg = {};
+    }
+  }
+  const mp = (cfg.modelProviders ??= { default: coreId, providers: {} });
+  mp.default = coreId;
+  mp.providers ??= {};
+  mp.providers[coreId] = {
+    ...(mp.providers[coreId] ?? {}),
+    mode,
+    ...(mode === 'cli' ? { cliBinary: CORE_CLI_BIN[coreId] } : {}),
+    ...(model ? { model } : {}),
+  };
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf-8');
+}
+
+// Ask whether the chosen provider runs via cloud API or the local CLI agent.
+async function collectProviderRuntime(profile: ParixProfile): Promise<void> {
+  const coreId = PROVIDER_CORE_MAP[profile.llm.provider];
+  if (!coreId) return; // provider has no CLI runtime — stays API-only
+  const bin = CORE_CLI_BIN[coreId];
+  console.log('');
+  const { mode } = await inquirer.prompt<{ mode: string }>([
+    {
+      name: 'mode',
+      type: 'list',
+      message: yellow(`How should Parix run ${coreId}?`),
+      choices: [
+        { name: `${green('●')} API — cloud endpoint with your key`, value: 'api' },
+        { name: `${green('●')} CLI — the official ${bin} agent on this machine (subscription/login)`, value: 'cli' },
+        { name: dim('Skip for now'), value: SKIP },
+      ],
+      default: 'api',
+    },
+  ]);
+  if (mode === SKIP) {
+    console.log(dim('  ↪ Skipped — defaulting to API runtime.'));
+    writeModelProvidersConfig(coreId, 'api', profile.llm.model);
+    return;
+  }
+  if (mode === 'cli') {
+    process.stdout.write(dim(`  Probing ${bin}... `));
+    const ok = await probeCliBinary(bin);
+    console.log(
+      ok
+        ? green(`● ${bin} found — CLI runtime ready`)
+        : red(`○ ${bin} not found — install it; Parix will connect on launch`),
+    );
+  }
+  writeModelProvidersConfig(coreId, mode as 'api' | 'cli', profile.llm.model);
+  console.log(green(`  ● ${coreId} runtime set: ${mode}`));
 }
 
 // A skill's dependency manager: python → pip, node → npm, else none.
