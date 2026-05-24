@@ -1348,11 +1348,9 @@ async function main(): Promise<void> {
     );
   }
 
-  // Web onboarding was removed — onboarding is TUI-only. `--web` now just
-  // runs the TUI wizard (the Web UI is a *runtime* hatch choice, not an
-  // onboarding mode).
+  // Web onboarding is restored! `--web` runs the Hatchery web onboarding UI server.
   if (flagWeb) {
-    await startTuiOnboarding();
+    await startWebOnboarding();
     return;
   }
 

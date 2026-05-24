@@ -3,29 +3,7 @@ import {
   HATCHERY_MODULES,
 } from 'parix-shared';
 
-const ENTERPRISE_CHANNELS = [
-  'desktop',
-  'webhook',
-  'discord',
-  'slack',
-  'microsoft-teams',
-  'google-chat',
-  'whatsapp',
-  'matrix',
-  'line',
-  'feishu',
-  'mattermost',
-  'nextcloud-talk',
-  'synology-chat',
-  'webchat',
-  'voice-call',
-  'wechat',
-  'qq-bot',
-  'zalo',
-];
-
 export function renderOnboardingHtml(aegisUiPort: number): string {
-  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
   const modelPresetsJson = JSON.stringify({
     openai: ['gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview'],
     anthropic: [
@@ -78,8 +56,8 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
       --border-color: rgba(0, 0, 0, 0.08);
       --text-main: #0f172a;
       --text-muted: #64748b;
-      --card-bg: #ffffff;
-      --gradient-dark: linear-gradient(180deg, #ffffff, #f1f5f9);
+      --card-bg: #f1f5f9;
+      --gradient-dark: linear-gradient(180deg, #ffffff, #f8fafc);
     }
 
     * { box-sizing: border-box; }
@@ -89,7 +67,7 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
       min-height: 100vh;
       font-family: 'Outfit', sans-serif;
       background-color: var(--bg-dark);
-      background-image: radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.1), transparent 70%);
+      background-image: radial-gradient(circle at 50% -20%, rgba(139, 92, 246, 0.12), transparent 70%);
       color: var(--text-main);
       display: flex;
       justify-content: center;
@@ -170,9 +148,13 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
       border-bottom: 2px solid var(--accent); 
     }
 
+    .step-tab.completed {
+      color: var(--neon-emerald);
+    }
+
     form { padding: 40px; }
     
-    .step { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+    .step { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
     .step.active { display: grid; animation: fadeIn 0.4s ease forwards; }
 
     @keyframes fadeIn {
@@ -182,7 +164,8 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
 
     .full { grid-column: 1 / -1; }
     
-    label { display: grid; gap: 10px; color: var(--text-main); font-size: 14px; font-weight: 600; }
+    label { display: grid; gap: 8px; color: var(--text-main); font-size: 14px; font-weight: 600; }
+    label span.desc { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-top: -2px; }
 
     input, select, textarea {
       width: 100%;
@@ -190,7 +173,7 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
       border-radius: 12px;
       background: var(--bg-slate);
       color: var(--text-main);
-      padding: 16px;
+      padding: 14px;
       font: inherit;
       outline: none;
       transition: border-color 0.2s ease;
@@ -250,14 +233,41 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
       align-items: center; 
       justify-content: center; 
     }
+
+    /* Summary Styling */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .summary-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .summary-box h3 {
+      margin-top: 0;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      font-size: 16px;
+    }
+    .summary-box p {
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    .summary-box strong {
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
   <main>
     <header>
       <div class="brand-text">
-        <h1>Parix Hatchery</h1>
-        <p style="color: var(--text-muted); margin: 4px 0 0;">Initialize your workstation agent</p>
+        <h1 style="background: linear-gradient(to right, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Parix Hatchery</h1>
+        <p style="color: var(--text-muted); margin: 4px 0 0;">Configure your premium proactive workstation agent</p>
       </div>
       <div class="theme-toggle">
         <button type="button" id="theme-dark" class="theme-btn active" title="Dark Mode">
@@ -271,34 +281,52 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
 
     <section class="shell">
       <div id="hatching-overlay">
-        <h2 style="color: var(--neon-cyan); font-size: 32px;">Hatching...</h2>
-        <p style="color: var(--text-muted);">Configuring your agent's soul matrix</p>
+        <h2 style="color: var(--neon-cyan); font-size: 32px; margin-bottom: 8px;">Hatching...</h2>
+        <p style="color: var(--text-muted); font-size: 16px;">Configuring your proactive workspace agent's soul matrix</p>
       </div>
 
       <div class="steps">
         <div class="step-tab active">1. Identity</div>
-        <div class="step-tab">2. Engine</div>
-        <div class="step-tab">3. Boundary</div>
-        <div class="step-tab">4. Soul</div>
-        <div class="step-tab">5. Verify</div>
+        <div class="step-tab">2. Brain Engine</div>
+        <div class="step-tab">3. Soul & Vibe</div>
+        <div class="step-tab">4. Safety & Focus</div>
+        <div class="step-tab">5. Verify & Launch</div>
       </div>
 
-      <form id="form">
-        <!-- Step 1 -->
+      <form id="form" onsubmit="return false;">
+        <!-- Step 1: Identity -->
         <div class="step active">
           <label class="full">Mode
-            <select name="mode" id="mode"><option value="personal">Personal</option><option value="enterprise">Enterprise</option></select>
+            <span class="desc">Define the operating context for this agent</span>
+            <select name="mode" id="mode">
+              <option value="personal">Personal Mode</option>
+              <option value="enterprise">Enterprise Mode</option>
+            </select>
           </label>
-          <label>Your Name <input name="userName" placeholder="e.g. Suhas"></label>
-          <label>Agent Name <input name="agentName" value="Parix"></label>
-          <label class="full">Your Role <input name="userDescription" placeholder="e.g. Lead Engineer"></label>
-          <label class="full">Directives <textarea name="primaryGoals" placeholder="What should I focus on first?"></textarea></label>
+          <label>Your Name
+            <span class="desc">What should the agent call you?</span>
+            <input name="userName" placeholder="e.g. Suhas" value="Suhas">
+          </label>
+          <label>Agent Name
+            <span class="desc">What should the agent call itself?</span>
+            <input name="agentName" value="Parix" placeholder="e.g. Parix">
+          </label>
+          <label class="full">Your Role
+            <span class="desc">Who are you? (A short description of your work/background)</span>
+            <input name="userDescription" placeholder="e.g. Systems Engineer & Developer" value="Systems engineer & developer">
+          </label>
+          <label class="full">Relationship Label
+            <span class="desc">Who am I to you?</span>
+            <input name="relationshipLabel" value="personal agent" placeholder="e.g. personal agent">
+          </label>
         </div>
 
-        <!-- Step 2 -->
+        <!-- Step 2: Engine -->
         <div class="step">
           <div class="full">
-            <label>LLM Provider</label>
+            <label>LLM Provider
+              <span class="desc">Select the default AI reasoning engine</span>
+            </label>
             <div class="cards-grid" id="providers-grid">
               <div class="card-item" data-provider-val="openai">OpenAI</div>
               <div class="card-item" data-provider-val="anthropic">Anthropic</div>
@@ -309,36 +337,93 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
             <input type="hidden" name="provider" id="provider" value="mock">
           </div>
           <div class="full">
-            <label>Model <input name="model" id="model" list="model-list" placeholder="Clean Slate (pick one)"></label>
+            <label>Model
+              <span class="desc">Select or input the primary model</span>
+              <input name="model" id="model" list="model-list" placeholder="Clean Slate (pick one)" value="mock">
+            </label>
             <datalist id="model-list"></datalist>
             <button type="button" id="btn-cycle-models" class="secondary" style="margin-top: 12px; padding: 8px 16px; font-size: 13px;">✦ Cycle Presets</button>
           </div>
           <div id="auth-area" class="full">
-            <div id="local-area" style="display:none;"><p id="local-text">Probing localhost...</p></div>
-            <div id="cloud-area" style="display:none;">
-              <div style="display:flex; gap:12px; margin-bottom:16px;">
-                <button type="button" id="tab-web" class="tab-btn active">Web Login</button>
-                <button type="button" id="tab-cli" class="tab-btn">CLI Auth</button>
-                <button type="button" id="tab-api" class="tab-btn">API Key</button>
-              </div>
-              <div id="p-web">Connect via session <button type="button" id="btn-web-login" class="secondary">Open Browser</button></div>
-              <div id="p-cli" style="display:none;">CLI Status: <span id="cli-status">...</span></div>
-              <div id="p-api" style="display:none;"><input name="apiKey" id="apiKey" type="password" placeholder="sk-..."></div>
+            <div id="local-area" style="display:none;">
+              <p id="local-text" style="color: var(--neon-emerald); font-weight: 500;">✓ Local endpoint default active.</p>
+            </div>
+            <div id="cloud-area" style="display:none; border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; background: rgba(0,0,0,0.1);">
+              <label>API Key
+                <span class="desc">Required to authenticate calls with cloud providers</span>
+                <input name="apiKey" id="apiKey" type="password" placeholder="Paste your API key here (sk-...)">
+              </label>
             </div>
           </div>
         </div>
 
-        <!-- Steps 3, 4, 5 condensed for brevity in this replace call -->
+        <!-- Step 3: Soul & Vibe -->
         <div class="step">
-          <label class="full">Safety Blocks <textarea name="blockedActions"></textarea></label>
-          <fieldset class="full"><legend>Modules</legend><div id="modules" class="checkbox-grid"></div></fieldset>
+          <label>Vibe
+            <span class="desc">What core vibe should I project?</span>
+            <input name="vibe" value="warm, capable, proactive" placeholder="e.g. warm, capable, proactive">
+          </label>
+          <label>Personality
+            <span class="desc">What personality traits should I exhibit?</span>
+            <input name="personality" value="Friendly, direct, and useful without being pushy." placeholder="e.g. Friendly, direct...">
+          </label>
+          <label>Primary Tech Stack
+            <span class="desc">Specify your main development technologies</span>
+            <input name="techStack" value="TypeScript, Python, Node.js" placeholder="e.g. TypeScript, React, Python">
+          </label>
+          <label>Proactivity Level
+            <span class="desc">How actively should I suggest improvements or fixes?</span>
+            <select name="proactivity">
+              <option value="proactive" selected>Proactive (Suggest improvements automatically)</option>
+              <option value="balanced">Balanced (Suggest fixes for errors only)</option>
+              <option value="reactive">Reactive (Only act when explicitly asked)</option>
+            </select>
+          </label>
+          <label class="full">Communication Tone
+            <span class="desc">How should I speak to you?</span>
+            <select name="tone">
+              <option value="friendly" selected>Friendly & Collaborative</option>
+              <option value="professional">Professional & Concise</option>
+              <option value="candid">Candid & Direct</option>
+              <option value="philosophical">Philosophical & Deep</option>
+            </select>
+          </label>
         </div>
+
+        <!-- Step 4: Safety & Focus -->
         <div class="step">
-          <label>Tech Stack <input name="techStack"></label>
-          <label class="full">Vibe <select name="tone"><option value="friendly">Friendly</option><option value="professional">Professional</option><option value="philosophical">Philosophical</option></select></label>
-          <label class="full">Mission <textarea name="mainMission"></textarea></label>
+          <label class="full">What should I help you with?
+            <span class="desc">Directives / core workflows to assist you with (comma separated)</span>
+            <textarea name="primaryGoals" rows="2" placeholder="e.g. help with daily computer work, spot errors, suggest safe fixes">help with daily computer work, spot errors, suggest safe fixes</textarea>
+          </label>
+          <label class="full">Recurring tasks I should remember
+            <span class="desc">Routine checks or scripts to run in the background (comma separated)</span>
+            <textarea name="recurringTasks" rows="2" placeholder="e.g. check system health, verify build logs hourly">check system health</textarea>
+          </label>
+          <label class="full">Main Mission Objective
+            <span class="desc">Summarize the ultimate high-level purpose of this agent</span>
+            <textarea name="mainMission" rows="2" placeholder="e.g. Ensure seamless workstation diagnostics and proactive code compilation assistance">Optimize local development and system health monitoring.</textarea>
+          </label>
+          <label class="full">What should I never do?
+            <span class="desc">Hard boundaries that will block automated execution (comma separated)</span>
+            <textarea name="blockedActions" rows="2" placeholder="e.g. impersonate the user, spend money, delete personal data without approval">impersonate the user, spend money, delete personal data without approval</textarea>
+          </label>
+          <label class="full">What should require approval?
+            <span class="desc">Sensory actions that must trigger permission popups (comma separated)</span>
+            <textarea name="approvalRequiredActions" rows="2" placeholder="e.g. send external messages, delete data, change credentials, spend money, run destructive commands">send external messages, delete data, change credentials, spend money, run destructive commands</textarea>
+          </label>
         </div>
-        <div class="step"><div id="summary" class="summary full"></div></div>
+
+        <!-- Step 5: Verify -->
+        <div class="step">
+          <div class="full" style="text-align: center; margin-bottom: 20px;">
+            <h3 style="color: var(--neon-emerald); margin: 0 0 8px;">✓ Profile Setup Ready</h3>
+            <p style="color: var(--text-muted); margin: 0;">Review your agent's operational parameters below before hatching.</p>
+          </div>
+          <div class="full summary-grid" id="summary-container">
+            <!-- Programmatically populated -->
+          </div>
+        </div>
       </form>
 
       <div class="actions">
@@ -349,60 +434,139 @@ export function renderOnboardingHtml(aegisUiPort: number): string {
   </main>
 
   <script>
-    const channels = \${JSON.stringify(CHANNEL_IDS.filter(id => id !== 'aegis'))};
-    const modules = \${JSON.stringify(HATCHERY_MODULES)};
-    const modelPresets = \${modelPresetsJson};
+    const modelPresets = ${modelPresetsJson};
     let step = 0;
     const steps = [...document.querySelectorAll('.step')];
     const tabs = [...document.querySelectorAll('.step-tab')];
-    const provider = document.getElementById('provider');
-    const model = document.getElementById('model');
+    const providerInput = document.getElementById('provider');
+    const modelInput = document.getElementById('model');
+    const modelList = document.getElementById('model-list');
 
-    // Theme Logic
+    // Theme Switcher
     const b = document.body;
     const tL = document.getElementById('theme-light');
     const tD = document.getElementById('theme-dark');
     tL.onclick = () => { b.classList.add('light-theme'); tL.classList.add('active'); tD.classList.remove('active'); };
     tD.onclick = () => { b.classList.remove('light-theme'); tD.classList.add('active'); tL.classList.remove('active'); };
 
+    function populateModelList(provider) {
+      modelList.innerHTML = '';
+      const list = modelPresets[provider] || [];
+      list.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        modelList.appendChild(opt);
+      });
+      if (list.length > 0) {
+        modelInput.value = list[0];
+      } else {
+        modelInput.value = provider === 'mock' ? 'mock' : '';
+      }
+    }
+
+    function renderSummary() {
+      const fd = new FormData(document.getElementById('form'));
+      const html = \`
+        <div class="summary-box">
+          <h3>👤 Identity Matrix</h3>
+          <p><strong>Operator:</strong> \${fd.get('userName') || 'Not Set'}</p>
+          <p><strong>Agent Name:</strong> \${fd.get('agentName') || 'Parix'}</p>
+          <p><strong>Your Role:</strong> \${fd.get('userDescription') || 'Not Set'}</p>
+          <p><strong>Relationship:</strong> \${fd.get('relationshipLabel') || 'Not Set'}</p>
+        </div>
+        <div class="summary-box">
+          <h3>🧠 Reasoning Engine</h3>
+          <p><strong>LLM Provider:</strong> \${fd.get('provider').toUpperCase()}</p>
+          <p><strong>Model:</strong> \${fd.get('model') || 'Default'}</p>
+          <p><strong>Vibe:</strong> \${fd.get('vibe') || 'Not Set'}</p>
+          <p><strong>Tone:</strong> \${fd.get('tone') || 'Friendly'}</p>
+        </div>
+        <div class="summary-box">
+          <h3>🎯 Directives & Focus</h3>
+          <p><strong>Main Mission:</strong> \${fd.get('mainMission') || 'Not Set'}</p>
+          <p><strong>Directives:</strong> \${fd.get('primaryGoals') || 'Not Set'}</p>
+          <p><strong>Recurring:</strong> \${fd.get('recurringTasks') || 'None'}</p>
+        </div>
+        <div class="summary-box">
+          <h3>🛡️ Boundaries & Safety</h3>
+          <p><strong>Blocked Actions:</strong> \${fd.get('blockedActions') || 'None'}</p>
+          <p><strong>Requires Approval:</strong> \${fd.get('approvalRequiredActions') || 'None'}</p>
+        </div>
+      \`;
+      document.getElementById('summary-container').innerHTML = html;
+    }
+
     function render() {
       steps.forEach((s, i) => s.classList.toggle('active', i === step));
-      tabs.forEach((t, i) => { t.classList.toggle('active', i === step); t.classList.toggle('completed', i < step); });
+      tabs.forEach((t, i) => {
+        t.classList.toggle('active', i === step);
+        t.classList.toggle('completed', i < step);
+      });
       document.getElementById('back').disabled = step === 0;
       document.getElementById('next').textContent = step === steps.length - 1 ? 'Hatch Parix' : 'Next';
       if (step === steps.length - 1) {
-        const fd = new FormData(document.getElementById('form'));
-        document.getElementById('summary').innerHTML = '<div><strong>Provider</strong><span>' + fd.get('provider') + '</span></div>';
+        renderSummary();
       }
     }
 
     document.querySelectorAll('.card-item').forEach(c => c.onclick = () => {
       document.querySelectorAll('.card-item').forEach(el => el.classList.remove('selected'));
-      c.classList.add('selected'); provider.value = c.dataset.providerVal;
-      const v = provider.value;
-      document.getElementById('cloud-area').style.display = (v==='ollama'||v==='mock')?'none':'block';
-      document.getElementById('local-area').style.display = (v==='ollama')?'block':'none';
+      c.classList.add('selected');
+      providerInput.value = c.dataset.providerVal;
+      const v = providerInput.value;
+      
+      document.getElementById('cloud-area').style.display = (v === 'ollama' || v === 'mock') ? 'none' : 'block';
+      document.getElementById('local-area').style.display = (v === 'ollama') ? 'block' : 'none';
+      populateModelList(v);
     });
 
     document.getElementById('btn-cycle-models').onclick = () => {
-      const list = modelPresets[provider.value] || [];
-      if (list.length) model.value = list[(list.indexOf(model.value) + 1) % list.length];
+      const list = modelPresets[providerInput.value] || [];
+      if (list.length > 0) {
+        const curIdx = list.indexOf(modelInput.value);
+        modelInput.value = list[(curIdx + 1) % list.length];
+      }
     };
 
     document.getElementById('next').onclick = async () => {
-      if (step < steps.length - 1) { step++; render(); }
-      else {
+      if (step < steps.length - 1) {
+        step++;
+        render();
+      } else {
         document.getElementById('hatching-overlay').style.display = 'flex';
-        const res = await fetch('/api/onboarding', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(Object.fromEntries(new FormData(document.getElementById('form')))) });
-        const data = await res.json(); if (res.ok) setTimeout(() => window.location.href = data.dashboardUrl, 2000);
+        try {
+          const fd = new FormData(document.getElementById('form'));
+          const payload = Object.fromEntries(fd.entries());
+          
+          const res = await fetch('/api/onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setTimeout(() => {
+              window.location.href = data.dashboardUrl;
+            }, 1800);
+          } else {
+            document.getElementById('hatching-overlay').style.display = 'none';
+            alert('Hatching error: ' + (data.errors ? data.errors.join(', ') : 'Unknown error'));
+          }
+        } catch (err) {
+          document.getElementById('hatching-overlay').style.display = 'none';
+          alert('Network or backend error: ' + err);
+        }
       }
     };
-    document.getElementById('back').onclick = () => { step--; render(); };
-    
-    document.getElementById('modules').innerHTML = modules.map(m => '<label class="switch-label checked">' + m.label + '<input type="checkbox" name="enabledModules" value="' + m.id + '" checked style="display:none"><div class="switch-control"></div></label>').join('');
-    
-    render();
+
+    document.getElementById('back').onclick = () => {
+      step--;
+      render();
+    };
+
+    // Initialize Card Select State
     document.querySelector('.card-item[data-provider-val="mock"]').click();
+    render();
   </script>
 </body>
 </html>`;
