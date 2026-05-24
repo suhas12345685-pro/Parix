@@ -1,10 +1,18 @@
+<p align="center">
+  <img src="aegis/public/parix-logo.svg" alt="Parix Logo" width="280" />
+</p>
+
 # 🧠 Parix
 
 > **The Proactive, Local-First Self-Healing Workstation Agent**
 
-Parix is a state-of-the-art, polyglot AI assistant that runs in the background of your operating system to monitor terminal output and workspace activity. It proactively diagnoses terminal errors, repeated failures, and system issues, offering or executing immediate one-click fixes before you even have to ask. 
+Parix is a state-of-the-art, polyglot AI assistant designed for proactive OS automation and self-healing workspace support. Running seamlessly as a background workstation service, it actively monitors terminal execution, logs, and development activity to detect errors, repeated build failures, and environmental anomalies. Using its stateful planning system, Parix diagnoses root causes and proposes or executes instant, one-click repairs before you even have to ask.
 
-Parix is built with a **Node.js Brain** (Atrium), **Python Hands** (sensors and command execution bridge), and a gorgeous **Vite + React Dashboard** (Aegis) to visualize health, agent status, and active tasks.
+### 🌟 Key Pillars
+- **Proactive Self-Healing**: Automatically intercepts shell errors, analyzes failure outputs, and plans multi-step fixes.
+- **Local-First & Private**: Keeps all your proprietary code, session context, and workspace logs strictly on your local machine, utilizing local fallback models to guarantee privacy.
+- **Hybrid Cognitive Architecture**: Powered by a high-level **Node.js Brain** (Atrium) for advanced planning and scheduling, combined with low-level **Python Hands** for platform-specific OS sensors and automation.
+- **Real-Time Visual Control**: Equipped with a beautiful, responsive **Vite + React Dashboard** (Aegis) to inspect active plan trees, view execution logs, run system diagnostics, and interact with the agent.
 
 ---
 
