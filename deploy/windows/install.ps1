@@ -126,17 +126,27 @@ foreach ($file in @("ecosystem.config.js", ".env.example")) {
 # â”€â”€â”€ Install Node dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Step "Installing or reusing Node.js dependencies..."
 Push-Location $PARIX_HOME
-npm ci 2>$null
-if (-not $?) { npm install }
+# Native commands emit warnings on stderr; under EAP=Stop that turns a warning
+# into a terminating NativeCommandError even when the command succeeds. Run with
+# Continue + 2>&1 and gate on the real exit code.
+$prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+npm ci 2>&1 | Out-Host
+if ($LASTEXITCODE -ne 0) { npm install 2>&1 | Out-Host }
+$npmExit = $LASTEXITCODE
+$ErrorActionPreference = $prevEAP
 Pop-Location
+if ($npmExit -ne 0) { Write-Fail "npm install failed (exit $npmExit)" }
 Write-Ok "Node.js dependencies installed"
 
 # â”€â”€â”€ Install Python dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Step "Installing or reusing Python dependencies..."
 $reqFile = "$PARIX_HOME\hands\requirements.txt"
 if (Test-Path $reqFile) {
-    & $pyCmd @pyArgs -m pip install -r $reqFile --quiet
-    Write-Ok "Python dependencies installed"
+    $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    & $pyCmd @pyArgs -m pip install -r $reqFile --quiet 2>&1 | Out-Host
+    $pipExit = $LASTEXITCODE
+    $ErrorActionPreference = $prevEAP
+    if ($pipExit -ne 0) { Write-Warn "pip reported issues (exit $pipExit) — continuing" } else { Write-Ok "Python dependencies installed" }
 } else {
     Write-Warn "requirements.txt not found"
 }
@@ -144,10 +154,15 @@ if (Test-Path $reqFile) {
 # â”€â”€â”€ Build Atrium â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Step "Building Parix workspaces..."
 Push-Location $PARIX_HOME
-npm run build --workspace=atrium
-npm run build --workspace=hatchery
-npm run build --workspace=aegis
+$prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+npm run build --workspace=atrium 2>&1 | Out-Host;   $bAtrium = $LASTEXITCODE
+npm run build --workspace=hatchery 2>&1 | Out-Host; $bHatchery = $LASTEXITCODE
+npm run build --workspace=aegis 2>&1 | Out-Host;    $bAegis = $LASTEXITCODE
+$ErrorActionPreference = $prevEAP
 Pop-Location
+if ($bAtrium -ne 0 -or $bHatchery -ne 0 -or $bAegis -ne 0) {
+    Write-Fail "build failed (atrium=$bAtrium hatchery=$bHatchery aegis=$bAegis)"
+}
 Write-Ok "Workspaces compiled"
 
 # â”€â”€â”€ Create launcher batch file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -301,11 +316,17 @@ if (-not (Test-Path $envFile)) {
 
 # â”€â”€â”€ Run onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Step "Starting Hatchery onboarding or runtime..."
+# EAP=Continue so node's stderr logs don't get turned into a terminating error
+# (which would silently skip onboarding). No pipe — keep the console TTY so the
+# interactive wizard works.
+$prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
 try {
     & node "$PARIX_HOME\hatchery\dist\index.js" --post-install
+    if ($LASTEXITCODE -ne 0) { Write-Warn "Onboarding exited $LASTEXITCODE - run 'parix onboarding' later." }
 } catch {
-    Write-Warn "Onboarding skipped - run parix onboarding later to configure."
+    Write-Warn "Onboarding skipped ($($_.Exception.Message)) - run 'parix onboarding' later."
 }
+$ErrorActionPreference = $prevEAP
 
 # â”€â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
