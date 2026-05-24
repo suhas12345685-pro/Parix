@@ -37,6 +37,7 @@ import { loadNarratives } from "./cognition/horizon-store.js";
 import { loadTrees } from "./cognition/planner/index.js";
 import { loadActivePlanTrees } from "./cognition/planner/store.js";
 import { loadSkills, getRegistryStats } from "./intelligence/skill-registry.js";
+import { watchSkills } from "./intelligence/skill-watcher.js";
 import { initDocsRouter, loadBootDocs } from "./docs/index.js";
 import { seedDefaultBenchmarks } from "./nexus/index.js";
 
@@ -107,6 +108,9 @@ async function main() {
   console.log(
     `[BOOT] Loaded ${registryStats.totalSkills} skill manifest(s), ${registryStats.totalTriggers} trigger(s)`,
   );
+  // Auto-discovery: new/edited/removed skills hot-reload without a restart or
+  // any manual wiring step.
+  const stopSkillWatch = watchSkills(SKILLS_DIR);
 
   // ─── Documentation Router ──────────────────────────────────────
   initDocsRouter(PROJECT_ROOT);
@@ -341,6 +345,7 @@ async function main() {
   // ─── Shutdown ──────────────────────────────────────────────────
   function shutdown() {
     console.log("[ATRIUM] Shutting down...");
+    stopSkillWatch();
     clearInterval(watchdogInterval);
     aegisWss.close();
     engine.destroy();
