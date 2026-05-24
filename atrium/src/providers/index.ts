@@ -10,6 +10,7 @@
  */
 export * from "./BaseProvider.js";
 export { SilentCliBridge, stripAnsi } from "./SilentCliBridge.js";
+export { cliProcessManager, type CliSpawnSpec, type ManagedProcessInfo } from "./CliProcessManager.js";
 export { OpenAIProvider } from "./OpenAIProvider.js";
 export { ClaudeProvider } from "./ClaudeProvider.js";
 export { GeminiProvider } from "./GeminiProvider.js";

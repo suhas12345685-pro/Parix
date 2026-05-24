@@ -18,6 +18,8 @@
  * always false.
  */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import type { ProviderId } from "./BaseProvider.js";
+import { cliProcessManager } from "./CliProcessManager.js";
 
 // Strip ANSI escape / color codes and common CLI decorations from output.
 // eslint-disable-next-line no-control-regex
@@ -33,6 +35,11 @@ export interface SilentCliOptions {
   args: string[];
   /** Keep one process alive across turns to preserve conversation context. */
   persistent?: boolean;
+  /**
+   * When set, persistent processes are owned by the central CliProcessManager
+   * (shared registry + guaranteed teardown on agent exit/crash).
+   */
+  providerId?: ProviderId;
   /** Per-turn timeout (ms). */
   timeoutMs?: number;
   /** Extra env for the child (merged over process.env). */
@@ -121,6 +128,16 @@ export class SilentCliBridge {
   }
 
   private ensurePersistentChild(): ChildProcessWithoutNullStreams {
+    // Delegate ownership to the central manager when a providerId is given, so
+    // the global teardown hook covers this session and it appears in the registry.
+    if (this.opts.providerId) {
+      return cliProcessManager.ensure(this.opts.providerId, {
+        bin: this.opts.bin,
+        args: this.opts.args,
+        env: this.opts.env,
+        cwd: this.opts.cwd,
+      });
+    }
     if (this.child && !this.child.killed) return this.child;
     this.child = this.spawnChild();
     this.child.on("close", () => {
@@ -169,6 +186,7 @@ export class SilentCliBridge {
   }
 
   async dispose(): Promise<void> {
+    if (this.opts.providerId) cliProcessManager.kill(this.opts.providerId);
     if (this.child && !this.child.killed) {
       try {
         this.child.stdin.end();

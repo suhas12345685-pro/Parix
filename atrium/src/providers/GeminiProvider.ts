@@ -40,7 +40,7 @@ export class GeminiProvider implements IParixProvider {
 
   async initialize(): Promise<void> {
     if (this.mode === "cli") {
-      this.cli = new SilentCliBridge({ bin: this.cliBinary, args: ["-p"], timeoutMs: 120_000 });
+      this.cli = new SilentCliBridge({ bin: this.cliBinary, args: ["-p"], timeoutMs: 120_000, providerId: this.id });
     } else if (!this.apiKey && !this.serviceAccountPath) {
       throw new ParixProviderError(this.id, "no GEMINI_API_KEY or service-account path (api mode)");
     }

@@ -42,7 +42,7 @@ export class OpenAIProvider implements IParixProvider {
   async initialize(): Promise<void> {
     if (this.mode === "cli") {
       // `codex exec` runs a single prompt non-interactively.
-      this.cli = new SilentCliBridge({ bin: this.cliBinary, args: ["exec"], timeoutMs: 180_000 });
+      this.cli = new SilentCliBridge({ bin: this.cliBinary, args: ["exec"], timeoutMs: 180_000, providerId: this.id });
     } else if (!this.apiKey) {
       throw new ParixProviderError(this.id, "OPENAI_API_KEY not set (api mode)");
     }

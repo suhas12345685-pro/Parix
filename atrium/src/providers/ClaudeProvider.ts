@@ -37,6 +37,7 @@ export class ClaudeProvider implements IParixProvider {
         bin: this.cliBinary,
         args: ["-p"], // print mode: read prompt, emit answer, exit
         timeoutMs: 120_000,
+        providerId: this.id,
       });
     } else if (!this.apiKey) {
       throw new ParixProviderError(this.id, "ANTHROPIC_API_KEY not set (api mode)");
