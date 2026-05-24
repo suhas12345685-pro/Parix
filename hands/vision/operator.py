@@ -1,9 +1,9 @@
 """Screen operator entry point.
 
-Bridges the dormant vision agent loop (hands/vision/agent.py) to the live
+bridges the dormant vision agent loop (hands/vision/agent.py) to the live
 system: per-step vision reasoning is routed to Atrium's LLM router (whichever
-multimodal provider the user configured) via the existing VISION_OCR_REQUEST /
-VISION_OCR_RESPONSE round-trip, and actions are executed through UIAutomation.
+multimodal provider the user configured) via the existing MULTIMODAL_REQUEST /
+MULTIMODAL_RESPONSE round-trip, and actions are executed through UIAutomation.
 
 This is what makes Parix a real operator: given a goal, it sees the screen,
 decides, and acts — repeating until done or the step cap.
@@ -24,12 +24,12 @@ from hands.vision.agent import run_vision_agent
 STEP_VISION_TIMEOUT_S = 45.0
 
 
-class SynapseVisionProvider:
+class SynapseMultimodalProvider:
     """LLMVisionProvider that routes each step to Atrium over synapse.
 
     `send_json` sends a raw JSON string to the Atrium connection; `pending`
     is a shared registry (request_id -> Future) that main.py resolves when the
-    matching VISION_OCR_RESPONSE arrives.
+    matching MULTIMODAL_RESPONSE arrives.
     """
 
     def __init__(
@@ -50,7 +50,7 @@ class SynapseVisionProvider:
         self._pending[request_id] = future
 
         envelope = {
-            "type": "VISION_OCR_REQUEST",
+            "type": "MULTIMODAL_REQUEST",
             "request_id": request_id,
             "prompt": prompt,
             "image_b64": image_b64,
@@ -92,7 +92,7 @@ async def run_operator(
     pending: dict[str, "asyncio.Future[dict[str, Any]]"],
 ) -> dict[str, Any]:
     """Run the operator loop for `goal` and return a TASK_RESULT-shaped dict."""
-    provider = SynapseVisionProvider(send_json, pending)
+    provider = SynapseMultimodalProvider(send_json, pending)
     try:
         steps = await run_vision_agent(goal, provider)
     except Exception as exc:  # noqa: BLE001 — surface any loop failure as a result

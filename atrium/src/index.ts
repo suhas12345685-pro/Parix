@@ -1,4 +1,4 @@
-import { mkdirSync } from "fs";
+import { mkdirSync, existsSync, readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { initDb, initMemoryStore, lastEventId, closeDb } from "./memory/db.js";
@@ -47,7 +47,41 @@ const DATA_DIR = process.env.PARIX_DATA_DIR
   : resolve(__dirname, "../../data");
 const SKILLS_DIR = resolve(__dirname, "../../skills");
 
+function loadEnv() {
+  const parixHome =
+    process.env.PARIX_HOME ||
+    resolve(process.env.HOME || process.env.USERPROFILE || "", ".parix");
+  const envPaths = [
+    resolve(PROJECT_ROOT, ".env"),
+    resolve(parixHome, ".env")
+  ];
+
+  for (const envPath of envPaths) {
+    if (!existsSync(envPath)) continue;
+    try {
+      const content = readFileSync(envPath, "utf-8");
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx === -1) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        const val = trimmed
+          .slice(eqIdx + 1)
+          .trim()
+          .replace(/^["']|["']$/g, "");
+        if (key && process.env[key] === undefined) {
+          process.env[key] = val;
+        }
+      }
+    } catch (err) {
+      console.warn(`[BOOT] Failed to read env file ${envPath}:`, err);
+    }
+  }
+}
+
 async function main() {
+  loadEnv();
   mkdirSync(DATA_DIR, { recursive: true });
 
   console.log("[ATRIUM] Initializing...");

@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   computeAccessibilityEntropy,
-  handleVisionOcrRequest,
+  handleMultimodalRequest,
   maybeRequestVisualFallback,
-  type VisionOcrResponseMessage,
-} from "../vision-handler.js";
+  type MultimodalResponseMessage,
+} from "../multimodal-handler.js";
 import { LLMRouter } from "../../llm/router.js";
 import type { LLMProvider } from "../../llm/types.js";
 
 function makeRequest(overrides: Record<string, unknown> = {}) {
   return {
-    type: "VISION_OCR_REQUEST" as const,
+    type: "MULTIMODAL_REQUEST" as const,
     request_id: "req-1",
     prompt: "Extract text",
     image_b64: "AAAA",
@@ -20,14 +20,14 @@ function makeRequest(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("handleVisionOcrRequest", () => {
+describe("handleMultimodalRequest", () => {
   it("responds with error=no-router when no router is registered", async () => {
-    const send = vi.fn<(msg: VisionOcrResponseMessage) => void>();
-    await handleVisionOcrRequest(makeRequest(), null, send);
+    const send = vi.fn<(msg: MultimodalResponseMessage) => void>();
+    await handleMultimodalRequest(makeRequest(), null, send);
 
     expect(send).toHaveBeenCalledTimes(1);
     const response = send.mock.calls[0][0];
-    expect(response.type).toBe("VISION_OCR_RESPONSE");
+    expect(response.type).toBe("MULTIMODAL_RESPONSE");
     expect(response.request_id).toBe("req-1");
     expect(response.error).toBe("no-router");
     expect(response.text).toBe("");
@@ -35,8 +35,8 @@ describe("handleVisionOcrRequest", () => {
 
   it("responds with error=no-image when image_b64 is empty", async () => {
     const router = new LLMRouter({ providers: [] });
-    const send = vi.fn<(msg: VisionOcrResponseMessage) => void>();
-    await handleVisionOcrRequest(
+    const send = vi.fn<(msg: MultimodalResponseMessage) => void>();
+    await handleMultimodalRequest(
       makeRequest({ image_b64: "" }),
       router,
       send,
@@ -67,9 +67,9 @@ describe("handleVisionOcrRequest", () => {
       providers: [vision],
       routes: { vision: ["vision-ok"] },
     });
-    const send = vi.fn<(msg: VisionOcrResponseMessage) => void>();
+    const send = vi.fn<(msg: MultimodalResponseMessage) => void>();
 
-    await handleVisionOcrRequest(makeRequest(), router, send);
+    await handleMultimodalRequest(makeRequest(), router, send);
 
     const response = send.mock.calls[0][0];
     expect(response.error).toBeNull();
@@ -90,9 +90,9 @@ describe("handleVisionOcrRequest", () => {
       providers: [textOnly],
       routes: { vision: ["text-only"] },
     });
-    const send = vi.fn<(msg: VisionOcrResponseMessage) => void>();
+    const send = vi.fn<(msg: MultimodalResponseMessage) => void>();
 
-    await handleVisionOcrRequest(makeRequest(), router, send);
+    await handleMultimodalRequest(makeRequest(), router, send);
 
     const response = send.mock.calls[0][0];
     expect(response.text).toBe("");

@@ -10,7 +10,12 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
+import {
+  createServer,
+  request,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import {
   closeSync,
@@ -34,14 +39,25 @@ import {
   isPersonalProfile,
   type ProfileMode,
 } from 'parix-shared';
-import { resetProfile, writeProfile } from './config-writer.js';
+import {
+  createWorkspaceFilesystemMcpServer,
+  normalizeMcpServerName,
+  resetProfile,
+  type McpServerDeclaration,
+  writeMcpServersConfig,
+  writeProfile,
+  writeIdentityFiles,
+  readEnvFile,
+} from './config-writer.js';
 import { listInstalledSkills } from './skills.js';
 import { renderOnboardingHtml as renderWebOnboardingHtml } from './web/onboarding.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, '../..');
 const PORTS = readProtocolPorts();
-const AEGIS_UI_PORT = Number(process.env.AEGIS_UI_PORT || PORTS.aegis_ui || 3000);
+const AEGIS_UI_PORT = Number(
+  process.env.AEGIS_UI_PORT || PORTS.aegis_ui || 3000,
+);
 const AEGIS_RELAY_PORT = PORTS.aegis_relay ?? 8766;
 const RUNTIME_NAMES = ['hands', 'atrium', 'aegis'] as const;
 type RuntimeName = (typeof RUNTIME_NAMES)[number];
@@ -69,13 +85,13 @@ function findPython(): string | null {
   const candidates =
     process.platform === 'win32'
       ? [
-          { cmd: 'python',  args: ['--version'] },
+          { cmd: 'python', args: ['--version'] },
           { cmd: 'python3', args: ['--version'] },
-          { cmd: 'py',      args: ['-3', '--version'] },
+          { cmd: 'py', args: ['-3', '--version'] },
         ]
       : [
           { cmd: 'python3', args: ['--version'] },
-          { cmd: 'python',  args: ['--version'] },
+          { cmd: 'python', args: ['--version'] },
         ];
 
   for (const candidate of candidates) {
@@ -95,20 +111,24 @@ function findPythonRuntime(): CommandSpec | null {
     process.platform === 'win32'
       ? [
           { cmd: 'pythonw', args: [] },
-          { cmd: 'python',  args: [] },
+          { cmd: 'python', args: [] },
           { cmd: 'python3', args: [] },
-          { cmd: 'py',      args: ['-3'] },
+          { cmd: 'py', args: ['-3'] },
         ]
       : [
           { cmd: 'python3', args: [] },
-          { cmd: 'python',  args: [] },
+          { cmd: 'python', args: [] },
         ];
 
   for (const candidate of candidates) {
-    const result = spawnSync(candidate.cmd, [...candidate.args, '-c', 'import sys'], {
-      stdio: 'ignore',
-      windowsHide: true,
-    });
+    const result = spawnSync(
+      candidate.cmd,
+      [...candidate.args, '-c', 'import sys'],
+      {
+        stdio: 'ignore',
+        windowsHide: true,
+      },
+    );
     if (!result.error && result.status === 0) {
       return candidate;
     }
@@ -153,9 +173,13 @@ async function startWebFallback(reason: string): Promise<void> {
 }
 
 async function startTuiOnboarding(): Promise<void> {
+  // TUI-only onboarding (no web wizard). A real terminal is required.
   if (!hasInteractiveTerminal()) {
-    await startWebFallback('Interactive terminal prompts are not available.');
-    return;
+    console.log(
+      '\n[hatchery] Onboarding needs an interactive terminal. ' +
+        'Open a terminal and run:  parix onboarding',
+    );
+    process.exit(0);
   }
 
   try {
@@ -163,16 +187,26 @@ async function startTuiOnboarding(): Promise<void> {
     const result = await runTuiWizard();
 
     if (!result.completed) {
-      console.log('\n[hatchery] Onboarding cancelled. Run `parix onboarding` to try again.');
+      console.log(
+        '\n[hatchery] Onboarding cancelled. Run `parix onboarding` to try again.',
+      );
       process.exit(0);
     }
 
     console.log('\n[hatchery] Configuration saved!');
-    await startBackgroundRuntime({ openDashboard: true });
+    // Honor the user's "hatch" choice: Web UI opens the dashboard; TUI runs headless.
+    const openDashboard = result.hatchMode !== 'tui';
+    if (!openDashboard) {
+      console.log('[hatchery] Hatching in TUI mode — running headless. Use `parix status` to check in.');
+    }
+    await startBackgroundRuntime({ openDashboard });
   } catch (err) {
     if (isMissingTuiDependency(err)) {
-      await startWebFallback('Terminal onboarding is unavailable in this build.');
-      return;
+      console.error(
+        '[hatchery] Terminal onboarding dependency missing. ' +
+          'Reinstall dependencies (npm install) and run `parix onboarding`.',
+      );
+      process.exit(1);
     }
     throw err;
   }
@@ -193,7 +227,10 @@ function startOnboardingServer(): Promise<void> {
   return new Promise((resolveStarted, rejectStarted) => {
     const server = createServer(async (req, res) => {
       try {
-        const url = new URL(req.url ?? '/', `http://localhost:${AEGIS_UI_PORT}`);
+        const url = new URL(
+          req.url ?? '/',
+          `http://localhost:${AEGIS_UI_PORT}`,
+        );
 
         if (req.method === 'GET' && url.pathname === '/') {
           sendHtml(res, renderOnboardingHtml());
@@ -226,39 +263,91 @@ function startOnboardingServer(): Promise<void> {
             sendJson(res, { ok: false, error: 'Missing target URL' }, 400);
             return;
           }
-          const active = await new Promise<boolean>((resolvePing) => {
-            try {
-              const parsedTarget = new URL(target);
-              const reqPing = request({
-                hostname: parsedTarget.hostname || 'localhost',
-                port: parsedTarget.port || 80,
-                path: parsedTarget.pathname + parsedTarget.search,
-                method: 'GET',
-                timeout: 800
-              }, (resPing: IncomingMessage) => {
-                resolvePing(resPing.statusCode === 200 || resPing.statusCode === 204 || resPing.statusCode === 404 || resPing.statusCode === 401);
-              });
-              reqPing.on('error', () => resolvePing(false));
-              reqPing.on('timeout', () => {
-                reqPing.destroy();
-                resolvePing(false);
-              });
-              reqPing.end();
-            } catch {
-              resolvePing(false);
-            }
-          });
-          sendJson(res, { ok: true, active });
+          const result = await new Promise<{ active: boolean; body?: string }>(
+            (resolvePing) => {
+              try {
+                const parsedTarget = new URL(target);
+                const reqPing = request(
+                  {
+                    hostname: parsedTarget.hostname || 'localhost',
+                    port: parsedTarget.port || 80,
+                    path: parsedTarget.pathname + parsedTarget.search,
+                    method: 'GET',
+                    timeout: 800,
+                  },
+                  (resPing: IncomingMessage) => {
+                    let body = '';
+                    resPing.on('data', (chunk) => (body += chunk));
+                    resPing.on('end', () => {
+                      resolvePing({
+                        active:
+                          resPing.statusCode === 200 ||
+                          resPing.statusCode === 204 ||
+                          resPing.statusCode === 404 ||
+                          resPing.statusCode === 401,
+                        body,
+                      });
+                    });
+                  },
+                );
+                reqPing.on('error', () => resolvePing({ active: false }));
+                reqPing.on('timeout', () => {
+                  reqPing.destroy();
+                  resolvePing({ active: false });
+                });
+                reqPing.end();
+              } catch {
+                resolvePing({ active: false });
+              }
+            },
+          );
+          sendJson(res, { ok: true, ...result });
           return;
         }
 
         if (req.method === 'POST' && url.pathname === '/api/validate-key') {
-          const body = await readJsonBody(req) as { provider: string; key: string };
+          const body = (await readJsonBody(req)) as {
+            provider: string;
+            key: string;
+          };
           if (!body || !body.provider || !body.key) {
             sendJson(res, { ok: false, error: 'Missing provider or key' }, 400);
             return;
           }
-          sendJson(res, { ok: true, message: 'API key format valid & connection initialized!' });
+          sendJson(res, {
+            ok: true,
+            message: 'API key format valid & connection initialized!',
+          });
+          return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/check-cli') {
+          const provider = url.searchParams.get('provider');
+          if (!provider) {
+            sendJson(res, { ok: false, error: 'Missing provider' }, 400);
+            return;
+          }
+          let cmd = '';
+          if (provider === 'openai') cmd = 'openai --version';
+          if (provider === 'anthropic') cmd = 'anthropic --version';
+          if (provider === 'google') cmd = 'gcloud --version';
+          
+          if (!cmd) {
+            sendJson(res, { ok: true, active: false });
+            return;
+          }
+
+          const active = await new Promise<boolean>(async (resolveCheck) => {
+            const { spawn } = await import('node:child_process');
+            const [base, ...args] = cmd.split(' ');
+            const child = spawn(process.platform === 'win32' ? base + '.cmd' : base, args, { 
+              shell: true,
+              windowsHide: true 
+            });
+            child.on('error', () => resolveCheck(false));
+            child.on('exit', (code) => resolveCheck(code === 0));
+          });
+          sendJson(res, { ok: true, active });
           return;
         }
 
@@ -290,8 +379,11 @@ function startOnboardingServer(): Promise<void> {
       } catch (err) {
         sendJson(
           res,
-          { ok: false, errors: [err instanceof Error ? err.message : String(err)] },
-          500
+          {
+            ok: false,
+            errors: [err instanceof Error ? err.message : String(err)],
+          },
+          500,
         );
       }
     });
@@ -300,8 +392,8 @@ function startOnboardingServer(): Promise<void> {
       if (err.code === 'EADDRINUSE') {
         rejectStarted(
           new Error(
-            `Port ${AEGIS_UI_PORT} is already in use. Stop the existing Aegis/Hatchery process and retry.`
-          )
+            `Port ${AEGIS_UI_PORT} is already in use. Stop the existing Aegis/Hatchery process and retry.`,
+          ),
         );
         return;
       }
@@ -322,10 +414,15 @@ function startOnboardingServer(): Promise<void> {
 }
 
 async function saveWebProfile(raw: unknown) {
-  const input = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const mode: ProfileMode = input.mode === 'enterprise' ? 'enterprise' : 'personal';
+  const input =
+    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const mode: ProfileMode =
+    input.mode === 'enterprise' ? 'enterprise' : 'personal';
   const profile = createDefaultProfile(mode);
-  const wakeWord = String(input.wakeWord ?? 'aegis').trim().toLowerCase() || 'aegis';
+  const wakeWord =
+    String(input.wakeWord ?? 'aegis')
+      .trim()
+      .toLowerCase() || 'aegis';
 
   const enabledChannels = normalizeStringArray(input.enabledChannels);
   profile.channels.enabled = unique(['aegis', ...enabledChannels]);
@@ -336,37 +433,59 @@ async function saveWebProfile(raw: unknown) {
     profile.channels.settings[channelId] = {
       ...(profile.channels.settings[channelId] ?? {}),
       enabled: 'true',
-      connectionMethod: mode === 'enterprise' ? 'official-integration' : 'configured',
+      connectionMethod:
+        mode === 'enterprise' ? 'official-integration' : 'configured',
     };
   }
 
-  const provider = String(input.provider ?? 'openai').trim() || 'openai';
-  const defaultModel = DEFAULT_MODELS[provider] ?? 'gpt-4o-mini';
+  const provider = String(input.provider ?? 'none').trim() || 'none';
+  const defaultModel = provider === 'none' ? 'none' : DEFAULT_MODELS[provider] || 'none';
   profile.llm.provider = provider;
   profile.llm.model = String(input.model ?? defaultModel).trim() || defaultModel;
-  profile.llm.authMethod = provider === 'ollama' || provider === 'lmstudio' ? 'local' : 'api_key';
+  profile.llm.authMethod =
+    provider === 'ollama' || provider === 'lmstudio' ? 'local' : 'api_key';
   profile.llm.connectionVerified = false;
+  profile.channels.primary = 'none';
 
   if (isPersonalProfile(profile)) {
-    const primaryGoals = splitList(String(input.primaryGoals ?? input.workflows ?? ''));
+    const primaryGoals = splitList(
+      String(input.primaryGoals ?? input.workflows ?? ''),
+    );
     const recurringTasks = splitList(String(input.recurringTasks ?? ''));
     profile.agentProfile = {
       mode: 'personal',
       userName: String(input.userName ?? input.name ?? '').trim(),
-      userDescription: String(input.userDescription ?? input.computerUse ?? '').trim(),
+      userDescription: String(
+        input.userDescription ?? input.computerUse ?? '',
+      ).trim(),
       agentName: String(input.agentName ?? 'Parix').trim() || 'Parix',
       relationshipLabel: String(input.relationshipLabel ?? '').trim(),
       vibe: String(input.vibe ?? '').trim(),
       personality: String(input.personality ?? '').trim(),
       primaryGoals,
       recurringTasks,
+      techStack: String(input.techStack ?? '').trim(),
+      proactivity: (input.proactivity as any) || 'balanced',
+      tone: (input.tone as any) || 'friendly',
+      mainMission: String(input.mainMission ?? '').trim(),
       allowedChannels: [...profile.channels.enabled],
       blockedActions: splitList(String(input.blockedActions ?? '')),
-      approvalRequiredActions: splitList(String(input.approvalRequiredActions ?? '')),
+      approvalRequiredActions: splitList(
+        String(input.approvalRequiredActions ?? ''),
+      ),
       memoryPreferences: {
-        rememberUserPreferences: booleanInput(input.rememberUserPreferences, true),
-        rememberProjectContext: booleanInput(input.rememberProjectContext, true),
-        rememberPersonalContext: booleanInput(input.rememberPersonalContext, false),
+        rememberUserPreferences: booleanInput(
+          input.rememberUserPreferences,
+          true,
+        ),
+        rememberProjectContext: booleanInput(
+          input.rememberProjectContext,
+          true,
+        ),
+        rememberPersonalContext: booleanInput(
+          input.rememberPersonalContext,
+          false,
+        ),
       },
     };
     if (profile.agentProfile.blockedActions.length === 0) {
@@ -389,29 +508,41 @@ async function saveWebProfile(raw: unknown) {
     profile.identity.computerUse = profile.agentProfile.userDescription ?? '';
     profile.identity.mainWorkflows = primaryGoals;
     profile.personality.agentName = profile.agentProfile.agentName;
-    profile.personality.autonomyLevel = profile.agentProfile.approvalRequiredActions.length > 0
-      ? 'ask-before-fix'
-      : 'safe-auto-fix';
+    profile.personality.autonomyLevel =
+      profile.agentProfile.approvalRequiredActions.length > 0
+        ? 'ask-before-fix'
+        : 'safe-auto-fix';
   }
 
   if (isEnterpriseProfile(profile)) {
-    const automaticActions = splitList(String(input.automaticActions ?? input.allowedScope ?? ''));
+    const automaticActions = splitList(
+      String(input.automaticActions ?? input.allowedScope ?? ''),
+    );
     const blockedActions = withEnterpriseRequiredBlocks(
-      splitList(String(input.blockedActions ?? input.forbiddenScope ?? ''))
+      splitList(String(input.blockedActions ?? input.forbiddenScope ?? '')),
     );
     const approvalRequiredActions = withEnterpriseRequiredApprovals(
-      splitList(String(input.approvalRequiredActions ?? ''))
+      splitList(String(input.approvalRequiredActions ?? '')),
     );
     profile.agentProfile = {
       mode: 'enterprise',
       companyName: String(input.companyName ?? '').trim(),
       teamName: String(input.teamName ?? input.department ?? '').trim(),
       agentName: String(input.agentName ?? 'Parix').trim() || 'Parix',
-      roleTitle: String(input.roleTitle ?? input.roleName ?? 'IT Support Agent').trim() || 'IT Support Agent',
+      roleTitle:
+        String(
+          input.roleTitle ?? input.roleName ?? 'IT Support Agent',
+        ).trim() || 'IT Support Agent',
       roleDescription: String(input.roleDescription ?? '').trim(),
       responsibilities: splitList(String(input.responsibilities ?? '')),
-      recurringTasks: splitList(String(input.enterpriseRecurringTasks ?? input.recurringTasks ?? '')),
-      reportingTo: String(input.reportingTo ?? input.userRole ?? '').trim(),
+      recurringTasks: splitList(
+        String(input.enterpriseRecurringTasks ?? input.recurringTasks ?? ''),
+      ),
+      techStack: String(input.techStack ?? '').trim(),
+      proactivity: (input.proactivity as any) || 'balanced',
+      tone: (input.tone as any) || 'friendly',
+      mainMission: String(input.mainMission ?? '').trim(),
+      reportingTo: String(input.reportingTo ?? '').trim(),
       allowedChannels: [...profile.channels.enabled],
       allowedTools: splitList(String(input.allowedTools ?? '')),
       automaticActions,
@@ -435,8 +566,14 @@ async function saveWebProfile(raw: unknown) {
   }
 
   const enabledModules = normalizeStringArray(input.enabledModules);
-  const selectedModules = enabledModules.length > 0 ? enabledModules : profile.hatcheryModules.enabled;
-  const requiredModules = mode === 'enterprise' ? ['approval-gate', 'audit-logger'] : ['approval-gate'];
+  const selectedModules =
+    enabledModules.length > 0
+      ? enabledModules
+      : profile.hatcheryModules.enabled;
+  const requiredModules =
+    mode === 'enterprise'
+      ? ['approval-gate', 'audit-logger']
+      : ['approval-gate'];
   profile.hatcheryModules = {
     enabled: unique([...selectedModules, ...requiredModules]),
     lazyLoad: true,
@@ -453,8 +590,54 @@ async function saveWebProfile(raw: unknown) {
   const result = await writeProfile(profile, secrets);
   if (result.success) {
     createInitialSkill(input);
+    writeMcpServersConfig(createMcpServersFromWebInput(input), PROJECT_ROOT);
+    writeIdentityFiles(profile, PROJECT_ROOT);
   }
   return result;
+}
+
+function createMcpServersFromWebInput(
+  input: Record<string, unknown>,
+): Record<string, McpServerDeclaration> {
+  const servers: Record<string, McpServerDeclaration> = {};
+
+  if (booleanInput(input.enableMcpFilesystem, true)) {
+    const root = String(input.mcpFilesystemRoot ?? '').trim() || PROJECT_ROOT;
+    servers.filesystem = createWorkspaceFilesystemMcpServer(root);
+  }
+
+  if (booleanInput(input.enableMcpHttp, false)) {
+    const url = String(input.mcpHttpUrl ?? '').trim();
+    if (url) {
+      const name = normalizeMcpServerName(
+        String(input.mcpHttpName ?? 'local-http'),
+        'local-http',
+      );
+      servers[name] = {
+        transport: 'http',
+        url,
+        enabled: true,
+      };
+    }
+  }
+
+  if (booleanInput(input.enableMcpStdio, false)) {
+    const command = String(input.mcpStdioCommand ?? '').trim();
+    if (command) {
+      const name = normalizeMcpServerName(
+        String(input.mcpStdioName ?? 'custom-stdio'),
+        'custom-stdio',
+      );
+      servers[name] = {
+        transport: 'stdio',
+        command,
+        args: splitCommandArgs(String(input.mcpStdioArgs ?? '')),
+        enabled: true,
+      };
+    }
+  }
+
+  return servers;
 }
 
 function createInitialSkill(input: Record<string, unknown>): void {
@@ -473,17 +656,24 @@ function createInitialSkill(input: Record<string, unknown>): void {
   writeFileSync(
     join(skillDir, 'SKILL.md'),
     `---\nname: ${id}\ndescription: ${description.replace(/\n/g, ' ')}\n---\n\n# ${title}\n\n${description}\n\n## Source\n\n${source}\n\n## Usage\n\nUse this skill when Parix needs a first-pass operational brief after onboarding.\n`,
-    'utf-8'
+    'utf-8',
   );
   writeFileSync(
     join(skillDir, 'templates', 'brief.json'),
-    JSON.stringify({ sections: ['health', 'recent_errors', 'next_actions'], source }, null, 2) + '\n',
-    'utf-8'
+    JSON.stringify(
+      { sections: ['health', 'recent_errors', 'next_actions'], source },
+      null,
+      2,
+    ) + '\n',
+    'utf-8',
   );
 }
 
 function slugify(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 function normalizeStringArray(value: unknown): string[] {
@@ -496,7 +686,8 @@ function normalizeStringArray(value: unknown): string[] {
 function booleanInput(value: unknown, defaultValue: boolean): boolean {
   if (value === undefined || value === null) return defaultValue;
   if (typeof value === 'boolean') return value;
-  if (typeof value === 'string') return value === 'true' || value === 'on' || value === '1';
+  if (typeof value === 'string')
+    return value === 'true' || value === 'on' || value === '1';
   return Boolean(value);
 }
 
@@ -519,7 +710,9 @@ function withEnterpriseRequiredApprovals(actions: string[]): string[] {
 }
 
 function unique(values: string[]): string[] {
-  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter(Boolean)),
+  );
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -540,7 +733,11 @@ function serveAegisAsset(relativePath: string, res: ServerResponse): void {
 
   const filePath = join(PROJECT_ROOT, 'aegis/dist', safePath);
   if (!existsSync(filePath)) {
-    sendText(res, 'Aegis build not found. Run npm run build:all after onboarding.', 404);
+    sendText(
+      res,
+      'Aegis build not found. Run npm run build:all after onboarding.',
+      404,
+    );
     return;
   }
 
@@ -554,11 +751,9 @@ function providerEnvKey(provider: string): string | null {
     anthropic: 'ANTHROPIC_API_KEY',
     groq: 'GROQ_API_KEY',
     grok: 'XAI_API_KEY',
-    perplexity: 'PERPLEXITY_API_KEY',
     mistral: 'MISTRAL_API_KEY',
     kimi: 'KIMI_API_KEY',
     openrouter: 'OPENROUTER_API_KEY',
-    deepseek: 'DEEPSEEK_API_KEY',
   };
   return keys[provider] ?? null;
 }
@@ -568,6 +763,11 @@ function splitList(value: string): string[] {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function splitCommandArgs(value: string): string[] {
+  const matches = value.match(/"([^"]*)"|'([^']*)'|\S+/g) ?? [];
+  return matches.map((item) => item.replace(/^["']|["']$/g, ''));
 }
 
 function sendHtml(res: ServerResponse, body: string): void {
@@ -607,7 +807,9 @@ interface RuntimeSpec {
   env: NodeJS.ProcessEnv;
 }
 
-async function startBackgroundRuntime(options: RuntimeOptions = {}): Promise<void> {
+async function startBackgroundRuntime(
+  options: RuntimeOptions = {},
+): Promise<void> {
   console.log('[hatchery] Starting Parix in background...\n');
 
   const aegisPort = await resolveAegisRuntimePort();
@@ -646,13 +848,15 @@ async function pickAegisPort(preferredPort: number): Promise<number> {
     if (await isPortAvailable(port)) {
       if (port !== preferredPort) {
         console.log(
-          `[hatchery] Aegis port ${preferredPort} is in use; using ${port} instead.`
+          `[hatchery] Aegis port ${preferredPort} is in use; using ${port} instead.`,
         );
       }
       return port;
     }
   }
-  throw new Error(`No available Aegis UI port found from ${preferredPort} to ${preferredPort + 19}.`);
+  throw new Error(
+    `No available Aegis UI port found from ${preferredPort} to ${preferredPort + 19}.`,
+  );
 }
 
 async function resolveAegisRuntimePort(): Promise<number> {
@@ -681,12 +885,24 @@ function getRuntimeSpecs(aegisPort = AEGIS_UI_PORT): RuntimeSpec[] {
     throw new Error('Unable to find python3 or python on PATH.');
   }
 
+  const parixHome =
+    process.env.PARIX_HOME ||
+    resolve(process.env.HOME || process.env.USERPROFILE || '', '.parix');
+  const projectEnv = readEnvFile(resolve(PROJECT_ROOT, '.env'));
+  const homeEnv = readEnvFile(resolve(parixHome, '.env'));
+
   const env: NodeJS.ProcessEnv = {
+    ...projectEnv,
+    ...homeEnv,
     ...process.env,
     AEGIS_UI_PORT: String(aegisPort),
     NODE_ENV: 'production',
-    PARIX_DB_PATH: process.env.PARIX_DB_PATH || resolve(PROJECT_ROOT, 'data/parix.db'),
-    PARIX_HOME: process.env.PARIX_HOME || PROJECT_ROOT,
+    PARIX_DB_PATH:
+      process.env.PARIX_DB_PATH ||
+      projectEnv.PARIX_DB_PATH ||
+      homeEnv.PARIX_DB_PATH ||
+      resolve(PROJECT_ROOT, 'data/parix.db'),
+    PARIX_HOME: parixHome,
     PYTHONUNBUFFERED: '1',
   };
 
@@ -723,8 +939,14 @@ function startRuntimeProcess(spec: RuntimeSpec): void {
   }
 
   ensureRuntimeDirs();
-  const outFd = openSync(resolve(PROJECT_ROOT, 'logs', `${spec.name}.out.log`), 'a');
-  const errFd = openSync(resolve(PROJECT_ROOT, 'logs', `${spec.name}.err.log`), 'a');
+  const outFd = openSync(
+    resolve(PROJECT_ROOT, 'logs', `${spec.name}.out.log`),
+    'a',
+  );
+  const errFd = openSync(
+    resolve(PROJECT_ROOT, 'logs', `${spec.name}.err.log`),
+    'a',
+  );
 
   try {
     const spawnOpts: Parameters<typeof spawn>[2] = {
@@ -773,7 +995,7 @@ function stopBackgroundRuntime(): void {
         console.warn(
           `[hatchery] ${name}: could not stop PID ${pid}: ${
             err instanceof Error ? err.message : String(err)
-          }`
+          }`,
         );
       }
     } else {
@@ -814,15 +1036,23 @@ function runtimeStatePath(): string {
 
 function readRuntimeState(): RuntimeState | null {
   try {
-    const parsed = JSON.parse(readFileSync(runtimeStatePath(), 'utf-8')) as Partial<RuntimeState>;
-    return typeof parsed.aegisPort === 'number' ? { aegisPort: parsed.aegisPort } : null;
+    const parsed = JSON.parse(
+      readFileSync(runtimeStatePath(), 'utf-8'),
+    ) as Partial<RuntimeState>;
+    return typeof parsed.aegisPort === 'number'
+      ? { aegisPort: parsed.aegisPort }
+      : null;
   } catch {
     return null;
   }
 }
 
 function writeRuntimeState(state: RuntimeState): void {
-  writeFileSync(runtimeStatePath(), JSON.stringify(state, null, 2) + '\n', 'utf-8');
+  writeFileSync(
+    runtimeStatePath(),
+    JSON.stringify(state, null, 2) + '\n',
+    'utf-8',
+  );
 }
 
 function clearRuntimeState(): void {
@@ -856,7 +1086,11 @@ function serveAegisDist(): Promise<void> {
   return new Promise((resolveServer, rejectServer) => {
     const root = resolve(PROJECT_ROOT, 'aegis/dist');
     if (!existsSync(resolve(root, 'index.html'))) {
-      rejectServer(new Error(`Aegis build not found at ${root}. Run npm run build:all first.`));
+      rejectServer(
+        new Error(
+          `Aegis build not found at ${root}. Run npm run build:all first.`,
+        ),
+      );
       return;
     }
 
@@ -867,7 +1101,8 @@ function serveAegisDist(): Promise<void> {
         return;
       }
 
-      const requested = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+      const requested =
+        url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
       if (requested.includes('..')) {
         sendText(res, 'Not found', 404);
         return;
@@ -884,7 +1119,9 @@ function serveAegisDist(): Promise<void> {
 
     server.once('error', rejectServer);
     server.listen(AEGIS_UI_PORT, '127.0.0.1', () => {
-      console.log(`[AEGIS] Dashboard listening on http://localhost:${AEGIS_UI_PORT}`);
+      console.log(
+        `[AEGIS] Dashboard listening on http://localhost:${AEGIS_UI_PORT}`,
+      );
       resolveServer();
     });
   });
@@ -903,7 +1140,7 @@ function renderOnboardingHtml(): string {
 //   parix status       - print runtime status
 // ---------------------------------------------------------------------------
 function parseNaturalCommand(
-  argv: string[]
+  argv: string[],
 ): { action: RuntimeAction; target: RuntimeTarget } | null {
   const tokens = argv.map((t) => t.toLowerCase().replace(/^-+/, ''));
   if (tokens.length === 0) return null;
@@ -915,7 +1152,10 @@ function parseNaturalCommand(
   const action = parseRuntimeAction(tokens);
   if (!action) return null;
 
-  if (!tokens.includes('parix') && !RUNTIME_NAMES.some((name) => tokens.includes(name))) {
+  if (
+    !tokens.includes('parix') &&
+    !RUNTIME_NAMES.some((name) => tokens.includes(name))
+  ) {
     return null;
   }
 
@@ -949,7 +1189,8 @@ function parseRuntimeTarget(tokens: string[]): RuntimeTarget {
 function readRuntimeTarget(raw: string | undefined): RuntimeTarget {
   const target = raw?.toLowerCase();
   if (!target || target === 'parix' || target === 'all') return 'all';
-  if ((RUNTIME_NAMES as readonly string[]).includes(target)) return target as RuntimeName;
+  if ((RUNTIME_NAMES as readonly string[]).includes(target))
+    return target as RuntimeName;
   throw new Error(`Unknown runtime target: ${raw}`);
 }
 
@@ -977,7 +1218,9 @@ function stopRuntimeTarget(target: RuntimeTarget): void {
     stopBackgroundRuntime();
     return;
   }
-  const names: RuntimeName[] = RUNTIME_NAMES.filter((n) => n === target) as RuntimeName[];
+  const names: RuntimeName[] = RUNTIME_NAMES.filter(
+    (n) => n === target,
+  ) as RuntimeName[];
   for (const name of [...names].reverse()) {
     const pid = readPid(name);
     if (!pid) {
@@ -989,12 +1232,18 @@ function stopRuntimeTarget(target: RuntimeTarget): void {
         process.kill(pid);
         console.log(`[hatchery] ${name}: stopped PID ${pid}`);
       } catch (err) {
-        console.warn(`[hatchery] ${name}: could not stop PID ${pid}: ${err instanceof Error ? err.message : String(err)}`);
+        console.warn(
+          `[hatchery] ${name}: could not stop PID ${pid}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     } else {
       console.log(`[hatchery] ${name}: stale PID ${pid}`);
     }
-    try { unlinkSync(pidPath(name)); } catch { /* already removed */ }
+    try {
+      unlinkSync(pidPath(name));
+    } catch {
+      /* already removed */
+    }
   }
   if (target === 'aegis') {
     clearRuntimeState();
@@ -1002,11 +1251,14 @@ function stopRuntimeTarget(target: RuntimeTarget): void {
 }
 
 function printStatusTarget(target: RuntimeTarget): void {
-  const names: RuntimeName[] = target === 'all' ? [...RUNTIME_NAMES] : [target as RuntimeName];
+  const names: RuntimeName[] =
+    target === 'all' ? [...RUNTIME_NAMES] : [target as RuntimeName];
   for (const name of names) {
     const pid = readPid(name);
     const running = pid !== null && isPidRunning(pid);
-    console.log(`[hatchery] ${name}: ${running ? `running (PID ${pid})` : 'stopped'}`);
+    console.log(
+      `[hatchery] ${name}: ${running ? `running (PID ${pid})` : 'stopped'}`,
+    );
   }
 }
 
@@ -1022,10 +1274,22 @@ async function main(): Promise<void> {
   // --- Natural-language command check (highest priority) ---
   const natural = parseNaturalCommand(args);
   if (natural) {
-    if (natural.action === 'start')  { await startRuntimeTarget(natural.target); return; }
-    if (natural.action === 'stop')   { stopRuntimeTarget(natural.target); return; }
-    if (natural.action === 'restart') { await restartRuntimeTarget(natural.target); return; }
-    if (natural.action === 'status') { printStatusTarget(natural.target); return; }
+    if (natural.action === 'start') {
+      await startRuntimeTarget(natural.target);
+      return;
+    }
+    if (natural.action === 'stop') {
+      stopRuntimeTarget(natural.target);
+      return;
+    }
+    if (natural.action === 'restart') {
+      await restartRuntimeTarget(natural.target);
+      return;
+    }
+    if (natural.action === 'status') {
+      printStatusTarget(natural.target);
+      return;
+    }
   }
 
   const flagReset = args.includes('--reset');
@@ -1070,37 +1334,55 @@ async function main(): Promise<void> {
     }
     const hatcheryPy = resolve(PROJECT_ROOT, 'hands/hatchery.py');
     const [cmd, ...prefixArgs] = python.split(' ');
-    const child = spawnSync(cmd, [...prefixArgs, hatcheryPy, '--check'], { stdio: 'inherit' });
+    const child = spawnSync(cmd, [...prefixArgs, hatcheryPy, '--check'], {
+      stdio: 'inherit',
+    });
     process.exit(child.status ?? 1);
   }
 
   if (flagReset) {
     console.log('[hatchery] Resetting Parix configuration...');
     await resetProfile();
-    console.log('[hatchery] Configuration cleared. Starting fresh onboarding...\n');
+    console.log(
+      '[hatchery] Configuration cleared. Starting fresh onboarding...\n',
+    );
   }
 
+  // Web onboarding was removed — onboarding is TUI-only. `--web` now just
+  // runs the TUI wizard (the Web UI is a *runtime* hatch choice, not an
+  // onboarding mode).
   if (flagWeb) {
-    await startWebOnboarding();
+    await startTuiOnboarding();
     return;
   }
 
-  if (flagPostInstall && !flagReset && isOnboarded()) {
-    const profilePath = getProfilePath();
-    console.log('[hatchery] Existing Parix profile found.');
-    console.log(`  Profile: ${profilePath}`);
-    await startBackgroundRuntime({ openDashboard: true });
-    return;
+  // Post-install: if already onboarded, just start; otherwise run TUI onboarding.
+  if (flagPostInstall && !flagReset) {
+    if (isOnboarded()) {
+      const profilePath = getProfilePath();
+      console.log('[hatchery] Existing Parix profile found.');
+      console.log(`  Profile: ${profilePath}`);
+      await startBackgroundRuntime({ openDashboard: true });
+      return;
+    } else {
+      console.log('[hatchery] New installation detected. Starting TUI onboarding...');
+      await startTuiOnboarding();
+      return;
+    }
   }
 
+  // Allow re-running onboarding if explicitly requested or via reset
   if (!flagReset && isOnboarded()) {
-    const profilePath = getProfilePath();
-    console.log('[hatchery] Parix is already configured.');
-    console.log(`  Profile: ${profilePath}`);
-    console.log('');
-    console.log('  To reconfigure, run: parix onboarding --reset');
-    console.log('  To start Parix, run: parix start');
-    process.exit(0);
+    const isExplicitOnboarding = args.includes('onboarding');
+    if (!isExplicitOnboarding) {
+      const profilePath = getProfilePath();
+      console.log('[hatchery] Parix is already configured.');
+      console.log(`  Profile: ${profilePath}`);
+      console.log('');
+      console.log('  To reconfigure, run: parix onboarding');
+      console.log('  To start Parix, run: parix start');
+      process.exit(0);
+    }
   }
 
   await startTuiOnboarding();

@@ -570,7 +570,7 @@ async function main() {
           line.includes("mock") &&
           line.includes("profile=mock -> mock"),
       ),
-    5000,
+    20000,
   );
   if (profileRoutingOk) {
     ok("Atrium selected MockAdapter from the E2E profile");

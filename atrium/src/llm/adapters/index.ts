@@ -1,9 +1,7 @@
 export { AnthropicAdapter } from "./anthropic.js";
-export { BytezAdapter } from "./bytez.js";
 export { ClaudeAdapter } from "./claude.js";
 export { ChatGPTAdapter, OpenAIAdapter } from "./openai.js";
-export { CopilotAdapter } from "./copilot.js";
-export { DeepSeekAdapter } from "./deepseek.js";
+export { GeminiAdapter } from "./gemini.js";
 export { GrokAdapter } from "./grok.js";
 export { GroqAdapter } from "./groq.js";
 export { KimiAdapter } from "./kimi.js";
@@ -12,4 +10,3 @@ export { MistralAdapter } from "./mistral.js";
 export { MockAdapter } from "./mock.js";
 export { OllamaAdapter } from "./ollama.js";
 export { OpenRouterAdapter } from "./openrouter.js";
-export { PerplexityAdapter } from "./perplexity.js";

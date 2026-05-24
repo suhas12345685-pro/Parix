@@ -1,10 +1,8 @@
 import type { LLMProvider } from "./types.js";
 import {
   AnthropicAdapter,
-  BytezAdapter,
   ChatGPTAdapter,
-  CopilotAdapter,
-  DeepSeekAdapter,
+  GeminiAdapter,
   GrokAdapter,
   GroqAdapter,
   KimiAdapter,
@@ -13,7 +11,6 @@ import {
   MockAdapter,
   OllamaAdapter,
   OpenRouterAdapter,
-  PerplexityAdapter,
 } from "./adapters/index.js";
 import { createDefaultLLMRoutes } from "./router.js";
 import type { ParixProfile } from "parix-shared";
@@ -22,28 +19,24 @@ export function createDefaultLLMProviders(): LLMProvider[] {
   return [
     new ChatGPTAdapter(),
     new AnthropicAdapter(),
+    new GeminiAdapter(),
     new GrokAdapter(),
     new OpenRouterAdapter(),
     new GroqAdapter(),
-    new BytezAdapter(),
-    new PerplexityAdapter(),
     new KimiAdapter(),
     new OllamaAdapter(),
-    new DeepSeekAdapter(),
   ];
 }
 
 export const LLM_PROVIDER_IDS = [
   "chatgpt",
   "anthropic",
+  "google",
   "grok",
   "openrouter",
   "groq",
-  "bytez",
-  "perplexity",
   "kimi",
   "ollama",
-  "deepseek",
 ] as const;
 
 export type LLMProviderId = (typeof LLM_PROVIDER_IDS)[number];
@@ -102,26 +95,20 @@ function createProviderForId(
       return new ChatGPTAdapter({ model });
     case "anthropic":
       return new AnthropicAdapter({ model });
+    case "google":
+      return new GeminiAdapter({ model });
     case "grok":
       return new GrokAdapter({ model });
     case "openrouter":
       return new OpenRouterAdapter({ model });
     case "groq":
       return new GroqAdapter({ model });
-    case "bytez":
-      return new BytezAdapter({ model });
-    case "perplexity":
-      return new PerplexityAdapter({ model });
     case "kimi":
       return new KimiAdapter({ model });
     case "ollama":
       return new OllamaAdapter({ model });
-    case "deepseek":
-      return new DeepSeekAdapter({ model });
     case "mistral":
       return new MistralAdapter({ model });
-    case "copilot":
-      return new CopilotAdapter({ model });
     case "lmstudio":
       return new LMStudioAdapter({ model });
     default:

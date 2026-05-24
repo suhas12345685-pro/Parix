@@ -22,6 +22,7 @@ interface ChatMessage {
 
 export function Chat({ connected, state, paused, responses, onSend }: Props) {
   const [draft, setDraft] = useState("");
+  const [isThinking, setIsThinking] = useState(false);
   const seenResponseIdsRef = useRef<Set<string>>(new Set());
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -41,14 +42,22 @@ export function Chat({ connected, state, paused, responses, onSend }: Props) {
       seenResponseIdsRef.current.add(response.id);
     }
 
-    setMessages((prev) => [
-      ...prev,
-      ...freshResponses.map((response) => ({
-        id: `atrium-${response.id}`,
-        role: "atrium" as const,
-        text: response.text,
-      })),
-    ]);
+    // Filter out intermediate ack messages from display
+    const realResponses = freshResponses.filter(
+      (r) => !r.id.startsWith("chat-ack-")
+    );
+
+    if (realResponses.length > 0) {
+      setMessages((prev) => [
+        ...prev,
+        ...realResponses.map((response) => ({
+          id: `atrium-${response.id}`,
+          role: "atrium" as const,
+          text: response.text,
+        })),
+      ]);
+      setIsThinking(false);
+    }
   }, [responses]);
 
   function submit() {
@@ -58,15 +67,16 @@ export function Chat({ connected, state, paused, responses, onSend }: Props) {
       ...prev,
       { id: Date.now(), role: "operator", text },
     ]);
+    setIsThinking(true);
     onSend(text);
     setDraft("");
   }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pr-2">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <StatusPill
               label={paused ? "Paused" : state}
               tone={paused ? "muted" : "active"}
@@ -81,25 +91,41 @@ export function Chat({ connected, state, paused, responses, onSend }: Props) {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex items-start gap-4 rounded-xl border px-5 py-4 text-sm leading-6 shadow-[0_0_20px_rgba(168,85,247,0.08)] ${
+              className={`flex items-start gap-4 rounded-xl border px-5 py-4 text-sm leading-6 shadow-sm transition-all duration-200 ${
                 message.role === "operator"
-                  ? "ml-auto max-w-[85%] border-pink-400/25 bg-pink-500/8 text-white"
-                  : "border-purple-400/20 bg-[#151020]/70 text-white"
+                  ? "ml-auto max-w-[85%] border-[var(--border-accent)] bg-[var(--bg-bubble-self)] text-[var(--text-primary)]"
+                  : "mr-auto max-w-[85%] border-[var(--border-primary)] bg-[var(--bg-bubble-agent)] text-[var(--text-primary)]"
               }`}
             >
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-purple-400/30 bg-purple-500/10 text-lg text-purple-400">
+              <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-primary)] bg-[var(--bg-surface)] text-lg ${
+                message.role === "operator" ? "text-[var(--accent-color)]" : "text-[var(--text-secondary)]"
+              }`}>
                 {message.role === "operator" ? "✦" : "◇"}
               </span>
-              <span className="whitespace-pre-line pt-1.5">{message.text}</span>
+              <span className="whitespace-pre-line pt-1.5 flex-1">{message.text}</span>
             </div>
           ))}
+
+          {isThinking && (
+            <div className="mr-auto max-w-[85%] flex items-start gap-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-bubble-agent)] px-5 py-4 text-sm leading-6 shadow-sm">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-[var(--border-primary)] bg-[var(--bg-surface)] text-lg text-[var(--accent-color)] animate-spin">
+                ◇
+              </span>
+              <div className="flex items-center gap-1.5 pt-3.5">
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent-color)]" style={{ animationDelay: "0ms" }} />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent-color)]" style={{ animationDelay: "150ms" }} />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent-color)]" style={{ animationDelay: "300ms" }} />
+                <span className="ml-2 text-xs text-[var(--text-secondary)] font-medium animate-pulse">Atrium is thinking...</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-4xl border-t border-purple-400/10 pt-4">
-        <div className="flex gap-2 rounded-xl border border-purple-400/20 bg-[#130a1a]/70 p-2">
-          <label className="flex flex-1 items-center gap-3 rounded-lg border border-purple-400/15 bg-[#0e0814] px-3 py-2">
-            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-purple-400/20 bg-purple-500/10 text-base text-purple-300">
+      <div className="mx-auto w-full max-w-4xl border-t border-[var(--border-primary)] pt-4 mt-2">
+        <div className="flex gap-2 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-chat-input-outer)] p-2">
+          <label className="flex flex-1 items-center gap-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-chat-input)] px-3 py-2">
+            <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border-primary)] bg-[var(--bg-surface)] text-base text-[var(--accent-color)]">
               ✦
             </span>
             <textarea
@@ -113,14 +139,14 @@ export function Chat({ connected, state, paused, responses, onSend }: Props) {
               }}
               rows={1}
               placeholder="Message Atrium (Enter to send, Shift+Enter for new line)"
-              className="min-h-6 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-[#7d708d]"
+              className="min-h-6 flex-1 resize-none bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
             />
           </label>
           <button
             type="button"
             onClick={submit}
-            className="flex items-center gap-2 rounded-lg border border-pink-300/25 bg-gradient-to-br from-pink-500 to-fuchsia-700 px-5 text-sm font-semibold text-white shadow-[0_0_24px_rgba(236,72,153,0.4)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!draft.trim()}
+            className="flex items-center gap-2 rounded-lg border border-[var(--border-accent)] bg-[var(--accent-gradient)] px-5 text-sm font-semibold text-white shadow-[0_0_24px_var(--glow-shadow)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!draft.trim() || isThinking}
           >
             <span className="text-base">↗</span>
             Send
@@ -140,15 +166,15 @@ function StatusPill({
 }) {
   const toneClass = {
     active:
-      "border-violet-400/70 bg-violet-500/12 text-violet-300 shadow-[inset_0_0_20px_rgba(139,92,246,0.12)]",
-    ok: "border-cyan-400/45 bg-cyan-400/10 text-cyan-300",
-    alert: "border-pink-500/45 bg-pink-500/12 text-pink-400",
-    muted: "border-purple-400/25 bg-purple-500/10 text-[#cdbfe1]",
+      "border-[var(--border-accent)] bg-[var(--bg-bubble-self)] text-[var(--accent-color)] shadow-[inset_0_0_15px_var(--glow-shadow)]",
+    ok: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 dark:text-emerald-300",
+    alert: "border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400",
+    muted: "border-[var(--border-primary)] bg-[var(--bg-surface)]/60 text-[var(--text-secondary)]",
   }[tone];
 
   return (
     <span
-      className={`rounded-md border px-3 py-1 text-xs font-medium ${toneClass}`}
+      className={`rounded-md border px-3 py-1 text-xs font-medium transition-all duration-200 ${toneClass}`}
     >
       {label}
     </span>

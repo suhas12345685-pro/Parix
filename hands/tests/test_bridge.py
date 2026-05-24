@@ -20,7 +20,7 @@ def reset_bridge_state():
     hands_main.bridge_connection = None
     hands_main.sensor_connections.clear()
     hands_main.sensor_relay_buffer.clear()
-    hands_main.vision_ocr_requesters.clear()
+    hands_main.multimodal_requesters.clear()
 
 
 def test_task_request_gets_ack_and_result(monkeypatch):

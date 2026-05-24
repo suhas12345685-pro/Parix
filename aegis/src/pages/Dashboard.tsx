@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function Dashboard({ health, events, connected, lastMessageAt }: Props) {
-  const { dashboard, skills, dlq, cognition } = health;
+  const { dashboard, skills, dlq, cognition, mcp } = health;
 
   return (
     <div className="space-y-5">
@@ -94,6 +94,12 @@ export function Dashboard({ health, events, connected, lastMessageAt }: Props) {
           color="text-sky-700"
         />
         <StatCard
+          label="MCP Tools"
+          value={mcp.toolCount}
+          sub={`${mcp.connectedServerCount}/${mcp.serverCount} servers`}
+          color={mcp.toolCount > 0 ? "text-cyan-700" : "text-zinc-700"}
+        />
+        <StatCard
           label="DLQ Pending"
           value={dlq.pending}
           color={dlq.pending > 0 ? "text-amber-600" : "text-zinc-900"}
@@ -103,7 +109,6 @@ export function Dashboard({ health, events, connected, lastMessageAt }: Props) {
           value={dlq.exhausted}
           color={dlq.exhausted > 0 ? "text-rose-600" : "text-zinc-900"}
         />
-        <StatCard label="Events" value={events.length} sub="in buffer" />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-4">

@@ -5,7 +5,7 @@ import base64
 import json
 
 from hands import main as hands_main
-from hands.accessibility.vision import SynapseVisionOcrClient, VisionBackend
+from hands.accessibility.vision import SynapseMultimodalClient, VisionBackend
 
 
 class FakeWebSocket:
@@ -21,30 +21,30 @@ def reset_bridge_state() -> None:
     hands_main.bridge_connection = None
     hands_main.sensor_connections.clear()
     hands_main.sensor_relay_buffer.clear()
-    hands_main.vision_ocr_requesters.clear()
+    hands_main.multimodal_requesters.clear()
 
 
-def test_synapse_ocr_client_resolves_matching_response() -> None:
+def test_synapse_multimodal_client_resolves_matching_response() -> None:
     sent: list[dict] = []
 
     async def send_json(raw: str) -> None:
         sent.append(json.loads(raw))
 
     async def drive() -> tuple[str, str | None]:
-        client = SynapseVisionOcrClient(send_json, timeout_s=1.0)
+        client = SynapseMultimodalClient(send_json, timeout_s=1.0)
         request = asyncio.create_task(
-            client.request_ocr(
+            client.request_multimodal(
                 prompt="read text",
                 image_b64=base64.b64encode(b"png").decode("ascii"),
             )
         )
         await asyncio.sleep(0)
 
-        assert sent[0]["type"] == "VISION_OCR_REQUEST"
+        assert sent[0]["type"] == "MULTIMODAL_REQUEST"
         assert sent[0]["mime_type"] == "image/png"
         client.handle_message(
             {
-                "type": "VISION_OCR_RESPONSE",
+                "type": "MULTIMODAL_RESPONSE",
                 "request_id": sent[0]["request_id"],
                 "text": "Hello screen",
                 "error": None,
@@ -58,7 +58,7 @@ def test_synapse_ocr_client_resolves_matching_response() -> None:
     assert error is None
 
 
-def test_hands_routes_vision_ocr_round_trip() -> None:
+def test_hands_routes_multimodal_round_trip() -> None:
     atrium = FakeWebSocket()
     requester = FakeWebSocket()
     reset_bridge_state()
@@ -69,7 +69,7 @@ def test_hands_routes_vision_ocr_round_trip() -> None:
             requester,
             json.dumps(
                 {
-                    "type": "VISION_OCR_REQUEST",
+                    "type": "MULTIMODAL_REQUEST",
                     "request_id": "vision-1",
                     "prompt": "read text",
                     "image_b64": "cG5n",
@@ -80,7 +80,7 @@ def test_hands_routes_vision_ocr_round_trip() -> None:
         )
     )
 
-    assert atrium.sent[-1]["type"] == "VISION_OCR_REQUEST"
+    assert atrium.sent[-1]["type"] == "MULTIMODAL_REQUEST"
     assert atrium.sent[-1]["request_id"] == "vision-1"
 
     asyncio.run(
@@ -88,7 +88,7 @@ def test_hands_routes_vision_ocr_round_trip() -> None:
             atrium,
             json.dumps(
                 {
-                    "type": "VISION_OCR_RESPONSE",
+                    "type": "MULTIMODAL_RESPONSE",
                     "request_id": "vision-1",
                     "text": "Atrium OCR",
                     "error": None,
@@ -98,17 +98,17 @@ def test_hands_routes_vision_ocr_round_trip() -> None:
         )
     )
 
-    assert requester.sent[-1]["type"] == "VISION_OCR_RESPONSE"
+    assert requester.sent[-1]["type"] == "MULTIMODAL_RESPONSE"
     assert requester.sent[-1]["text"] == "Atrium OCR"
-    assert "vision-1" not in hands_main.vision_ocr_requesters
+    assert "vision-1" not in hands_main.multimodal_requesters
 
 
 def test_vision_backend_uses_synapse_text_before_tesseract(monkeypatch) -> None:
     class OcrClient:
-        async def request_ocr(self, **kwargs):
+        async def request_multimodal(self, **kwargs):
             return "Router text", None
 
-    backend = VisionBackend(ocr_client=OcrClient())  # type: ignore[arg-type]
+    backend = VisionBackend(multimodal_client=OcrClient())  # type: ignore[arg-type]
     monkeypatch.setattr(backend, "_capture_png", lambda: b"png")
     monkeypatch.setattr(
         backend,
@@ -125,10 +125,10 @@ def test_vision_backend_uses_synapse_text_before_tesseract(monkeypatch) -> None:
 
 def test_vision_backend_falls_back_to_tesseract_on_synapse_error(monkeypatch) -> None:
     class OcrClient:
-        async def request_ocr(self, **kwargs):
+        async def request_multimodal(self, **kwargs):
             return "", "no_vision_capable_provider"
 
-    backend = VisionBackend(ocr_client=OcrClient())  # type: ignore[arg-type]
+    backend = VisionBackend(multimodal_client=OcrClient())  # type: ignore[arg-type]
     monkeypatch.setattr(backend, "_capture_png", lambda: b"png")
     monkeypatch.setattr(backend, "_ocr_with_tesseract", lambda image_bytes: "Local text")
 

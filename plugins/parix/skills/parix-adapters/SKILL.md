@@ -18,7 +18,7 @@ description: Add or modify Parix adapters for LLM providers, notification channe
 
 Provider ids are pinned in `atrium/src/llm/registry.ts`:
 
-`gemini`, `chatgpt`, `anthropic`, `grok`, `openrouter`, `groq`, `bytez`, `perplexity`, `kimi`, `ollama`, `deepseek`.
+`chatgpt`, `anthropic`, `google`, `grok`, `openrouter`, `groq`, `kimi`, `ollama`.
 
 Use `chatgpt` as the routed OpenAI provider id. Keep `OpenAIAdapter` as reusable plumbing only.
 

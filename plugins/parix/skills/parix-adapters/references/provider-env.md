@@ -8,8 +8,7 @@
 | grok | `XAI_API_KEY` | `https://api.x.ai/v1` |
 | openrouter | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` |
 | groq | `GROQ_API_KEY` | `https://api.groq.com/openai/v1` |
-| bytez | `BYTEZ_API_KEY` | `https://api.bytez.com/v1` |
-| perplexity | `PERPLEXITY_API_KEY` | `https://api.perplexity.ai` |
+| mistral | `MISTRAL_API_KEY` | `https://api.mistral.ai/v1` |
 | kimi | `MOONSHOT_API_KEY` | `https://api.moonshot.ai/v1` |
 | ollama | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | `http://localhost:11434` |
-| deepseek | `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1` |
+| lmstudio | `LMSTUDIO_BASE_URL` | `http://localhost:1234/v1` |

@@ -136,8 +136,8 @@ BUFFERED_SENSOR_MESSAGE_TYPES = {
     "SILENT_INTENT_EVENT",
 }
 
-VISION_OCR_REQUEST = "VISION_OCR_REQUEST"
-VISION_OCR_RESPONSE = "VISION_OCR_RESPONSE"
+MULTIMODAL_REQUEST = "MULTIMODAL_REQUEST"
+MULTIMODAL_RESPONSE = "MULTIMODAL_RESPONSE"
 
 
 @dataclass
@@ -176,11 +176,11 @@ class TokenBucket:
 
 
 sensor_relay_buffer = deque(maxlen=SENSOR_RELAY_BUFFER_SIZE)
-vision_ocr_requesters = {}
-# Internal VISION_OCR futures for in-process consumers (the screen operator),
-# keyed by request_id. Distinct from vision_ocr_requesters, which relays to a
+multimodal_requesters = {}
+# Internal MULTIMODAL futures for in-process consumers (the screen operator),
+# keyed by request_id. Distinct from multimodal_requesters, which relays to a
 # separate sensor websocket.
-operator_vision_pending: dict = {}
+operator_multimodal_pending: dict = {}
 # Only one operator loop may run at a time — overlapping loops fight over the
 # same screen. Holds the in-flight asyncio.Task while an operate request runs.
 active_operator_task = None
@@ -216,9 +216,9 @@ async def replay_sensor_buffer(ws) -> None:
         logger.info("Replayed %d buffered sensor event(s) to Atrium", replayed)
 
 
-async def send_vision_ocr_error(ws, request_id: str, error: str) -> None:
+async def send_multimodal_error(ws, request_id: str, error: str) -> None:
     response = Message(
-        VISION_OCR_RESPONSE,
+        MULTIMODAL_RESPONSE,
         {
             "request_id": request_id,
             "text": "",
@@ -229,34 +229,34 @@ async def send_vision_ocr_error(ws, request_id: str, error: str) -> None:
     await ws.send(response.to_json())
 
 
-async def handle_vision_ocr_request(ws, raw: str, msg: dict) -> None:
+async def handle_multimodal_request(ws, raw: str, msg: dict) -> None:
     request_id = msg.get("request_id")
     if not request_id:
-        logger.warning("VISION_OCR_REQUEST missing request_id")
+        logger.warning("MULTIMODAL_REQUEST missing request_id")
         return
 
     if bridge_connection is None or bridge_connection == ws:
-        await send_vision_ocr_error(ws, request_id, "no_atrium_connection")
+        await send_multimodal_error(ws, request_id, "no_atrium_connection")
         return
 
-    vision_ocr_requesters[request_id] = ws
+    multimodal_requesters[request_id] = ws
     try:
         await bridge_connection.send(raw)
-        logger.info("Relayed VISION_OCR_REQUEST %s to Atrium", request_id)
+        logger.info("Relayed MULTIMODAL_REQUEST %s to Atrium", request_id)
     except websockets.ConnectionClosed:
-        logger.warning("Atrium disconnected while relaying VISION_OCR_REQUEST")
-        vision_ocr_requesters.pop(request_id, None)
-        await send_vision_ocr_error(ws, request_id, "atrium_disconnected")
+        logger.warning("Atrium disconnected while relaying MULTIMODAL_REQUEST")
+        multimodal_requesters.pop(request_id, None)
+        await send_multimodal_error(ws, request_id, "atrium_disconnected")
 
 
-async def handle_vision_ocr_response(raw: str, msg: dict) -> None:
+async def handle_multimodal_response(raw: str, msg: dict) -> None:
     request_id = msg.get("request_id")
     if not request_id:
-        logger.warning("VISION_OCR_RESPONSE missing request_id")
+        logger.warning("MULTIMODAL_RESPONSE missing request_id")
         return
 
     # In-process consumer (screen operator) waiting on this request?
-    future = operator_vision_pending.get(request_id)
+    future = operator_multimodal_pending.get(request_id)
     if future is not None:
         if not future.done():
             future.set_result(
@@ -264,33 +264,33 @@ async def handle_vision_ocr_response(raw: str, msg: dict) -> None:
             )
         return
 
-    requester = vision_ocr_requesters.pop(request_id, None)
+    requester = multimodal_requesters.pop(request_id, None)
     if requester is None:
-        logger.warning("No requester waiting for VISION_OCR_RESPONSE %s", request_id)
+        logger.warning("No requester waiting for MULTIMODAL_RESPONSE %s", request_id)
         return
 
     try:
         await requester.send(raw)
-        logger.info("Relayed VISION_OCR_RESPONSE %s to requester", request_id)
+        logger.info("Relayed MULTIMODAL_RESPONSE %s to requester", request_id)
     except websockets.ConnectionClosed:
-        logger.warning("Requester disconnected before VISION_OCR_RESPONSE %s", request_id)
+        logger.warning("Requester disconnected before MULTIMODAL_RESPONSE %s", request_id)
 
 
-async def fail_pending_vision_ocr_requests(error: str) -> None:
+async def fail_pending_multimodal_requests(error: str) -> None:
     # Resolve any in-process operator waiters so the loop unblocks instead of
     # hanging on a dead atrium connection.
-    for request_id, future in list(operator_vision_pending.items()):
-        operator_vision_pending.pop(request_id, None)
+    for request_id, future in list(operator_multimodal_pending.items()):
+        operator_multimodal_pending.pop(request_id, None)
         if not future.done():
             future.set_result({"text": "", "error": error})
 
-    pending = list(vision_ocr_requesters.items())
-    vision_ocr_requesters.clear()
+    pending = list(multimodal_requesters.items())
+    multimodal_requesters.clear()
     for request_id, requester in pending:
         try:
-            await send_vision_ocr_error(requester, request_id, error)
+            await send_multimodal_error(requester, request_id, error)
         except websockets.ConnectionClosed:
-            logger.warning("Requester disconnected before VISION_OCR error %s", request_id)
+            logger.warning("Requester disconnected before MULTIMODAL error %s", request_id)
 
 
 async def handle_message(ws, raw: str):
@@ -305,15 +305,15 @@ async def handle_message(ws, raw: str):
     msg_type = msg.get("type")
     logger.info("Received: %s", msg_type)
 
-    if msg_type == VISION_OCR_REQUEST:
-        await handle_vision_ocr_request(ws, raw, msg)
+    if msg_type == MULTIMODAL_REQUEST:
+        await handle_multimodal_request(ws, raw, msg)
         return
 
-    if msg_type == VISION_OCR_RESPONSE:
+    if msg_type == MULTIMODAL_RESPONSE:
         if ws != bridge_connection:
-            logger.warning("Ignoring VISION_OCR_RESPONSE from non-Atrium client")
+            logger.warning("Ignoring MULTIMODAL_RESPONSE from non-Atrium client")
             return
-        await handle_vision_ocr_response(raw, msg)
+        await handle_multimodal_response(raw, msg)
         return
 
     if msg_type in ATRIUM_MESSAGE_TYPES and bridge_connection is None:
@@ -346,7 +346,7 @@ async def handle_message(ws, raw: str):
                 }).to_json())
                 logger.warning("Rejected operate task %s — operator busy", task_id)
                 return
-            # The operator loop sends VISION_OCR_REQUEST on this same atrium
+            # The operator loop sends MULTIMODAL_REQUEST on this same atrium
             # connection and awaits the response. Awaiting it here would block
             # the connection's read loop and deadlock, so run it concurrently
             # and reply when it finishes.
@@ -467,12 +467,16 @@ async def execute_task(msg: dict) -> dict:
             from hands.vision.operator import run_operator
         except ImportError:
             from vision.operator import run_operator  # type: ignore
-        return await run_operator(goal, bridge_connection.send, operator_vision_pending)
+        return await run_operator(goal, bridge_connection.send, operator_multimodal_pending)
     elif task_type == "voice" and voice_channel:
         result = await voice_channel.handle_control(payload)
         return {"success": result.get("success", True), "output": json.dumps(result)}
     else:
-        return {"success": True, "output": f"executed {task_type}"}
+        return {
+            "success": False,
+            "output": "",
+            "error": f"unsupported task_type: {task_type}",
+        }
 
 
 async def send_pause_toggle():
@@ -587,12 +591,12 @@ async def connection_handler(ws):
         authenticated_connections.discard(ws)
         if ws == bridge_connection:
             logger.warning("Atrium disconnected")
-            await fail_pending_vision_ocr_requests("atrium_disconnected")
+            await fail_pending_multimodal_requests("atrium_disconnected")
             bridge_connection = None
         else:
-            for request_id, requester in list(vision_ocr_requesters.items()):
+            for request_id, requester in list(multimodal_requesters.items()):
                 if requester == ws:
-                    vision_ocr_requesters.pop(request_id, None)
+                    multimodal_requesters.pop(request_id, None)
             sensor_connections.discard(ws)
             logger.info("Sensor/client disconnected from %s", peer)
 
@@ -604,7 +608,34 @@ def watchdog_loop():
             logger.warning("Bridge disconnected — waiting for Atrium reconnect")
 
 
+def _load_env_files():
+    """Zero-dependency .env loader. Reads repo .env + $PARIX_HOME/.env (default
+    ~/.parix/.env) into os.environ. Existing env vars always win. Mirrors
+    atrium's loadEnv() so the same .env works for hands too."""
+    from pathlib import Path
+
+    parix_home = os.getenv("PARIX_HOME") or str(Path.home() / ".parix")
+    here = Path(__file__).resolve().parent.parent  # repo root (parent of hands/)
+    candidates = [here / ".env", Path(parix_home) / ".env"]
+    for env_path in candidates:
+        try:
+            if not env_path.is_file():
+                continue
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                trimmed = line.strip()
+                if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
+                    continue
+                key, _, val = trimmed.partition("=")
+                key = key.strip()
+                val = val.strip().strip("'\"")
+                if key and key not in os.environ:
+                    os.environ[key] = val
+        except OSError as exc:
+            logger.warning("Failed to read env file %s: %s", env_path, exc)
+
+
 async def main():
+    _load_env_files()
     global main_loop
     loop = asyncio.get_event_loop()
     main_loop = loop

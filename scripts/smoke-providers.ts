@@ -21,10 +21,7 @@ import {
 } from "../shared/hatchery-schema.ts";
 import {
   AnthropicAdapter,
-  BytezAdapter,
   ChatGPTAdapter,
-  CopilotAdapter,
-  DeepSeekAdapter,
   GrokAdapter,
   GroqAdapter,
   KimiAdapter,
@@ -32,7 +29,6 @@ import {
   MistralAdapter,
   OllamaAdapter,
   OpenRouterAdapter,
-  PerplexityAdapter,
 } from "../atrium/src/llm/adapters/index.ts";
 import type { LLMProvider as RuntimeProvider } from "../atrium/src/llm/types.ts";
 
@@ -62,13 +58,9 @@ const API_KEY_ALIASES: Record<string, string[]> = {
   anthropic: ["ANTHROPIC_API_KEY"],
   groq: ["GROQ_API_KEY"],
   grok: ["XAI_API_KEY", "GROK_API_KEY"],
-  perplexity: ["PERPLEXITY_API_KEY"],
   mistral: ["MISTRAL_API_KEY"],
   kimi: ["MOONSHOT_API_KEY", "KIMI_API_KEY"],
   openrouter: ["OPENROUTER_API_KEY"],
-  bytez: ["BYTEZ_API_KEY"],
-  copilot: ["COPILOT_API_KEY", "GITHUB_TOKEN"],
-  deepseek: ["DEEPSEEK_API_KEY"],
 };
 
 const ACCOUNT_COMMANDS: Record<string, string[][]> = {
@@ -77,7 +69,6 @@ const ACCOUNT_COMMANDS: Record<string, string[][]> = {
     ["openai", "--version"],
   ],
   anthropic: [["claude", "--version"]],
-  copilot: [["gh", "auth", "status"]],
 };
 
 async function main(): Promise<void> {
@@ -236,20 +227,12 @@ function createAdapter(
       return new GroqAdapter({ apiKey, model });
     case "grok":
       return new GrokAdapter({ apiKey, model });
-    case "perplexity":
-      return new PerplexityAdapter({ apiKey, model });
     case "mistral":
       return new MistralAdapter({ apiKey, model });
     case "kimi":
       return new KimiAdapter({ apiKey, model });
     case "openrouter":
       return new OpenRouterAdapter({ apiKey, model });
-    case "bytez":
-      return new BytezAdapter({ apiKey, model });
-    case "copilot":
-      return new CopilotAdapter({ apiKey, model });
-    case "deepseek":
-      return new DeepSeekAdapter({ apiKey, model });
     case "ollama":
       return new OllamaAdapter({ model });
     case "lmstudio":

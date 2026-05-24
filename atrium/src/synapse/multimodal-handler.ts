@@ -1,19 +1,19 @@
 /**
- * Receiver for VISION_OCR_REQUEST messages from Hands.
+ * Receiver for MULTIMODAL_REQUEST messages from Hands.
  *
  * Hands sends a screenshot + prompt; we route it through the LLM router's
  * `vision` chain (multimodal providers only — see router's
  * `supportsImages` filter) and ship the resulting text back as
- * VISION_OCR_RESPONSE. On any failure (no router, no vision-capable
+ * MULTIMODAL_RESPONSE. On any failure (no router, no vision-capable
  * provider, network), we still respond with `error` set so hands can
- * fall back to tesseract instead of waiting on a timeout.
+ * fall back instead of waiting on a timeout.
  */
 
 import { EventEmitter } from "events";
 import type { LLMRouter } from "../llm/router.js";
 
-export interface VisionOcrRequestMessage {
-  type: "VISION_OCR_REQUEST";
+export interface MultimodalRequestMessage {
+  type: "MULTIMODAL_REQUEST";
   request_id: string;
   prompt: string;
   image_b64: string;
@@ -21,15 +21,15 @@ export interface VisionOcrRequestMessage {
   timestamp?: number;
 }
 
-export interface VisionOcrResponseMessage {
-  type: "VISION_OCR_RESPONSE";
+export interface MultimodalResponseMessage {
+  type: "MULTIMODAL_RESPONSE";
   request_id: string;
   text: string;
   error: string | null;
   timestamp: number;
 }
 
-export type VisionOcrSend = (msg: VisionOcrResponseMessage) => void;
+export type MultimodalSend = (msg: MultimodalResponseMessage) => void;
 
 export interface VisualFallbackRequest {
   requestId: string;
@@ -73,15 +73,15 @@ function isValidBase64Image(b64: string): boolean {
   return decodedBytes <= MAX_IMAGE_BYTES;
 }
 
-export async function handleVisionOcrRequest(
-  msg: VisionOcrRequestMessage,
+export async function handleMultimodalRequest(
+  msg: MultimodalRequestMessage,
   router: LLMRouter | null,
-  send: VisionOcrSend,
+  send: MultimodalSend,
 ): Promise<void> {
   const requestId = msg.request_id;
   const respond = (text: string, error: string | null): void => {
     send({
-      type: "VISION_OCR_RESPONSE",
+      type: "MULTIMODAL_RESPONSE",
       request_id: requestId,
       text,
       error,

@@ -35,7 +35,7 @@ crash reports.
 | Languages | TypeScript (Node 20), Python 3.12, React |
 | Lines of code | ~120k across atrium / hands / aegis / hatchery |
 | Supported OS | Windows 10/11 (production), macOS 12+, Linux (alpha) |
-| LLM providers | 13: OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, Perplexity, Kimi, OpenRouter, DeepSeek, Bytez, Ollama, LM Studio |
+| LLM providers | 10 multimodal: OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, Kimi, OpenRouter, Ollama, LM Studio |
 | License | See `LICENSE` in the repo |
 | Current status | v0.2.0-alpha prerelease, private tester cohort |
 | Target public 1.0 | Phase 3 of ROADMAP.md — date depends on Phase 0/1 verification timeline |

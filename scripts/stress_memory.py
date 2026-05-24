@@ -22,7 +22,7 @@ def reset_bridge_state():
     hands_main.bridge_connection = None
     hands_main.sensor_connections.clear()
     hands_main.sensor_relay_buffer.clear()
-    hands_main.vision_ocr_requesters.clear()
+    hands_main.multimodal_requesters.clear()
 
 async def run_memory_stress(duration_minutes: int):
     print(f"Starting memory stress test for {duration_minutes} minutes...")

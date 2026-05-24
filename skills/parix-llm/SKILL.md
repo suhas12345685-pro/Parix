@@ -50,8 +50,8 @@ interface LLMResponse {
 | Groq | `groq.ts` | `groq-sdk` | `GROQ_API_KEY` |
 | Grok | `grok.ts` | fetch → `api.x.ai` | `GROK_API_KEY` |
 | Mistral | `mistral.ts` | `@mistralai/mistralai` | `MISTRAL_API_KEY` |
-| Perplexity | `perplexity.ts` | fetch → `api.perplexity.ai` | `PERPLEXITY_API_KEY` |
-| DeepSeek | `deepseek.ts` | OpenAI-compatible fetch | `DEEPSEEK_API_KEY` |
+| Kimi | `kimi.ts` | OpenAI-compatible fetch | `KIMI_API_KEY` |
+| OpenRouter | `openrouter.ts` | OpenAI-compatible fetch | `OPENROUTER_API_KEY` |
 | Ollama | `ollama.ts` | fetch → `localhost:11434` | None (local) |
 | LM Studio | `lmstudio.ts` | fetch → `localhost:1234` | None (local) |
 | Mock | `mock.ts` | Hardcoded responses | None |
@@ -62,9 +62,9 @@ Maps task types to preferred provider chains:
 
 ```
 planning    → [gemini, claude, openai, groq]
-coding      → [claude, openai, deepseek, gemini]
+coding      → [claude, openai, kimi, groq]
 summarize   → [groq, gemini, openai, claude]
-search      → [perplexity, gemini, openai]
+search      → [openai, openrouter]
 default     → [gemini, openai, claude, groq]
 ```
 

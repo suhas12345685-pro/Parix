@@ -9,7 +9,11 @@ $Branch = if ($env:PARIX_BRANCH) { $env:PARIX_BRANCH } else { "main" }
 $WorkDir = Join-Path $env:TEMP ("parix-install-" + [guid]::NewGuid().ToString("N"))
 
 function Write-Parix($message) {
-    Write-Host "[parix] $message" -ForegroundColor Cyan
+    Write-Host "✦ [parix] $message" -ForegroundColor Cyan
+}
+
+function Write-Ok($message) {
+    Write-Host "  ✔ $message" -ForegroundColor Green
 }
 
 function Get-PythonCandidate {
@@ -71,12 +75,12 @@ try {
     if ($nodeMajor -lt 20) {
         throw "Node.js 20+ is required (found $nodeVer)."
     }
-    Write-Parix "Node.js $nodeVer"
+    Write-Ok "Node.js $nodeVer"
 
     if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
         throw "npm is required. Install Node.js 20+ with npm, then rerun this command."
     }
-    Write-Parix "npm $(& npm --version)"
+    Write-Ok "npm $(& npm --version)"
 
     $python = Get-PythonCandidate
     if (-not $python) {
@@ -85,7 +89,7 @@ try {
     if ($python.Major -lt 3 -or ($python.Major -eq 3 -and $python.Minor -lt 12)) {
         throw "Python 3.12+ is required (found $($python.Version))."
     }
-    Write-Parix "$($python.Version)"
+    Write-Ok "$($python.Version)"
 
     if ($DryRun) {
         Write-Parix "Dry run: prerequisites OK"

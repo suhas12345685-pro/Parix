@@ -52,7 +52,8 @@ describe("inbound agent pipeline", () => {
 
     expect(runUserRequest).toHaveBeenCalledWith("send me a reminder");
     expect(replies[0]).toContain("On it");
-    expect(replies[1]).toContain("Done");
+    expect(replies[1]).toContain("Task Executed Successfully");
+    expect(replies[1]).toContain("notification_dispatched");
     unregisterChannel("test-chan");
   });
 });

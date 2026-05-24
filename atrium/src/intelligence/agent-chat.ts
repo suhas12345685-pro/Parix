@@ -17,12 +17,13 @@ export function formatOutcome(outcome: UserRequestOutcome): string {
     outcome.reasoning?.replace(/^User request:\s*/i, "") ?? "the task";
   if (outcome.success) {
     const trimmed = (outcome.output ?? "").trim();
-    return trimmed
-      ? `Done — ${what}\n\n${trimmed.slice(0, 1500)}`
-      : `Done — ${what}`;
+    if (trimmed) {
+      return `### ✨ Task Executed Successfully\n\n**Goal**: *${what}*\n\n---\n\n${trimmed.slice(0, 1500)}`;
+    }
+    return `### ✨ Task Executed Successfully\n\nI have successfully executed the request: *${what}*.`;
   }
-  return `That didn't work — ${what}${
-    outcome.error ? `\n\n${outcome.error.slice(0, 1000)}` : ""
+  return `### ⚠️ Task Execution Failed\n\n**Goal**: *${what}*\n\n**Error Details**:\n> ${
+    outcome.error ? outcome.error.slice(0, 1000) : "An unknown error occurred during execution."
   }`;
 }
 
@@ -41,12 +42,14 @@ export async function answerConversationally(
   try {
     const response = await llmRouter.complete(
       {
-        prompt: `You are Parix, a premium AI assistant. The user is chatting with you.
-Respond to the user directly, helpfully, and concisely (1-4 sentences).
+        prompt: `You are Parix, a mature, highly intelligent, and helpful AI assistant.
+Respond to the user's message in a professional, clear, and friendly tone.
+Use Markdown formatting (like bolding, bullet points, or inline code backticks) to make your response highly readable.
+Keep your response concise but comprehensive (typically 2-4 sentences, or structured bullet points if answering a list-based question).
 
 User message: ${message}`,
         systemPrompt:
-          "You are Parix, a helpful AI assistant. Provide concise, clear, and direct answers.",
+          "You are Parix, a professional, direct, and mature AI assistant. Provide structured, clear, and helpful answers using markdown.",
         temperature: 0.7,
         maxTokens: 500,
       },

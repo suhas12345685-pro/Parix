@@ -29,23 +29,23 @@ DEFAULT_OCR_PROMPT = (
     "preserving line breaks where useful. If no text is visible, return an "
     "empty string."
 )
-DEFAULT_VISION_OCR_TIMEOUT_S = 8.0
+DEFAULT_MULTIMODAL_TIMEOUT_S = 8.0
 
 
-class SynapseVisionOcrClient:
-    """Request/response helper for VISION_OCR_* messages over an existing WS."""
+class SynapseMultimodalClient:
+    """Request/response helper for MULTIMODAL_* messages over an existing WS."""
 
     def __init__(
         self,
         send_json: Callable[[str], Awaitable[None]],
         *,
-        timeout_s: float = DEFAULT_VISION_OCR_TIMEOUT_S,
+        timeout_s: float = DEFAULT_MULTIMODAL_TIMEOUT_S,
     ) -> None:
         self._send_json = send_json
         self._timeout_s = timeout_s
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
 
-    async def request_ocr(
+    async def request_multimodal(
         self,
         *,
         prompt: str,
@@ -58,7 +58,7 @@ class SynapseVisionOcrClient:
         self._pending[request_id] = future
 
         envelope = {
-            "type": "VISION_OCR_REQUEST",
+            "type": "MULTIMODAL_REQUEST",
             "request_id": request_id,
             "prompt": prompt,
             "image_b64": image_b64,
@@ -86,7 +86,7 @@ class SynapseVisionOcrClient:
         return self.handle_message(msg)
 
     def handle_message(self, msg: dict[str, Any]) -> bool:
-        if msg.get("type") != "VISION_OCR_RESPONSE":
+        if msg.get("type") != "MULTIMODAL_RESPONSE":
             return False
 
         request_id = msg.get("request_id")
@@ -112,10 +112,10 @@ class VisionBackend:
     def __init__(
         self,
         *,
-        ocr_client: SynapseVisionOcrClient | None = None,
+        multimodal_client: SynapseMultimodalClient | None = None,
         prompt: str = DEFAULT_OCR_PROMPT,
     ) -> None:
-        self._ocr_client = ocr_client
+        self._multimodal_client = multimodal_client
         self._prompt = prompt
 
     async def capture_and_ocr(self) -> AccessibilitySnapshot:
@@ -124,7 +124,7 @@ class VisionBackend:
         ocr_source = "none"
 
         if image_bytes:
-            text = await self._ocr_with_synapse(image_bytes)
+            text = await self._multimodal_with_synapse(image_bytes)
             if text:
                 ocr_source = "synapse"
             else:
@@ -144,18 +144,18 @@ class VisionBackend:
             confidence=_confidence_for(ocr_source, text),
         )
 
-    async def _ocr_with_synapse(self, image_bytes: bytes) -> str:
-        if self._ocr_client is None:
+    async def _multimodal_with_synapse(self, image_bytes: bytes) -> str:
+        if self._multimodal_client is None:
             return ""
 
         image_b64 = base64.b64encode(image_bytes).decode("ascii")
-        text, error = await self._ocr_client.request_ocr(
+        text, error = await self._multimodal_client.request_multimodal(
             prompt=self._prompt,
             image_b64=image_b64,
             mime_type="image/png",
         )
         if error:
-            logger.info("Atrium vision OCR unavailable: %s", error)
+            logger.info("Atrium vision multimodal unavailable: %s", error)
             return ""
         return text.strip()
 

@@ -38,11 +38,11 @@
         "timestamp"
       ]
     },
-    "VISION_OCR_REQUEST": {
+    "MULTIMODAL_REQUEST": {
       "from": "hands",
       "fields": ["request_id", "prompt", "image_b64", "mime_type", "timestamp"]
     },
-    "VISION_OCR_RESPONSE": {
+    "MULTIMODAL_RESPONSE": {
       "from": "atrium",
       "fields": ["request_id", "text", "error", "timestamp"]
     },

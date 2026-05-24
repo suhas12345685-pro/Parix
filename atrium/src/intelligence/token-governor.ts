@@ -74,7 +74,6 @@ function estimateCost(
     openai: [0.005, 0.015],
     groq: [0.0001, 0.0002],
     ollama: [0, 0],
-    deepseek: [0.00014, 0.00028],
   };
   const [inRate, outRate] = rates[provider] ?? [0.001, 0.002];
   return (tokensIn / 1000) * inRate + (tokensOut / 1000) * outRate;

@@ -44,13 +44,10 @@ export const LLM_PROVIDERS = [
   "anthropic",
   "groq",
   "grok",
-  "perplexity",
   "mistral",
   "kimi",
+  "google",
   "openrouter",
-  "bytez",
-  "copilot",
-  "deepseek",
   "ollama",
   "lmstudio",
 ] as const;
@@ -97,13 +94,10 @@ export const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-20250514",
   groq: "llama-3.3-70b-versatile",
   grok: "grok-3-mini",
-  perplexity: "sonar",
+  google: "gemini-1.5-flash",
   mistral: "mistral-small-latest",
   kimi: "kimi-k2-0711-preview",
   openrouter: "openai/gpt-4o-mini",
-  bytez: "bytez-default",
-  copilot: "gpt-4o-mini",
-  deepseek: "deepseek-chat",
   ollama: "llama3.2",
   lmstudio: "local",
 };
@@ -114,13 +108,9 @@ export const PROVIDER_ENV_KEYS: Record<string, string> = {
   anthropic: "ANTHROPIC_API_KEY",
   groq: "GROQ_API_KEY",
   grok: "XAI_API_KEY",
-  perplexity: "PERPLEXITY_API_KEY",
   mistral: "MISTRAL_API_KEY",
   kimi: "KIMI_API_KEY",
   openrouter: "OPENROUTER_API_KEY",
-  bytez: "BYTEZ_API_KEY",
-  copilot: "GITHUB_TOKEN",
-  deepseek: "DEEPSEEK_API_KEY",
   ollama: "OLLAMA_BASE_URL",
   lmstudio: "LMSTUDIO_BASE_URL",
 };
@@ -163,14 +153,11 @@ export const LLM_PROVIDER_CAPABILITIES: Record<string, LLMProviderCapability> =
       accountAuthInstructions:
         "Sign in to xAI for Grok access where account linking is available. Use XAI_API_KEY when direct API credentials are required.",
     },
-    perplexity: {
-      id: "perplexity",
-      name: "Perplexity Sonar",
-      supportedAuthMethods: ["account_auth", "api_key"],
-      defaultAuthMethod: "account_auth",
-      accountAuthLabel: "Perplexity account auth",
-      accountAuthInstructions:
-        "Sign in to Perplexity and link a Sonar-capable account profile where supported. API key setup remains available for API billing.",
+    google: {
+      id: "google",
+      name: "Google Gemini",
+      supportedAuthMethods: ["api_key"],
+      defaultAuthMethod: "api_key",
     },
     mistral: {
       id: "mistral",
@@ -198,33 +185,6 @@ export const LLM_PROVIDER_CAPABILITIES: Record<string, LLMProviderCapability> =
       accountAuthLabel: "OpenRouter account auth",
       accountAuthInstructions:
         "Sign in to OpenRouter and link your account profile where supported. API key setup remains available and is usually best for long-running services.",
-    },
-    bytez: {
-      id: "bytez",
-      name: "Bytez",
-      supportedAuthMethods: ["account_auth", "api_key"],
-      defaultAuthMethod: "account_auth",
-      accountAuthLabel: "Bytez account auth",
-      accountAuthInstructions:
-        "Sign in to Bytez and link the account profile where supported. Use an API key where direct provider credentials are required.",
-    },
-    copilot: {
-      id: "copilot",
-      name: "GitHub Copilot",
-      supportedAuthMethods: ["account_auth", "api_key"],
-      defaultAuthMethod: "account_auth",
-      accountAuthLabel: "GitHub account / Copilot auth",
-      accountAuthInstructions:
-        "Sign in with GitHub for Copilot access where supported. Use a GitHub token only when a direct API credential is required.",
-    },
-    deepseek: {
-      id: "deepseek",
-      name: "DeepSeek",
-      supportedAuthMethods: ["account_auth", "api_key"],
-      defaultAuthMethod: "account_auth",
-      accountAuthLabel: "DeepSeek account auth",
-      accountAuthInstructions:
-        "Sign in to DeepSeek and link the account profile where supported. API key setup remains available for direct API access.",
     },
     ollama: {
       id: "ollama",
@@ -376,6 +336,10 @@ export interface PersonalAgentProfile {
   personality?: string;
   primaryGoals: string[];
   recurringTasks: string[];
+  techStack?: string;
+  proactivity?: "reactive" | "balanced" | "proactive";
+  tone?: "professional" | "friendly" | "candid" | "philosophical";
+  mainMission?: string;
   allowedChannels: string[];
   blockedActions: string[];
   approvalRequiredActions: string[];
@@ -395,6 +359,10 @@ export interface EnterpriseAgentProfile {
   roleDescription: string;
   responsibilities: string[];
   recurringTasks: string[];
+  techStack?: string;
+  proactivity?: "reactive" | "balanced" | "proactive";
+  tone?: "professional" | "friendly" | "candid" | "philosophical";
+  mainMission?: string;
   reportingTo?: string;
   allowedChannels: string[];
   allowedTools: string[];
@@ -636,15 +604,15 @@ export function createDefaultProfile(mode: ProfileMode): ParixProfile {
     updatedAt: now,
     identity,
     llm: {
-      provider: "openai",
-      model: "gpt-4o-mini",
+      provider: "none",
+      model: "none",
       authMethod: "api_key",
       authProfileId: null,
       connectionVerified: false,
       verifiedAt: null,
     },
     channels: {
-      primary: "aegis",
+      primary: "none",
       enabled: ["aegis"],
       settings: {
         aegis: createDefaultAegisSettings(),

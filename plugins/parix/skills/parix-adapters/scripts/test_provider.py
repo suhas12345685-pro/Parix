@@ -21,11 +21,10 @@ PROVIDERS: dict[str, dict] = {
     "grok":        {"env": "XAI_API_KEY",           "url": "https://api.x.ai/v1/models"},
     "openrouter":  {"env": "OPENROUTER_API_KEY",    "url": "https://openrouter.ai/api/v1/models"},
     "groq":        {"env": "GROQ_API_KEY",          "url": "https://api.groq.com/openai/v1/models"},
-    "bytez":       {"env": "BYTEZ_API_KEY",         "url": "https://api.bytez.com/v1/models"},
-    "perplexity":  {"env": "PERPLEXITY_API_KEY",    "url": "https://api.perplexity.ai/models"},
+    "mistral":     {"env": "MISTRAL_API_KEY",       "url": "https://api.mistral.ai/v1/models"},
     "kimi":        {"env": "MOONSHOT_API_KEY",      "url": "https://api.moonshot.ai/v1/models"},
     "ollama":      {"env": "OLLAMA_BASE_URL",       "url": "http://localhost:11434/api/tags"},
-    "deepseek":    {"env": "DEEPSEEK_API_KEY",      "url": "https://api.deepseek.com/v1/models"},
+    "lmstudio":    {"env": "LMSTUDIO_BASE_URL",     "url": "http://localhost:1234/v1/models"},
 }
 
 

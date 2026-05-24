@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+mcp.servers.json
 shared/secrets.json
 **/secrets.json
 **/credentials.json
@@ -42,6 +43,11 @@ venv/
 
 # ── Local runtime / state ───────────────────────────────────────────
 .parix-e2e/
+# Runtime data dir (DBs, pids, runtime.json, checkpoints) — created at boot
+/data/
+data/
+**/*.pid
+synapse-token
 shadow_drafts/*
 !shadow_drafts/README.md
 **/*.log

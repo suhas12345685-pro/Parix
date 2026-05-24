@@ -293,9 +293,17 @@ async function handleChatCommand(
  */
 async function runChatCommand(message: string): Promise<string | null> {
   const text = message.toLowerCase();
-  const tokens = new Set(text.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter(Boolean));
+  const tokens = new Set(
+    text
+      .replace(/[^a-z0-9\s-]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean),
+  );
   const mentionsAgent =
-    tokens.has("parix") || tokens.has("atrium") || tokens.has("agent") || tokens.has("bot");
+    tokens.has("parix") ||
+    tokens.has("atrium") ||
+    tokens.has("agent") ||
+    tokens.has("bot");
 
   if (!message) {
     return "Send a command like 'status', 'pause parix', 'resume parix', 'flush queue', or 'help'.";
@@ -317,7 +325,10 @@ async function runChatCommand(message: string): Promise<string | null> {
   }
 
   if (
-    (tokens.has("pause") || tokens.has("stop") || tokens.has("halt") || tokens.has("sleep")) &&
+    (tokens.has("pause") ||
+      tokens.has("stop") ||
+      tokens.has("halt") ||
+      tokens.has("sleep")) &&
     mentionsAgent
   ) {
     pauseAgent("aegis_chat");
@@ -327,7 +338,10 @@ async function runChatCommand(message: string): Promise<string | null> {
   }
 
   if (
-    (tokens.has("resume") || tokens.has("start") || tokens.has("wake") || tokens.has("online")) &&
+    (tokens.has("resume") ||
+      tokens.has("start") ||
+      tokens.has("wake") ||
+      tokens.has("online")) &&
     mentionsAgent
   ) {
     resumeAgent();
@@ -478,6 +492,7 @@ function buildHealthSnapshot(): Record<string, unknown> {
     channels: getChannelSnapshot(),
     cronTasks: getCronTasks(),
     installedSkills: getInstalledSkills(),
+    mcp: getMcpSnapshot(),
     workspaceFiles: getWorkspaceFiles(),
     canvas: getCanvas(),
 
@@ -577,6 +592,23 @@ function getInstalledSkills(): Array<Record<string, unknown>> {
     });
 }
 
+function getMcpSnapshot(): Record<string, unknown> {
+  const manager = engine.getMcpManager();
+  const servers = manager?.listServers() ?? [];
+  const tools = manager?.listTools() ?? [];
+  return {
+    configPath: process.env.PARIX_MCP_CONFIG
+      ? resolve(process.env.PARIX_MCP_CONFIG)
+      : resolve(PROJECT_ROOT, "mcp.servers.json"),
+    serverCount: servers.length,
+    connectedServerCount: servers.filter((server) => server.connected).length,
+    toolCount: tools.length,
+    catalog: manager?.catalog() ?? "",
+    servers,
+    tools,
+  };
+}
+
 function readSkillDescription(skillFile: string): string {
   if (!existsSync(skillFile)) return "";
   const raw = readFileSync(skillFile, "utf-8");
@@ -590,11 +622,13 @@ function readSkillDescription(skillFile: string): string {
     .replace(/^["']|["']$/g, "");
   if (description) return description;
 
-  return raw
-    .replace(/^---\s*[\s\S]*?\s*---/, "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => line && !line.startsWith("#")) ?? "";
+  return (
+    raw
+      .replace(/^---\s*[\s\S]*?\s*---/, "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith("#")) ?? ""
+  );
 }
 
 function getSkillSource(skillId: string): string {
@@ -634,12 +668,15 @@ function createSkill(msg: Record<string, unknown>): void {
   const triggers = Array.isArray(msg.triggers)
     ? (msg.triggers as unknown[]).filter(
         (t): t is Record<string, unknown> =>
-          !!t && typeof t === "object" && typeof (t as Record<string, unknown>).eventType === "string",
+          !!t &&
+          typeof t === "object" &&
+          typeof (t as Record<string, unknown>).eventType === "string",
       )
     : [];
   const declaredPermissions = Array.isArray(msg.permissions)
-    ? (msg.permissions as unknown[])
-        .filter((p): p is string => typeof p === "string")
+    ? (msg.permissions as unknown[]).filter(
+        (p): p is string => typeof p === "string",
+      )
     : [];
   const runtime = ((): "py" | "node" | "sh" => {
     const r = String(msg.runtime ?? "").toLowerCase();

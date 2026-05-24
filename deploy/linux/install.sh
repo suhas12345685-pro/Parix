@@ -15,10 +15,16 @@ SERVICE_NAME="parix-agent"
 SERVICE_DIR="$HOME/.config/systemd/user"
 
 CYAN='\033[0;36m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
-log()  { echo -e "${CYAN}[parix]${NC} $1"; }
-ok()   { echo -e "${GREEN}  +${NC} $1"; }
-warn() { echo -e "${YELLOW}  !${NC} $1"; }
-fail() { echo -e "${RED}  x${NC} $1"; exit 1; }
+STEP_COUNT=0
+TOTAL_STEPS=9
+
+log()  { 
+    STEP_COUNT=$((STEP_COUNT + 1))
+    echo -e "\n${CYAN}✦ [$STEP_COUNT/$TOTAL_STEPS]${NC} $1"
+}
+ok()   { echo -e "${GREEN}  ✔${NC} $1"; }
+warn() { echo -e "${YELLOW}  ●${NC} $1"; }
+fail() { echo -e "${RED}  ✘${NC} $1"; exit 1; }
 
 # ─── Detect distro ────────────────────────────────────────────────
 DISTRO="unknown"
@@ -275,18 +281,18 @@ node "$PARIX_HOME/hatchery/dist/index.js" --post-install || \
     warn "Onboarding skipped — run 'parix onboarding' later to configure."
 
 # ─── Summary ──────────────────────────────────────────────────────
-echo ""
-log "Installation complete!"
+echo -e "\n${GREEN}=========================================================${NC}"
+echo -e "${GREEN}    PARIX INSTALLED SUCCESSFULLY & RUNNING SILENTLY      ${NC}"
+echo -e "${GREEN}=========================================================${NC}"
 log "  Home:    $PARIX_HOME"
 log "  Data:    $PARIX_DATA"
 log "  Logs:    $PARIX_LOG"
 log "  Distro:  $DISTRO"
 log ""
 log "  Commands:"
-log "    parix start          (manual)"
-log "    parix stop           (manual)"
-log "    parix restart        (restart)"
-log "    parix status         (check)"
-log "    parix start atrium   (start only Atrium)"
-log "    parix onboarding     (reconfigure)"
-log "    systemctl --user start $SERVICE_NAME   (via systemd)"
+log "    parix start          - spawn all processes"
+log "    parix stop           - kill processes & PIDs"
+log "    parix status         - check active processes"
+log "    parix onboarding     - reconfigure preferences"
+log "    systemctl --user start $SERVICE_NAME"
+echo ""

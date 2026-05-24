@@ -8,7 +8,7 @@
 
 import { EventEmitter } from "events";
 import { getDb, persistToFile } from "../memory/db.js";
-import { maybeRequestVisualFallback } from "./vision-handler.js";
+import { maybeRequestVisualFallback } from "./multimodal-handler.js";
 
 export interface FocusedElementSummary {
   role: string;

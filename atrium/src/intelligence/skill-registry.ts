@@ -67,6 +67,13 @@ export function loadSkills(skillsRoot: string): RegisteredSkill[] {
     .filter((d) => d.isDirectory() && d.name.startsWith("task-"))
     .map((d) => join(skillsRoot, d.name));
 
+  // Onboarding writes the user's chosen skills to PARIX_ACTIVE_SKILLS
+  // (comma-separated ids). When set, only those skills load; unset = load all.
+  const activeRaw = (process.env.PARIX_ACTIVE_SKILLS ?? "").trim();
+  const activeSet = activeRaw
+    ? new Set(activeRaw.split(",").map((s) => s.trim()).filter(Boolean))
+    : null;
+
   const registered: RegisteredSkill[] = [];
   for (const skillDir of entries) {
     const configPath = join(skillDir, "config.json");
@@ -92,6 +99,7 @@ export function loadSkills(skillsRoot: string): RegisteredSkill[] {
     }
 
     if (!manifest.enabled) continue;
+    if (activeSet && manifest.id && !activeSet.has(manifest.id)) continue;
 
     const entryPath = resolve(skillDir, manifest.entry);
     if (!existsSync(entryPath) || !statSync(entryPath).isFile()) {

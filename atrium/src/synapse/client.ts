@@ -8,10 +8,10 @@ import {
   type AccessibilitySnapshotMessage,
 } from "./a11y-handler.js";
 import {
-  handleVisionOcrRequest,
-  type VisionOcrRequestMessage,
-  type VisionOcrResponseMessage,
-} from "./vision-handler.js";
+  handleMultimodalRequest,
+  type MultimodalRequestMessage,
+  type MultimodalResponseMessage,
+} from "./multimodal-handler.js";
 import {
   createEventBrokerFromEnv,
   estimatePayloadTokens,
@@ -73,8 +73,8 @@ export class SynapseClient extends EventEmitter {
   private token: string | null;
   private broker: EventBroker;
   private ingressBucket = new TokenBucket({
-    capacity: Number(process.env.PARIX_INGRESS_TOKEN_BUCKET ?? 16_000),
-    refillPerSecond: Number(process.env.PARIX_INGRESS_REFILL_PER_SEC ?? 4_000),
+    capacity: Number(process.env.PARIX_INGRESS_TOKEN_BUCKET ?? 2_000_000),
+    refillPerSecond: Number(process.env.PARIX_INGRESS_REFILL_PER_SEC ?? 500_000),
   });
   private worldState: { lastTask: string | null; activeState: string } = {
     lastTask: null,
@@ -256,11 +256,11 @@ export class SynapseClient extends EventEmitter {
         handleA11ySnapshot(msg as AccessibilitySnapshotMessage);
         this.emit("accessibility_snapshot", msg);
         break;
-      case "VISION_OCR_REQUEST":
-        void handleVisionOcrRequest(
-          msg as VisionOcrRequestMessage,
+      case "MULTIMODAL_REQUEST":
+        void handleMultimodalRequest(
+          msg as MultimodalRequestMessage,
           this.llmRouter,
-          (response: VisionOcrResponseMessage) =>
+          (response: MultimodalResponseMessage) =>
             this.send(response as unknown as Record<string, unknown>),
         );
         break;
@@ -376,7 +376,6 @@ export class SynapseClient extends EventEmitter {
       "SENSOR_EVENT",
       "SILENT_INTENT_EVENT",
       "ACCESSIBILITY_SNAPSHOT",
-      "VISION_OCR_REQUEST",
     ]);
     if (!throttleable.has(msgType)) return false;
     return !this.ingressBucket.tryRemove(tokenCost);

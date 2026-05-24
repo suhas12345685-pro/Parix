@@ -14,9 +14,15 @@ $PARIX_LOG  = "$PARIX_HOME\logs"
 $SRC_ROOT   = (Resolve-Path "$PSScriptRoot\..\..").Path
 $SERVICE_NAME = "ParixAgent"
 
-function Write-Step($msg)  { Write-Host "`n✦ [parix] $msg" -ForegroundColor Cyan }
+$StepCount = 0
+$TotalSteps = 11
+
+function Write-Step($msg) {
+    $global:StepCount++
+    Write-Host "`n✦ [$($global:StepCount)/$TotalSteps] $msg" -ForegroundColor Cyan
+}
 function Write-Ok($msg)    { Write-Host "  ✔ $msg" -ForegroundColor Green }
-function Write-Warn($msg)  { Write-Host "  ⚠ $msg" -ForegroundColor Yellow }
+function Write-Warn($msg)  { Write-Host "  ● $msg" -ForegroundColor Yellow }
 function Write-Fail($msg)  { Write-Host "  ✘ $msg" -ForegroundColor Red; exit 1 }
 
 function Get-PythonCandidate {
@@ -300,10 +306,10 @@ try {
     Write-Warn "Onboarding skipped - run parix onboarding later to configure."
 }
 
-# ─── Summary ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
 Write-Host "=========================================================" -ForegroundColor Green
-Write-Host "    P A R I X   I N S T A L L A T I O N   C O M P L E T E    " -ForegroundColor Green
+Write-Host "    PARIX INSTALLED SUCCESSFULLY & RUNNING SILENTLY      " -ForegroundColor Green
 Write-Host "=========================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  ✦ Home Directory : $PARIX_HOME" -ForegroundColor Cyan

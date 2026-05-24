@@ -23,8 +23,8 @@ export function Sidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex w-14 flex-shrink-0 flex-col items-center border-r border-fuchsia-500/20 bg-[#0c0712]/80 py-4">
-        <div className="mb-5 flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 via-fuchsia-600 to-purple-700 text-sm font-bold text-white shadow-[0_0_18px_rgba(236,72,153,0.5)]">
+      <aside className="flex w-14 flex-shrink-0 flex-col items-center border-r border-[var(--border-primary)] bg-[var(--bg-sidebar)]/80 py-4">
+        <div className="mb-5 flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent-gradient)] text-sm font-bold text-white shadow-[0_0_18px_var(--glow-shadow)]">
           P
         </div>
         <div className="mb-5">
@@ -40,6 +40,7 @@ export function Sidebar({
             { page: "sessions" as Page, icon: "◷" },
             { page: "cron" as Page, icon: "◌" },
             { page: "skills" as Page, icon: "✧" },
+            { page: "mcp" as Page, icon: "M" },
             { page: "nodes" as Page, icon: "⌬" },
             { page: "config" as Page, icon: "⚙" },
             { page: "debug" as Page, icon: "✺" },
@@ -52,8 +53,8 @@ export function Sidebar({
               onClick={() => onNavigate(item.page)}
               className={`flex h-9 w-9 items-center justify-center rounded-lg text-base transition ${
                 page === item.page
-                  ? "bg-pink-500/20 text-pink-300 shadow-[inset_0_0_0_1px_rgba(236,72,153,0.2)]"
-                  : "text-[#9d91ad] hover:bg-purple-500/10 hover:text-white"
+                  ? "bg-[var(--bg-bubble-self)] text-[var(--accent-color)] shadow-[inset_0_0_0_1px_var(--border-accent)]"
+                  : "text-[var(--text-secondary)] hover:bg-[var(--border-primary)] hover:text-[var(--text-heading)]"
               }`}
               title={pageTitle(item.page)}
             >
@@ -66,27 +67,27 @@ export function Sidebar({
   }
 
   return (
-    <aside className="flex w-56 flex-shrink-0 flex-col border-r border-fuchsia-500/20 bg-[#0c0712]/80 py-4 px-4">
+    <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--border-primary)] bg-[var(--bg-sidebar)]/80 py-4 px-4">
       <div className="mb-5 flex items-center gap-3 px-1">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500 via-fuchsia-600 to-purple-700 text-sm font-bold text-white shadow-[0_0_18px_rgba(236,72,153,0.5)]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent-gradient)] text-sm font-bold text-white shadow-[0_0_18px_var(--glow-shadow)]">
           P
         </div>
         <div className="min-w-0">
-          <div className="text-base font-bold leading-5 text-white">PARIX</div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-pink-400/80">
+          <div className="text-base font-bold leading-5 text-[var(--text-heading)]">PARIX</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent-color)]/80">
             Aegis
           </div>
         </div>
       </div>
 
-      <div className="mb-4 rounded-lg border border-purple-400/15 bg-[#170e21]/50 px-3 py-2.5">
+      <div className="mb-4 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-surface)]/50 px-3 py-2.5">
         <div className="flex items-center gap-2 text-sm">
           <span className={`status-dot ${stateClass}`} />
-          <span className="font-semibold text-white">
+          <span className="font-semibold text-[var(--text-heading)]">
             {paused ? "PAUSED" : state}
           </span>
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-[#b8aec5]">
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
           <span
             className={`inline-block h-2 w-2 rounded-full ${
               connected
@@ -163,6 +164,13 @@ export function Sidebar({
             label="Skills"
           />
           <NavButton
+            page="mcp"
+            current={page}
+            onNavigate={onNavigate}
+            icon="M"
+            label="MCP Tools"
+          />
+          <NavButton
             page="nodes"
             current={page}
             onNavigate={onNavigate}
@@ -196,7 +204,7 @@ export function Sidebar({
         </NavGroup>
       </nav>
 
-      <div className="mt-2 border-t border-purple-400/10 pt-2">
+      <div className="mt-2 border-t border-[var(--border-primary)] pt-2">
         <NavGroup label="Resources">
           <NavButton
             page="docs"
@@ -221,6 +229,7 @@ function pageTitle(page: Page): string {
     sessions: "Sessions",
     cron: "Cron Jobs",
     skills: "Skills",
+    mcp: "MCP Tools",
     nodes: "Nodes",
     config: "Config",
     debug: "Debug",
@@ -239,7 +248,7 @@ function NavGroup({
 }) {
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-widest text-[#7d708d]">
+      <div className="mb-1 flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
         <span>{label}</span>
       </div>
       <div className="flex flex-col gap-0.5">{children}</div>
@@ -266,7 +275,7 @@ function NavButton({
       onClick={() => onNavigate(page)}
       className={`nav-link ${current === page ? "active" : ""}`}
     >
-      <span className="w-5 text-center text-sm leading-none text-purple-400">
+      <span className="w-5 text-center text-sm leading-none text-[var(--accent-color)]">
         {icon}
       </span>
       <span className="truncate">{label}</span>

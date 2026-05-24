@@ -24,7 +24,7 @@ from typing import Any, Awaitable, Callable
 
 from hands.accessibility import AccessibilityBridge
 from hands.accessibility.types import AccessibilitySnapshot
-from hands.accessibility.vision import SynapseVisionOcrClient, VisionBackend
+from hands.accessibility.vision import SynapseMultimodalClient, VisionBackend
 from hands.protocol import AccessibilitySnapshotEvent
 
 logger = logging.getLogger("hands.a11y_poller")
@@ -202,22 +202,22 @@ async def run_loop(
                 async def _send_json(text: str) -> None:
                     await ws.send(text)
 
-                vision_ocr = SynapseVisionOcrClient(_send_json)
+                multimodal_client = SynapseMultimodalClient(_send_json)
                 sender = make_synapse_sender(_send_json)
                 active_bridge = bridge or AccessibilityBridge(
-                    vision=VisionBackend(ocr_client=vision_ocr)
+                    vision=VisionBackend(multimodal_client=multimodal_client)
                 )
                 poller = AccessibilityPoller(
                     sender, bridge=active_bridge, interval_s=interval_s, mode=mode
                 )
                 poller.start()
                 try:
-                    # Poller sends OCR requests on this websocket; this loop
-                    # receives the matching VISION_OCR_RESPONSE messages.
+                    # Poller sends multimodal requests on this websocket; this loop
+                    # receives the matching MULTIMODAL_RESPONSE messages.
                     async for raw in ws:
-                        vision_ocr.handle_raw(raw)
+                        multimodal_client.handle_raw(raw)
                 finally:
-                    vision_ocr.cancel_pending()
+                    multimodal_client.cancel_pending()
                     await poller.stop()
         except asyncio.CancelledError:
             raise

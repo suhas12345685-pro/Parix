@@ -175,7 +175,7 @@ app.get("/v1/skill-deltas", async (req, res) => {
     : 0;
   const deltas = skillDeltas.slice(Math.max(0, start));
   res.json({
-    cursor: deltas.at(-1)?.revision ?? cursor || null,
+    cursor: (deltas.at(-1)?.revision ?? cursor) || null,
     deltas,
   });
 });

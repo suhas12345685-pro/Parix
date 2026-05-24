@@ -113,10 +113,10 @@ function estimateRequestTokens(request: LLMRequest): number {
 
 export function createDefaultLLMRoutes(): Record<string, string[]> {
   return {
-    reasoning: ["chatgpt", "anthropic", "openrouter", "deepseek"],
-    code: ["anthropic", "chatgpt", "deepseek", "kimi", "groq"],
-    search: ["perplexity", "chatgpt"],
+    reasoning: ["chatgpt", "anthropic", "openrouter"],
+    code: ["anthropic", "chatgpt", "kimi", "groq"],
+    search: ["chatgpt", "openrouter"],
     fast: ["groq", "chatgpt", "ollama"],
-    vision: ["anthropic", "chatgpt", "openrouter"],
+    vision: ["anthropic", "chatgpt", "google", "openrouter", "ollama"],
   };
 }

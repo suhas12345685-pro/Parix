@@ -54,6 +54,15 @@ const emptyHealth: SystemHealth = {
   ],
   cronTasks: [],
   installedSkills: [],
+  mcp: {
+    configPath: "mcp.servers.json",
+    serverCount: 0,
+    connectedServerCount: 0,
+    toolCount: 0,
+    catalog: "",
+    servers: [],
+    tools: [],
+  },
   workspaceFiles: [],
   recentEvents: [],
   recentAudit: [],
@@ -123,8 +132,7 @@ export function useParixSocket() {
           dashboard: {
             ...prev.dashboard,
             paused: Boolean(msg.paused),
-            pausedAt:
-              typeof msg.pausedAt === "number" ? msg.pausedAt : null,
+            pausedAt: typeof msg.pausedAt === "number" ? msg.pausedAt : null,
             lastUpdate: Date.now(),
           },
         }));
@@ -149,13 +157,15 @@ export function useParixSocket() {
         break;
 
       case "CHAT_RESULT":
-        setChatResponses((prev) => [
-          ...prev,
-          {
-            id: String(msg.id ?? `${Date.now()}`),
-            text: String(msg.text ?? ""),
-          },
-        ].slice(-EVENT_BUFFER_LIMIT));
+        setChatResponses((prev) =>
+          [
+            ...prev,
+            {
+              id: String(msg.id ?? `${Date.now()}`),
+              text: String(msg.text ?? ""),
+            },
+          ].slice(-EVENT_BUFFER_LIMIT),
+        );
         break;
 
       case "CHANNELS_SAVED":
@@ -180,7 +190,8 @@ export function useParixSocket() {
         if (Array.isArray(msg.installedSkills)) {
           setHealth((prev) => ({
             ...prev,
-            installedSkills: msg.installedSkills as SystemHealth["installedSkills"],
+            installedSkills:
+              msg.installedSkills as SystemHealth["installedSkills"],
           }));
         }
         break;
@@ -295,6 +306,7 @@ function mergeHealthSnapshot(
         ...snapshot.cognition?.metacognition,
       },
     },
+    mcp: snapshot.mcp ?? prev.mcp,
     recentEvents: snapshot.recentEvents ?? prev.recentEvents,
     recentAudit: snapshot.recentAudit ?? prev.recentAudit,
   };
@@ -302,7 +314,9 @@ function mergeHealthSnapshot(
 
 function sensorEventFromMessage(msg: WsMessage): SensorEvent {
   return {
-    id: String(msg.id ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+    id: String(
+      msg.id ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    ),
     eventType: String(msg.event_type ?? "unknown"),
     data:
       msg.data && typeof msg.data === "object"

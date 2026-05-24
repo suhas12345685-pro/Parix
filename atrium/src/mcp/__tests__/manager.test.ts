@@ -8,10 +8,14 @@ async function makeServer(): Promise<InMemoryTransport> {
   const server = new McpServer({ name: "test-mcp", version: "1.0.0" });
   server.registerTool(
     "echo",
-    { description: "echoes the input message", inputSchema: { msg: z.string() } },
+    {
+      description: "echoes the input message",
+      inputSchema: { msg: z.string() },
+    },
     async ({ msg }) => ({ content: [{ type: "text", text: `echo: ${msg}` }] }),
   );
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const [clientTransport, serverTransport] =
+    InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   return clientTransport;
 }
@@ -27,6 +31,13 @@ describe("McpManager", () => {
     expect(echo).toBeTruthy();
     expect(echo?.server).toBe("test");
     expect(mgr.catalog()).toContain("test.echo");
+    expect(mgr.listServers()).toEqual([
+      expect.objectContaining({
+        name: "test",
+        connected: true,
+        toolCount: 1,
+      }),
+    ]);
 
     const result = await mgr.callTool("test", "echo", { msg: "hello" });
     expect(result.success).toBe(true);
@@ -34,6 +45,7 @@ describe("McpManager", () => {
 
     await mgr.closeAll();
     expect(mgr.hasTools()).toBe(false);
+    expect(mgr.listServers()).toEqual([]);
   });
 
   it("reports a clear error for an unknown server", async () => {
@@ -41,5 +53,26 @@ describe("McpManager", () => {
     const result = await mgr.callTool("nope", "x", {});
     expect(result.success).toBe(false);
     expect(result.error).toContain("unknown MCP server");
+  });
+
+  it("keeps disabled MCP servers visible but disconnected", async () => {
+    const mgr = new McpManager();
+    await mgr.connect({
+      disabled: {
+        transport: "stdio",
+        command: "node",
+        enabled: false,
+      },
+    });
+
+    expect(mgr.listTools()).toEqual([]);
+    expect(mgr.listServers()).toEqual([
+      expect.objectContaining({
+        name: "disabled",
+        enabled: false,
+        connected: false,
+        toolCount: 0,
+      }),
+    ]);
   });
 });

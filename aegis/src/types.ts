@@ -61,6 +61,32 @@ export interface CanvasState {
   updatedAt: number;
 }
 
+export interface McpServerSnapshot {
+  name: string;
+  transport: "stdio" | "http";
+  enabled: boolean;
+  connected: boolean;
+  toolCount: number;
+  error?: string;
+}
+
+export interface McpToolSnapshot {
+  server: string;
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+}
+
+export interface McpSnapshot {
+  configPath: string;
+  serverCount: number;
+  connectedServerCount: number;
+  toolCount: number;
+  catalog: string;
+  servers: McpServerSnapshot[];
+  tools: McpToolSnapshot[];
+}
+
 export interface SystemHealth {
   dashboard: DashboardState;
   skills: SkillStats;
@@ -70,6 +96,7 @@ export interface SystemHealth {
   channels: ChannelSnapshot[];
   cronTasks: CronTask[];
   installedSkills: InstalledSkill[];
+  mcp: McpSnapshot;
   workspaceFiles: WorkspaceFile[];
   recentEvents: SensorEvent[];
   recentAudit: AuditEntry[];

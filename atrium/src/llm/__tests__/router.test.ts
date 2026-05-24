@@ -91,14 +91,12 @@ describe("LLMRouter", () => {
     expect(LLM_PROVIDER_IDS).toEqual([
       "chatgpt",
       "anthropic",
+      "google",
       "grok",
       "openrouter",
       "groq",
-      "bytez",
-      "perplexity",
       "kimi",
       "ollama",
-      "deepseek",
     ]);
   });
 

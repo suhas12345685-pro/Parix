@@ -31,6 +31,15 @@ export interface McpToolInfo {
   inputSchema?: unknown;
 }
 
+export interface McpServerStatus {
+  name: string;
+  transport: McpServerConfig["transport"];
+  enabled: boolean;
+  connected: boolean;
+  toolCount: number;
+  error?: string;
+}
+
 export interface McpCallResult {
   success: boolean;
   output: string;
@@ -40,21 +49,39 @@ export interface McpCallResult {
 export class McpManager {
   private clients = new Map<string, Client>();
   private tools: McpToolInfo[] = [];
+  private servers = new Map<string, McpServerStatus>();
 
   /** Connect every enabled server from a config map; failures are logged, not thrown. */
   async connect(configs: Record<string, McpServerConfig>): Promise<void> {
     for (const [name, config] of Object.entries(configs ?? {})) {
+      const status: McpServerStatus = {
+        name,
+        transport: config.transport,
+        enabled: config.enabled !== false,
+        connected: false,
+        toolCount: 0,
+      };
+      this.servers.set(name, status);
       if (config.enabled === false) continue;
       try {
         const transport = buildTransport(config);
         await this.connectTransport(name, transport);
+        const toolCount = this.toolsFor(name).length;
+        this.servers.set(name, {
+          ...status,
+          connected: true,
+          toolCount,
+        });
         console.log(
           `[MCP] Connected "${name}" (${config.transport}) — ${this.toolsFor(name).length} tool(s)`,
         );
       } catch (err) {
-        console.error(
-          `[MCP] Failed to connect "${name}": ${err instanceof Error ? err.message : err}`,
-        );
+        const error = err instanceof Error ? err.message : String(err);
+        this.servers.set(name, {
+          ...status,
+          error,
+        });
+        console.error(`[MCP] Failed to connect "${name}": ${error}`);
       }
     }
   }
@@ -67,6 +94,7 @@ export class McpManager {
     );
     await client.connect(transport);
     this.clients.set(name, client);
+    this.tools = this.tools.filter((tool) => tool.server !== name);
 
     const listed = await client.listTools();
     for (const tool of listed.tools ?? []) {
@@ -77,10 +105,22 @@ export class McpManager {
         inputSchema: tool.inputSchema,
       });
     }
+    const existing = this.servers.get(name);
+    this.servers.set(name, {
+      name,
+      transport: existing?.transport ?? "stdio",
+      enabled: existing?.enabled ?? true,
+      connected: true,
+      toolCount: this.toolsFor(name).length,
+    });
   }
 
   listTools(): McpToolInfo[] {
     return this.tools;
+  }
+
+  listServers(): McpServerStatus[] {
+    return Array.from(this.servers.values());
   }
 
   toolsFor(server: string): McpToolInfo[] {
@@ -109,7 +149,11 @@ export class McpManager {
   ): Promise<McpCallResult> {
     const client = this.clients.get(server);
     if (!client) {
-      return { success: false, output: "", error: `unknown MCP server: ${server}` };
+      return {
+        success: false,
+        output: "",
+        error: `unknown MCP server: ${server}`,
+      };
     }
     try {
       const result = await client.callTool({ name: tool, arguments: args });
@@ -139,6 +183,7 @@ export class McpManager {
     }
     this.clients.clear();
     this.tools = [];
+    this.servers.clear();
   }
 }
 
@@ -147,9 +192,7 @@ export class McpManager {
  * PARIX_MCP_CONFIG). Shape: { "servers": { "<name>": { transport, ... } } }.
  * Missing/invalid file → empty map (no servers, no crash).
  */
-export function loadMcpConfig(
-  root: string,
-): Record<string, McpServerConfig> {
+export function loadMcpConfig(root: string): Record<string, McpServerConfig> {
   const path = process.env.PARIX_MCP_CONFIG
     ? resolve(process.env.PARIX_MCP_CONFIG)
     : resolve(root, "mcp.servers.json");
@@ -176,15 +219,19 @@ function buildTransport(config: McpServerConfig): Transport {
     return new StdioClientTransport({
       command: config.command,
       args: config.args ?? [],
-      env: { ...(process.env as Record<string, string>), ...(config.env ?? {}) },
+      env: {
+        ...(process.env as Record<string, string>),
+        ...(config.env ?? {}),
+      },
     });
   }
   throw new Error(`unsupported MCP transport: ${config.transport}`);
 }
 
 function extractText(result: unknown): string {
-  const content = (result as { content?: Array<{ type: string; text?: string }> })
-    .content;
+  const content = (
+    result as { content?: Array<{ type: string; text?: string }> }
+  ).content;
   if (!Array.isArray(content)) return "";
   return content
     .filter((c) => c.type === "text" && typeof c.text === "string")
