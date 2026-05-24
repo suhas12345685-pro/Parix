@@ -3,7 +3,8 @@
 # Usage: powershell -ExecutionPolicy Bypass -File deploy\windows\install.ps1
 # Requires: Node.js 20+, Python 3.12+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-#Requires -RunAsAdministrator
+# No elevation needed: installs to %LOCALAPPDATA%\Parix, edits the *user* PATH,
+# and registers a per-user (Interactive, RunLevel Limited) scheduled task.
 
 $ErrorActionPreference = "Stop"
 
