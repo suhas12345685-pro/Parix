@@ -99,11 +99,19 @@ try {
     }
 
     Write-Parix "Cloning $RepoUrl ($Branch)"
-    git clone --depth 1 --branch $Branch $RepoUrl $WorkDir
-
+    # Retry the clone: shallow clones over flaky TLS sometimes abort
+    # (schannel "missing close_notify"). Up to 3 attempts with a clean dir.
     $Installer = Join-Path $WorkDir "deploy\windows\install.ps1"
-    if (-not (Test-Path $Installer)) {
-        throw "Windows installer not found at $Installer"
+    $cloned = $false
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        if (Test-Path $WorkDir) { Remove-Item -LiteralPath $WorkDir -Recurse -Force -ErrorAction SilentlyContinue }
+        git clone --depth 1 --branch $Branch $RepoUrl $WorkDir
+        if ((Test-Path $Installer)) { $cloned = $true; break }
+        Write-Parix "Clone attempt $attempt failed (network); retrying..."
+        Start-Sleep -Seconds 2
+    }
+    if (-not $cloned) {
+        throw "Clone failed after 3 attempts (network). Check connectivity and re-run."
     }
 
     Write-Parix "Running Windows installer"

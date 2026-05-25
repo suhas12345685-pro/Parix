@@ -81,7 +81,21 @@ fi
 log "$PY_VERSION"
 
 log "Cloning $REPO_URL ($BRANCH)"
-git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$WORK_DIR"
+# Retry the clone — shallow clones over flaky networks sometimes abort mid-transfer.
+cloned=0
+for attempt in 1 2 3; do
+  rm -rf "$WORK_DIR" 2>/dev/null || true
+  if git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$WORK_DIR" \
+     && [ -f "$WORK_DIR/deploy/linux/install.sh" -o -f "$WORK_DIR/deploy/macos/install.sh" ]; then
+    cloned=1; break
+  fi
+  log "Clone attempt $attempt failed (network); retrying..."
+  sleep 2
+done
+if [ "$cloned" -ne 1 ]; then
+  echo "Clone failed after 3 attempts (network). Check connectivity and re-run." >&2
+  exit 1
+fi
 
 case "$OS_NAME" in
   Darwin)
