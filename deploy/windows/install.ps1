@@ -1,8 +1,8 @@
-﻿# â”€â”€â”€ Parix â€” Windows Installer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+﻿# â"€â"€â"€ Parix - Windows Installer â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 # Installs Parix as a background service on Windows 10/11.
 # Usage: powershell -ExecutionPolicy Bypass -File deploy\windows\install.ps1
 # Requires: Node.js 20+, Python 3.12+
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 # No elevation needed: installs to %LOCALAPPDATA%\Parix, edits the *user* PATH,
 # and registers a per-user (Interactive, RunLevel Limited) scheduled task.
 
@@ -64,7 +64,7 @@ function Get-PythonCandidate {
     return $null
 }
 
-# â”€â”€â”€ Preflight â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Preflight â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Running preflight checks..."
 
 $detectedOs = "windows"
@@ -93,14 +93,14 @@ if ($python.Major -lt 3 -or ($python.Major -eq 3 -and $python.Minor -lt 12)) {
 }
 Write-Ok "$pyVer"
 
-# â”€â”€â”€ Create directories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Create directories â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Creating Parix directories..."
 foreach ($dir in @($PARIX_HOME, $PARIX_BIN, $PARIX_DATA, $PARIX_LOG)) {
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
 }
 Write-Ok "Directories created at $PARIX_HOME"
 
-# â”€â”€â”€ Copy project files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Copy project files â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Copying project files..."
 $copyDirs = @("atrium", "hands", "shared", "hatchery", "aegis", "skills", "deploy")
 foreach ($d in $copyDirs) {
@@ -123,7 +123,7 @@ foreach ($file in @("ecosystem.config.js", ".env.example")) {
     }
 }
 
-# â”€â”€â”€ Install Node dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Install Node dependencies â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Installing or reusing Node.js dependencies..."
 Push-Location $PARIX_HOME
 # Native commands emit warnings on stderr; under EAP=Stop that turns a warning
@@ -138,7 +138,7 @@ Pop-Location
 if ($npmExit -ne 0) { Write-Fail "npm install failed (exit $npmExit)" }
 Write-Ok "Node.js dependencies installed"
 
-# â”€â”€â”€ Install Python dependencies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Install Python dependencies â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Installing or reusing Python dependencies..."
 $reqFile = "$PARIX_HOME\hands\requirements.txt"
 if (Test-Path $reqFile) {
@@ -151,7 +151,7 @@ if (Test-Path $reqFile) {
     Write-Warn "requirements.txt not found"
 }
 
-# â”€â”€â”€ Build Atrium â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Build Atrium â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Building Parix workspaces..."
 Push-Location $PARIX_HOME
 $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
@@ -165,7 +165,7 @@ if ($bAtrium -ne 0 -or $bHatchery -ne 0 -or $bAegis -ne 0) {
 }
 Write-Ok "Workspaces compiled"
 
-# â”€â”€â”€ Create launcher batch file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Create launcher batch file â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Creating launcher..."
 $launcherPs1 = @'
 param(
@@ -235,7 +235,7 @@ Set-Content -Path "$PARIX_BIN\parix.ps1" -Value $launcherPs1 -Encoding UTF8
 Set-Content -Path "$PARIX_BIN\parix.bat" -Value $launcherContent -Encoding UTF8
 Write-Ok "Launchers created at $PARIX_BIN\parix.ps1 and $PARIX_BIN\parix.bat"
 
-# â”€â”€â”€ Register as Windows Task Scheduler job â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Register as Windows Task Scheduler job â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Registering scheduled task (auto-start on login)..."
 $existingTask = Get-ScheduledTask -TaskName $SERVICE_NAME -ErrorAction SilentlyContinue
 if ($existingTask) {
@@ -260,10 +260,10 @@ Register-ScheduledTask `
     -Trigger $trigger `
     -Principal $principal `
     -Settings $settings `
-    -Description "Parix autonomous agent â€” monitors and fixes workstation issues" | Out-Null
+    -Description "Parix autonomous agent - monitors and fixes workstation issues" | Out-Null
 Write-Ok "Scheduled task '$SERVICE_NAME' registered"
 
-# â”€â”€â”€ Add to PATH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Add to PATH â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Adding Parix to user PATH..."
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 if ($userPath -notlike "*$PARIX_BIN*") {
@@ -273,7 +273,7 @@ if ($userPath -notlike "*$PARIX_BIN*") {
     Write-Ok "Already in PATH"
 }
 
-# â”€â”€â”€ Environment variables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Environment variables â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Setting environment variables..."
 [Environment]::SetEnvironmentVariable("PARIX_HOME", $PARIX_HOME, "User")
 [Environment]::SetEnvironmentVariable("PARIX_DB_PATH", "$PARIX_DATA\parix.db", "User")
@@ -295,13 +295,13 @@ $installContext = [ordered]@{
 $installContext | ConvertTo-Json -Depth 4 | Set-Content -Path "$PARIX_HOME\install-context.json" -Encoding UTF8
 Write-Ok "Wrote install context with OS skill routing"
 
-# â”€â”€â”€ .env file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ .env file â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 $envFile = "$PARIX_HOME\.env"
 if (-not (Test-Path $envFile)) {
     $envExample = Join-Path $SRC_ROOT ".env.example"
     if (Test-Path $envExample) {
         Copy-Item $envExample $envFile
-        Write-Ok "Created .env from .env.example â€” edit with your API keys"
+        Write-Ok "Created .env from .env.example - edit with your API keys"
     } else {
         $envTemplate = @(
             "# Parix Environment Configuration",
@@ -310,11 +310,11 @@ if (-not (Test-Path $envFile)) {
             "# TELEGRAM_CHAT_ID="
         ) -join [Environment]::NewLine
         Set-Content -Path $envFile -Value $envTemplate -Encoding UTF8
-        Write-Ok "Created blank .env â€” add your API keys"
+        Write-Ok "Created blank .env - add your API keys"
     }
 }
 
-# â”€â”€â”€ Run onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Run onboarding â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Starting Hatchery onboarding or runtime..."
 # EAP=Continue so node's stderr logs don't get turned into a terminating error
 # (which would silently skip onboarding). No pipe — keep the console TTY so the
@@ -328,7 +328,7 @@ try {
 }
 $ErrorActionPreference = $prevEAP
 
-# â”€â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€â"€ Summary â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Host ""
 Write-Host "=========================================================" -ForegroundColor Green
 Write-Host "    PARIX INSTALLED SUCCESSFULLY & RUNNING SILENTLY      " -ForegroundColor Green
