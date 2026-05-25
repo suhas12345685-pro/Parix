@@ -1094,80 +1094,62 @@ async function collectLlm(
     {
       name: 'provider',
       type: 'list',
-      message: 'Choose your default LLM provider',
+      message: yellow('Choose your LLM provider (arrow keys + Enter)'),
       choices: LLM_PROVIDERS.map((id) => ({
         name: LLM_PROVIDER_CAPABILITIES[id]?.name ?? id,
         value: id,
       })),
       default: profile.llm.provider,
+      // Show the whole list at once — no scrolling.
+      pageSize: Math.max(LLM_PROVIDERS.length + 1, 12),
     },
-  ]);
+  ] as any);
 
   const capability = capabilityFor(provider);
   const authMethod = await chooseAuthMethod(capability, provider);
-  const defaultModel = '';
-  const { model } = await inquirer.prompt<{ model: string }>([
-    {
-      name: 'model',
-      type: 'input',
-      message: 'Default model',
-      default: (DEFAULT_MODELS[provider] ?? profile.llm.model) || '',
-    },
-  ]);
-
-  const providerForModels = profile.llm.provider as string;
+  // Model selection is ALWAYS a pick-list (toggle), for every provider — the
+  // user arrows to a model, never types, unless they explicitly choose "custom".
   const modelPresets: Record<string, string[]> = {
-    openai: ["gpt-4o-mini", "gpt-4o", "o1-mini", "o1-preview"],
-    anthropic: ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
-    groq: ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
-    google: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"],
-    ollama: ["llama3.2", "mistral", "gemma2", "phi3"],
+    openai: ['gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview'],
+    anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
+    google: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'],
+    groq: ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+    grok: ['grok-2-latest', 'grok-2', 'grok-beta'],
+    kimi: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+    mistral: ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest'],
+    openrouter: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet', 'google/gemini-flash-1.5'],
+    ollama: ['llama3.2', 'llama3.1', 'mistral', 'gemma2', 'phi3', 'qwen2.5'],
+    lmstudio: ['local-model'],
   };
-
-  const presets = modelPresets[providerForModels] || [];
-  let modelChoices = presets.map(m => ({ name: m, value: m }));
-  modelChoices.push({ name: 'Enter custom model name...', value: '__custom__' });
-
-  let finalModel = defaultModel;
-
-  if (presets.length > 0 && authMethod === 'api_key') {
-    const { modelSelection } = await inquirer.prompt<{ modelSelection: string }>([
-      {
-        name: 'modelSelection',
-        type: 'list',
-        message: `Choose a model for ${providerForModels}`,
-        choices: modelChoices,
-        default: defaultModel,
-      },
+  const defaultForProvider = (DEFAULT_MODELS[provider] ?? '') as string;
+  const presets = modelPresets[provider] ?? (defaultForProvider ? [defaultForProvider] : []);
+  const CUSTOM = '__custom__';
+  const modelChoices = [
+    ...presets.map((m) => ({ name: m, value: m })),
+    { name: dim('Enter a custom model name...'), value: CUSTOM },
+  ];
+  const { modelSelection } = await inquirer.prompt<{ modelSelection: string }>([
+    {
+      name: 'modelSelection',
+      type: 'list',
+      message: yellow(`Choose a model for ${LLM_PROVIDER_CAPABILITIES[provider]?.name ?? provider}`),
+      choices: modelChoices,
+      default: defaultForProvider || presets[0],
+      pageSize: Math.max(modelChoices.length, 8),
+    },
+  ] as any);
+  let finalModel: string;
+  if (modelSelection === CUSTOM) {
+    const { customModel } = await inquirer.prompt<{ customModel: string }>([
+      { name: 'customModel', type: 'input', message: yellow('Enter custom model name'), default: defaultForProvider },
     ]);
-
-    if (modelSelection === '__custom__') {
-      const { customModel } = await inquirer.prompt<{ customModel: string }>([
-        {
-          name: 'customModel',
-          type: 'input',
-          message: 'Enter custom model name',
-          default: defaultModel,
-        },
-      ]);
-      finalModel = customModel;
-    } else {
-      finalModel = modelSelection;
-    }
+    finalModel = customModel.trim();
   } else {
-    const { modelInput } = await inquirer.prompt<{ modelInput: string }>([
-      {
-        name: 'modelInput',
-        type: 'input',
-        message: 'Default model',
-        default: defaultModel,
-      },
-    ]);
-    finalModel = modelInput;
+    finalModel = modelSelection;
   }
 
   profile.llm.provider = provider;
-  profile.llm.model = finalModel.trim() || defaultModel;
+  profile.llm.model = finalModel || defaultForProvider;
   profile.llm.authMethod = authMethod;
   profile.llm.authProfileId = null;
   profile.llm.connectionVerified = authMethod === 'local';
@@ -1515,9 +1497,48 @@ async function collectMemoryStorage(
         `  ✔ ${mode === 'hybrid' ? 'Hybrid: sensitive local, rest' : 'Cloud: all memory'} → ${backend}`,
       ),
     );
-    console.log(
-      dim('    Paste this provider\'s creds/tokens in ~/.parix/.env (see hands/memory/cloud_sync.py CloudConfig).'),
-    );
+
+    // CLI-based memory backends need their CLI tool — probe it and capture the
+    // few config values the user must set, writing them straight to ~/.parix/.env.
+    const MEMORY_CLI: Record<string, { bin: string; install: string }> = {
+      gdrive_cli: { bin: 'gam', install: 'https://github.com/GAM-team/GAM' },
+      onedrive: { bin: 'mgc', install: 'https://github.com/microsoftgraph/msgraph-cli' },
+    };
+    const cli = MEMORY_CLI[backend];
+    if (cli) {
+      process.stdout.write(dim(`  Probing ${cli.bin} CLI... `));
+      const ok = await probeCliBinary(cli.bin);
+      console.log(ok ? green(`● ${cli.bin} found`) : red(`○ ${cli.bin} not found — install: ${cli.install}`));
+      if (backend === 'gdrive_cli') {
+        const a = await inquirer.prompt<{ email: string; folder: string }>([
+          { name: 'email', type: 'input', message: yellow('GAM user email (e.g. you@domain.com)'), default: process.env.GAM_USER_EMAIL ?? '' },
+          { name: 'folder', type: 'input', message: yellow('Google Drive folder ID for memory'), default: process.env.GDRIVE_FOLDER_ID ?? '' },
+        ]);
+        if (a.email) upsertEnvVar('GAM_USER_EMAIL', a.email);
+        if (a.folder) upsertEnvVar('GDRIVE_FOLDER_ID', a.folder);
+      } else if (backend === 'onedrive') {
+        const a = await inquirer.prompt<{ item: string }>([
+          { name: 'item', type: 'input', message: yellow('OneDrive item path'), default: 'root:/AIAgent/memory.json:' },
+        ]);
+        if (a.item) upsertEnvVar('ONEDRIVE_ITEM_PATH', a.item);
+        console.log(dim('    Run `mgc login` once so the CLI is authenticated.'));
+      }
+    } else if (backend === 'gdrive_api') {
+      const a = await inquirer.prompt<{ sa: string; folder: string }>([
+        { name: 'sa', type: 'input', message: yellow('Path to Google service-account JSON'), default: process.env.GDRIVE_SERVICE_ACCOUNT_JSON ?? '' },
+        { name: 'folder', type: 'input', message: yellow('Google Drive folder ID'), default: process.env.GDRIVE_FOLDER_ID ?? '' },
+      ]);
+      if (a.sa) upsertEnvVar('GDRIVE_SERVICE_ACCOUNT_JSON', a.sa);
+      if (a.folder) upsertEnvVar('GDRIVE_FOLDER_ID', a.folder);
+    } else if (backend === 'dropbox') {
+      const a = await inquirer.prompt<{ token: string }>([
+        { name: 'token', type: 'password', mask: '*', message: yellow('Dropbox access token') },
+      ]);
+      if (a.token) upsertEnvVar('DROPBOX_ACCESS_TOKEN', a.token);
+    } else {
+      console.log(dim('    iCloud uses the local macOS container — no token needed.'));
+    }
+    console.log(dim('    Saved to ~/.parix/.env (read by hands/memory/cloud_sync.py).'));
   } else {
     console.log(green('  ✔ Local: memory stays on this machine.'));
   }
