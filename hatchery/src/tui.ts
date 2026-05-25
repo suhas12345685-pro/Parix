@@ -1795,34 +1795,43 @@ async function collectChannels(
     },
   ]);
 
+  // Guided picker: choose channels one at a time with arrows + Enter (no
+  // space-to-toggle confusion). A pick always registers, so we can immediately
+  // prompt that channel's credentials below.
   const optionalChannelIds = getSelectableChannelIds(profile.mode);
-  const { enabled } = await inquirer.prompt<{ enabled: string[] }>([
-    {
-      name: 'enabled',
-      type: 'checkbox',
-      message: yellow('Select your channels (space to toggle, enter to confirm — Aegis voice is always on)'),
-      choices: [
-        ...optionalChannelIds.map((id) => ({
-          name: channelChoiceLabel(id, profile.channels.enabled.includes(id)),
-          value: id,
-          checked: profile.channels.enabled.includes(id),
-        })),
-        { name: dim('Skip for now'), value: '__skip__' },
-      ],
-    },
-  ]);
+  const picked: string[] = [];
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const remaining = optionalChannelIds.filter((id) => !picked.includes(id));
+    if (remaining.length === 0) break;
+    const { pick } = await inquirer.prompt<{ pick: string }>([
+      {
+        name: 'pick',
+        type: 'list',
+        message: yellow(
+          picked.length === 0
+            ? 'Add a messaging channel? (arrow keys + Enter — Aegis voice is always on)'
+            : `Add another channel? (added: ${picked.join(', ')})`,
+        ),
+        choices: [
+          ...remaining.map((id) => ({ name: channelChoiceLabel(id, false), value: id })),
+          { name: dim(picked.length ? 'Done — finish channels' : 'Skip — no extra channels'), value: '__done__' },
+        ],
+        default: '__done__',
+      },
+    ]);
+    if (pick === '__done__') break;
+    picked.push(pick);
+    console.log(green(`  ● ${prettyChannelName(pick)} added — configuring credentials next.`));
+  }
 
-  profile.channels.enabled = [
-    'aegis',
-    ...enabled.filter((id) => id !== 'aegis' && id !== '__skip__'),
-  ];
+  profile.channels.enabled = ['aegis', ...picked];
   profile.channels.primary = 'aegis';
   profile.channels.settings = {
     ...profile.channels.settings,
     aegis: createDefaultAegisSettings(normalizeWakeWord(wakeWord)),
   };
-  for (const channelId of profile.channels.enabled) {
-    if (channelId === 'aegis') continue;
+  for (const channelId of picked) {
     profile.channels.settings[channelId] = {
       ...(profile.channels.settings[channelId] ?? {}),
       enabled: 'true',
