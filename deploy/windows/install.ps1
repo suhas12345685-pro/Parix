@@ -130,8 +130,10 @@ Push-Location $PARIX_HOME
 # into a terminating NativeCommandError even when the command succeeds. Run with
 # Continue + 2>&1 and gate on the real exit code.
 $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-npm ci 2>&1 | Out-Host
-if ($LASTEXITCODE -ne 0) { npm install 2>&1 | Out-Host }
+# --loglevel=error hides deprecation/funding warnings (the stderr noise that PS
+# renders as scary-looking NativeCommandError blocks); install still succeeds.
+npm ci --no-fund --no-audit --loglevel=error 2>&1 | Out-Host
+if ($LASTEXITCODE -ne 0) { npm install --no-fund --no-audit --loglevel=error 2>&1 | Out-Host }
 $npmExit = $LASTEXITCODE
 $ErrorActionPreference = $prevEAP
 Pop-Location
@@ -143,7 +145,7 @@ Write-Step "Installing or reusing Python dependencies..."
 $reqFile = "$PARIX_HOME\hands\requirements.txt"
 if (Test-Path $reqFile) {
     $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-    & $pyCmd @pyArgs -m pip install -r $reqFile --quiet 2>&1 | Out-Host
+    & $pyCmd @pyArgs -m pip install -r $reqFile --quiet --disable-pip-version-check --no-warn-script-location 2>&1 | Out-Host
     $pipExit = $LASTEXITCODE
     $ErrorActionPreference = $prevEAP
     if ($pipExit -ne 0) { Write-Warn "pip reported issues (exit $pipExit) — continuing" } else { Write-Ok "Python dependencies installed" }
@@ -155,9 +157,9 @@ if (Test-Path $reqFile) {
 Write-Step "Building Parix workspaces..."
 Push-Location $PARIX_HOME
 $prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
-npm run build --workspace=atrium 2>&1 | Out-Host;   $bAtrium = $LASTEXITCODE
-npm run build --workspace=hatchery 2>&1 | Out-Host; $bHatchery = $LASTEXITCODE
-npm run build --workspace=aegis 2>&1 | Out-Host;    $bAegis = $LASTEXITCODE
+npm run build --workspace=atrium --loglevel=error 2>&1 | Out-Host;   $bAtrium = $LASTEXITCODE
+npm run build --workspace=hatchery --loglevel=error 2>&1 | Out-Host; $bHatchery = $LASTEXITCODE
+npm run build --workspace=aegis --loglevel=error 2>&1 | Out-Host;    $bAegis = $LASTEXITCODE
 $ErrorActionPreference = $prevEAP
 Pop-Location
 if ($bAtrium -ne 0 -or $bHatchery -ne 0 -or $bAegis -ne 0) {
