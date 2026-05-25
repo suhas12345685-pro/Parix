@@ -657,162 +657,114 @@ function printModeIntro(mode: ProfileMode): void {
 
 async function collectAgentProfile(profile: ParixProfile): Promise<void> {
   if (isPersonalProfile(profile)) {
+    // The four areas from the intro box — concise, every field has a real
+    // default so nothing ends up "not set" if you press Enter through.
+    console.log(dim('  Press Enter to accept the smart default on any question.'));
+    console.log('');
     const answers = await inquirer.prompt<{
-      userDescription: string;
-      relationshipLabel: string;
       userName: string;
+      userDescription: string;
       agentName: string;
       vibe: string;
-      personality: string;
-      primaryGoals: string;
-      recurringTasks: string;
-      techStack: string;
-      proactivity: 'reactive' | 'balanced' | 'proactive';
       tone: 'professional' | 'friendly' | 'candid' | 'philosophical';
-      mainMission: string;
+      proactivity: 'reactive' | 'balanced' | 'proactive';
+      primaryGoals: string;
       blockedActions: string;
-      approvalRequiredActions: string;
-      rememberUserPreferences: boolean;
-      rememberProjectContext: boolean;
-      rememberPersonalContext: boolean;
     }>([
-      {
-        name: 'userDescription',
-        type: 'input',
-        message: 'Who are you?',
-        default: '',
-      },
-      {
-        name: 'relationshipLabel',
-        type: 'input',
-        message: 'Who am I to you?',
-        default: 'personal agent',
-      },
       {
         name: 'userName',
         type: 'input',
-        message: 'What should I call you?',
-        default: profile.agentProfile.userName ?? '',
+        message: yellow('Who are you — what should I call you?'),
+        default: profile.agentProfile.userName || 'friend',
+      },
+      {
+        name: 'userDescription',
+        type: 'input',
+        message: yellow('In a few words, what do you do?'),
+        default: profile.agentProfile.userDescription || 'developer',
       },
       {
         name: 'agentName',
         type: 'input',
-        message: 'What should I call myself?',
-        default: profile.agentProfile.agentName,
+        message: yellow('What should I call myself?'),
+        default: profile.agentProfile.agentName || 'Parix',
       },
       {
         name: 'vibe',
         type: 'input',
-        message: 'What vibe should I have?',
-        default: profile.agentProfile.vibe ?? 'warm, direct, proactive',
-      },
-      {
-        name: 'personality',
-        type: 'input',
-        message: 'What personality should I have?',
-        default:
-          profile.agentProfile.personality ?? 'friendly, capable, and candid',
-      },
-      {
-        name: 'primaryGoals',
-        type: 'input',
-        message: 'What should I help you with?',
-        default: profile.agentProfile.primaryGoals.join(', '),
-      },
-      {
-        name: 'recurringTasks',
-        type: 'input',
-        message: 'Recurring tasks I should remember',
-        default: profile.agentProfile.recurringTasks.join(', '),
-      },
-      {
-        name: 'techStack',
-        type: 'input',
-        message: 'What is your primary tech stack?',
-        default: (profile.agentProfile as any).techStack || '',
-      },
-      {
-        name: 'proactivity',
-        type: 'list',
-        message: 'How proactive should I be?',
-        choices: [
-          { name: 'Reactive (Only act when asked)', value: 'reactive' },
-          { name: 'Balanced (Suggest fixes for errors)', value: 'balanced' },
-          { name: 'Proactive (Suggest improvements automatically)', value: 'proactive' },
-        ],
-        default: (profile.agentProfile as any).proactivity || 'balanced',
+        message: yellow('What personality / vibe should I have?'),
+        default: profile.agentProfile.vibe || 'warm, direct, proactive',
       },
       {
         name: 'tone',
         type: 'list',
-        message: 'What should my communication tone be?',
+        message: yellow('Communication tone?'),
         choices: [
-          { name: 'Professional & Concise', value: 'professional' },
           { name: 'Friendly & Collaborative', value: 'friendly' },
+          { name: 'Professional & Concise', value: 'professional' },
           { name: 'Candid & Direct', value: 'candid' },
-          { name: 'Philosophical & Deep (OpenClaw style)', value: 'philosophical' },
+          { name: 'Philosophical & Deep', value: 'philosophical' },
         ],
         default: (profile.agentProfile as any).tone || 'friendly',
       },
       {
-        name: 'mainMission',
+        name: 'proactivity',
+        type: 'list',
+        message: yellow('How proactive should I be?'),
+        choices: [
+          { name: 'Balanced (suggest fixes for errors)', value: 'balanced' },
+          { name: 'Proactive (suggest improvements automatically)', value: 'proactive' },
+          { name: 'Reactive (only act when asked)', value: 'reactive' },
+        ],
+        default: (profile.agentProfile as any).proactivity || 'balanced',
+      },
+      {
+        name: 'primaryGoals',
         type: 'input',
-        message: 'What is your main mission objective for me?',
-        default: (profile.agentProfile as any).mainMission || '',
+        message: yellow('What daily tasks should I automate? (comma-separated)'),
+        default:
+          profile.agentProfile.primaryGoals.join(', ') ||
+          'monitor errors, suggest safe fixes, draft summaries',
       },
       {
         name: 'blockedActions',
         type: 'input',
-        message: 'What should I never do?',
-        default: profile.agentProfile.blockedActions.join(', '),
-      },
-      {
-        name: 'approvalRequiredActions',
-        type: 'input',
-        message: 'What should require approval?',
-        default: profile.agentProfile.approvalRequiredActions.join(', '),
-      },
-      {
-        name: 'rememberUserPreferences',
-        type: 'confirm',
-        message: 'Remember your preferences?',
-        default: profile.agentProfile.memoryPreferences.rememberUserPreferences,
-      },
-      {
-        name: 'rememberProjectContext',
-        type: 'confirm',
-        message: 'Remember project context?',
-        default: profile.agentProfile.memoryPreferences.rememberProjectContext,
-      },
-      {
-        name: 'rememberPersonalContext',
-        type: 'confirm',
-        message: 'Remember personal context?',
-        default: profile.agentProfile.memoryPreferences.rememberPersonalContext,
+        message: yellow('Safety limits — what should I NEVER do? (comma-separated)'),
+        default:
+          profile.agentProfile.blockedActions.join(', ') ||
+          'impersonate you, spend money, delete data without approval',
       },
     ]);
 
+    const goals = splitList(answers.primaryGoals);
     profile.agentProfile = {
       mode: 'personal',
-      userName: answers.userName.trim(),
-      userDescription: answers.userDescription.trim(),
+      userName: answers.userName.trim() || 'friend',
+      userDescription: answers.userDescription.trim() || 'developer',
       agentName: answers.agentName.trim() || 'Parix',
-      relationshipLabel: answers.relationshipLabel.trim(),
-      vibe: answers.vibe.trim(),
-      personality: answers.personality.trim(),
-      primaryGoals: splitList(answers.primaryGoals),
-      recurringTasks: splitList(answers.recurringTasks),
-      techStack: answers.techStack.trim(),
+      relationshipLabel: 'personal agent',
+      vibe: answers.vibe.trim() || 'warm, direct, proactive',
+      // Personality derived from the vibe answer — one question, both fields.
+      personality: answers.vibe.trim() || 'friendly, capable, candid',
+      primaryGoals: goals.length ? goals : ['monitor errors', 'suggest safe fixes'],
+      recurringTasks: profile.agentProfile.recurringTasks.length
+        ? profile.agentProfile.recurringTasks
+        : ['check system health'],
+      techStack: profile.agentProfile.techStack || 'general',
       proactivity: answers.proactivity,
       tone: answers.tone,
-      mainMission: answers.mainMission.trim(),
+      mainMission: goals.length
+        ? `Help with: ${goals.join(', ')}`
+        : 'Keep the workstation healthy and the user productive.',
       allowedChannels: [...profile.channels.enabled],
       blockedActions: splitList(answers.blockedActions),
-      approvalRequiredActions: splitList(answers.approvalRequiredActions),
+      approvalRequiredActions: profile.agentProfile.approvalRequiredActions.length
+        ? profile.agentProfile.approvalRequiredActions
+        : ['send external messages', 'delete data', 'change credentials', 'spend money', 'run destructive commands'],
       memoryPreferences: {
-        rememberUserPreferences: answers.rememberUserPreferences,
-        rememberProjectContext: answers.rememberProjectContext,
-        rememberPersonalContext: answers.rememberPersonalContext,
+        rememberUserPreferences: true,
+        rememberProjectContext: true,
+        rememberPersonalContext: false,
       },
     };
     profile.identity.name = answers.userName.trim();
