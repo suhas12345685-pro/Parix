@@ -10,3 +10,4 @@ export { MistralAdapter } from "./mistral.js";
 export { MockAdapter } from "./mock.js";
 export { OllamaAdapter } from "./ollama.js";
 export { OpenRouterAdapter } from "./openrouter.js";
+export { CliLLMAdapter } from "./cli.js";

@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import type { LLMProvider } from "./types.js";
 import {
   AnthropicAdapter,
   ChatGPTAdapter,
+  CliLLMAdapter,
   GeminiAdapter,
   GrokAdapter,
   GroqAdapter,
@@ -14,6 +18,38 @@ import {
 } from "./adapters/index.js";
 import { createDefaultLLMRoutes } from "./router.js";
 import type { ParixProfile } from "parix-shared";
+
+// modelProviders id (config.json) -> atrium provider id
+const CORE_TO_ATRIUM: Record<string, string> = {
+  openai: "chatgpt",
+  claude: "anthropic",
+  gemini: "google",
+};
+
+/**
+ * Read ~/.parix/config.json and return CLI-backed adapters for any provider
+ * marked `mode: "cli"`, so a CLI-onboarded user (no API key) still has a working
+ * reasoning provider. Best-effort: returns [] if the file is missing/invalid.
+ */
+function readCliAdapters(): LLMProvider[] {
+  try {
+    const home = process.env.PARIX_HOME || resolve(homedir(), ".parix");
+    const cfg = JSON.parse(readFileSync(resolve(home, "config.json"), "utf-8")) as {
+      modelProviders?: { providers?: Record<string, { mode?: string; cliBinary?: string }> };
+    };
+    const mp = cfg.modelProviders?.providers ?? {};
+    const adapters: LLMProvider[] = [];
+    for (const [coreId, entry] of Object.entries(mp)) {
+      const atriumId = CORE_TO_ATRIUM[coreId];
+      if (entry?.mode === "cli" && atriumId) {
+        adapters.push(new CliLLMAdapter(atriumId, { bin: entry.cliBinary }));
+      }
+    }
+    return adapters;
+  } catch {
+    return [];
+  }
+}
 
 export function createDefaultLLMProviders(): LLMProvider[] {
   return [
@@ -57,7 +93,11 @@ export function createProfileAwareLLMSelection(
     ? createProviderForId(requestedProviderId, profile?.llm.model)
     : null;
 
+  // CLI-backed adapters go first so they win dedup over the API adapter of the
+  // same id (e.g. a "google (CLI)" provider beats the key-less GeminiAdapter).
+  const cliAdapters = readCliAdapters();
   const providers = dedupeProviders([
+    ...cliAdapters,
     ...(selectedProvider ? [selectedProvider] : []),
     ...createDefaultLLMProviders(),
   ]).filter((provider) => provider.enabled !== false);
