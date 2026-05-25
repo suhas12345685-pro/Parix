@@ -512,6 +512,8 @@ async function main() {
   }
 
   writeFileSync(resolve(parixHome, "profile.json"), JSON.stringify(profile));
+  const e2eMcpConfig = resolve(parixHome, "mcp.servers.json");
+  writeFileSync(e2eMcpConfig, JSON.stringify({ servers: {} }));
   process.env.PARIX_HOME = parixHome;
 
   const tscCli = resolve(ROOT, "node_modules/typescript/bin/tsc");
@@ -553,6 +555,7 @@ async function main() {
     NODE_ENV: "test",
     PARIX_HOME: process.env.PARIX_HOME,
     PARIX_DATA_DIR: DATA_DIR,
+    PARIX_MCP_CONFIG: e2eMcpConfig,
     HANDS_WS_URL: `ws://127.0.0.1:${SYNAPSE_PORT}`,
     PARIX_AEGIS_RELAY_PORT: String(AEGIS_PORT),
   });
