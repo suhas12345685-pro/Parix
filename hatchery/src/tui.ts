@@ -570,7 +570,6 @@ export async function runTuiWizard(): Promise<TuiResult> {
   await collectAgentProfile(profile);
   const secrets: Record<string, string> = {};
   await collectLlm(profile, secrets);
-  await collectProviderRuntime(profile);
   await collectMemoryStorage(profile);
   await collectChannels(profile, secrets);
   await collectSkills();
@@ -1058,7 +1057,30 @@ async function collectLlm(
   ] as any);
 
   const capability = capabilityFor(provider);
-  const authMethod = await chooseAuthMethod(capability, provider);
+  // CLI-capable providers (openai->codex, anthropic->claude, google->gemini) get
+  // a clear API-vs-CLI choice right here, every time. Others use auth methods.
+  const coreId = PROVIDER_CORE_MAP[provider];
+  let cliRuntime = false;
+  let authMethod: LLMAuthMethod;
+  if (coreId) {
+    const bin = CORE_CLI_BIN[coreId];
+    const { conn } = await inquirer.prompt<{ conn: 'api' | 'cli' }>([
+      {
+        name: 'conn',
+        type: 'list',
+        message: yellow(`How should Parix connect to ${capability.name}?`),
+        choices: [
+          { name: `${green('●')} API — cloud endpoint with your key`, value: 'api' },
+          { name: `${green('●')} Official CLI — the ${bin} agent on this machine`, value: 'cli' },
+        ],
+        default: 'api',
+      },
+    ]);
+    cliRuntime = conn === 'cli';
+    authMethod = cliRuntime ? 'local' : await chooseAuthMethod(capability, provider);
+  } else {
+    authMethod = await chooseAuthMethod(capability, provider);
+  }
   // Model selection is ALWAYS a pick-list (toggle), for every provider — the
   // user arrows to a model, never types, unless they explicitly choose "custom".
   const modelPresets: Record<string, string[]> = {
@@ -1107,6 +1129,21 @@ async function collectLlm(
   profile.llm.connectionVerified = authMethod === 'local';
   profile.llm.verifiedAt =
     authMethod === 'local' ? new Date().toISOString() : null;
+
+  // Persist the runtime (api vs cli) for the providers core to read at boot.
+  if (coreId) writeModelProvidersConfig(coreId, cliRuntime ? 'cli' : 'api', profile.llm.model);
+  if (cliRuntime) {
+    const bin = CORE_CLI_BIN[coreId!];
+    process.stdout.write(dim(`  Probing ${bin}... `));
+    const ok = await probeCliBinary(bin);
+    console.log(
+      ok
+        ? green(`● ${bin} found — CLI runtime ready`)
+        : red(`○ ${bin} not found — install it; Parix will use it on launch`),
+    );
+    console.log(green(`  ✔ ${capability.name} runs via its official CLI (no API key needed).`));
+    return;
+  }
 
   if (authMethod === 'local') {
     const envKey = PROVIDER_ENV_KEYS[provider];
