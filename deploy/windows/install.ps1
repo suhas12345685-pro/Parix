@@ -254,14 +254,34 @@ $settings = New-ScheduledTaskSettingsSet `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1)
 
-Register-ScheduledTask `
-    -TaskName $SERVICE_NAME `
-    -Action $action `
-    -Trigger $trigger `
-    -Principal $principal `
-    -Settings $settings `
-    -Description "Parix autonomous agent - monitors and fixes workstation issues" | Out-Null
-Write-Ok "Scheduled task '$SERVICE_NAME' registered"
+# Task registration can be denied by policy/AV even for the current user. It is
+# OPTIONAL (auto-start convenience) — never let it abort the install/onboarding.
+$taskRegistered = $false
+try {
+    Register-ScheduledTask `
+        -TaskName $SERVICE_NAME `
+        -Action $action `
+        -Trigger $trigger `
+        -Principal $principal `
+        -Settings $settings `
+        -Description "Parix autonomous agent - monitors and fixes workstation issues" | Out-Null
+    $taskRegistered = $true
+    Write-Ok "Scheduled task '$SERVICE_NAME' registered"
+} catch {
+    Write-Warn "Scheduled task blocked ($($_.Exception.Message)) - using Startup-folder autostart."
+}
+
+if (-not $taskRegistered) {
+    # Fallback that needs no elevation: a Startup-folder launcher.
+    try {
+        $startup = [Environment]::GetFolderPath('Startup')
+        $startupBat = "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PARIX_BIN\parix.ps1`" start all`r`n"
+        Set-Content -Path (Join-Path $startup 'Parix.bat') -Value $startupBat -Encoding ASCII
+        Write-Ok "Auto-start configured via Startup folder (no admin needed)"
+    } catch {
+        Write-Warn "Auto-start not configured - run 'parix start' after login."
+    }
+}
 
 # â"€â"€â"€ Add to PATH â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 Write-Step "Adding Parix to user PATH..."
