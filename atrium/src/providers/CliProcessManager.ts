@@ -57,7 +57,9 @@ class CliProcessManager {
       return existing.child;
     }
     const child = spawn(spec.bin, spec.args, {
-      shell: false, // prompts go via stdin, never argv → no shell injection
+      // Windows: npm CLI shims (.cmd) require a shell to launch. Prompts go via
+      // stdin and bin/args are fixed, so this is not a shell-injection vector.
+      shell: process.platform === "win32",
       windowsHide: true,
       cwd: spec.cwd,
       env: { ...process.env, ...spec.env, NO_COLOR: "1", TERM: "dumb", CI: "1" },

@@ -60,17 +60,22 @@ def pick_provider(requested: str | None) -> str | None:
 
 def run(goal: str, provider: str, cwd: str | None, timeout: float) -> dict:
     binary, args = PROVIDER_CLI[provider]
+    # Resolve to the real path (e.g. gemini.cmd on Windows). npm CLI shims
+    # (.cmd/.bat) can't be launched directly by CreateProcess, so run them
+    # through the shell on Windows. The prompt is fed via stdin, not argv.
+    exe = shutil.which(binary) or binary
+    use_shell = sys.platform == "win32" and str(exe).lower().endswith((".cmd", ".bat", ".ps1"))
     started = time.time()
     env = {**os.environ, "NO_COLOR": "1", "TERM": "dumb", "CI": "1"}
     try:
         proc = subprocess.run(
-            [binary, *args],
-            input=goal,                # prompt via stdin — never argv/shell
+            subprocess.list2cmdline([exe, *args]) if use_shell else [exe, *args],
+            input=goal,                # prompt via stdin — never argv
             cwd=cwd or None,
             capture_output=True,
             text=True,
             timeout=timeout,
-            shell=False,
+            shell=use_shell,
             errors="replace",
             env=env,
         )

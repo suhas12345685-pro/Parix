@@ -58,7 +58,9 @@ export class SilentCliBridge {
   /** True if the named binary launches at all (used by validateCredentials). */
   static async exists(bin: string): Promise<boolean> {
     return new Promise((resolveExists) => {
-      const probe = spawn(bin, ["--version"], { shell: false, windowsHide: true });
+      // Windows npm CLIs are .cmd shims — need a shell to launch. `bin` is a
+      // fixed known value, and the prompt is fed via stdin, so no injection.
+      const probe = spawn(bin, ["--version"], { shell: process.platform === "win32", windowsHide: true });
       probe.on("error", () => resolveExists(false));
       probe.on("exit", (code) => resolveExists(code === 0 || code === 1));
     });
@@ -66,7 +68,9 @@ export class SilentCliBridge {
 
   private spawnChild(): ChildProcessWithoutNullStreams {
     const child = spawn(this.opts.bin, this.opts.args, {
-      shell: false, // never a shell — prompt goes via stdin, not argv
+      // Windows: npm CLI shims (.cmd) need a shell. Prompt goes via stdin and
+      // bin/args are fixed, so this isn't a shell-injection vector.
+      shell: process.platform === "win32",
       windowsHide: true,
       cwd: this.opts.cwd,
       env: {

@@ -1552,9 +1552,19 @@ const CORE_CLI_BIN: Record<'openai' | 'claude' | 'gemini', string> = {
 
 function probeCliBinary(bin: string): Promise<boolean> {
   return new Promise((resolveProbe) => {
-    const child = spawn(bin, ['--version'], { shell: false, windowsHide: true });
-    child.on('error', () => resolveProbe(false));
-    child.on('exit', (code) => resolveProbe(code === 0 || code === 1));
+    // On Windows, CLIs installed via npm are .cmd/.ps1 shims that Node's spawn
+    // cannot launch with shell:false — use a shell so the shim resolves. `bin`
+    // is a fixed known value (codex/claude/gemini/gam/mgc), so no injection risk.
+    const child = spawn(bin, ['--version'], {
+      shell: process.platform === 'win32',
+      windowsHide: true,
+    });
+    let settled = false;
+    const done = (v: boolean) => { if (!settled) { settled = true; resolveProbe(v); } };
+    child.on('error', () => done(false));
+    child.on('exit', (code) => done(code === 0 || code === 1));
+    // Some CLIs hang on --version under a shell; cap the probe.
+    setTimeout(() => { try { child.kill(); } catch { /* ignore */ } done(false); }, 8000);
   });
 }
 
